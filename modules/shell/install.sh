@@ -176,7 +176,7 @@ if want "zsh"; then
         fi
     else
         install "cloning oh-my-zsh"
-        git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
+        git_clone_depth 1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
     fi
 fi
 
@@ -194,7 +194,7 @@ if want "fzf"; then
         fi
     else
         install "cloning fzf from git"
-        git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
+        git_clone_depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
         "$HOME/.fzf/install" --all --no-bash --no-fish
     fi
 fi
@@ -206,13 +206,19 @@ if want "starship"; then
     if command -v starship &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
             update "updating starship"
-            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+            STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
+            download_file https://starship.rs/install.sh "$STARSHIP_INSTALLER"
+            sh "$STARSHIP_INSTALLER" -y
+            rm -f "$STARSHIP_INSTALLER"
         else
             skip "starship $(starship --version | head -1) already installed"
         fi
     else
         install "installing starship"
-        curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+        STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
+        download_file https://starship.rs/install.sh "$STARSHIP_INSTALLER"
+        sh "$STARSHIP_INSTALLER" -y
+        rm -f "$STARSHIP_INSTALLER"
     fi
 
     mkdir -p "$HOME/.config"
@@ -251,7 +257,7 @@ if want "plugins"; then
         fi
     else
         install "cloning zsh-autosuggestions"
-        git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git \
+        git_clone_depth 1 https://github.com/zsh-users/zsh-autosuggestions.git \
             "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
     fi
 
@@ -264,7 +270,7 @@ if want "plugins"; then
         fi
     else
         install "cloning zsh-syntax-highlighting"
-        git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
+        git_clone_depth 1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
             "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
     fi
 fi
@@ -276,8 +282,7 @@ if want "nvm"; then
     if [[ -d "$HOME/.nvm" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating nvm to latest"
-            LATEST_NVM=$(curl -fsSI https://github.com/nvm-sh/nvm/releases/latest 2>/dev/null \
-                | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n')
+            LATEST_NVM="$(github_latest_version "nvm-sh/nvm" "")"
             git -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
             git -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
         else
@@ -285,13 +290,15 @@ if want "nvm"; then
         fi
     else
         install "installing nvm"
-        LATEST_NVM=$(curl -fsSI https://github.com/nvm-sh/nvm/releases/latest 2>/dev/null \
-            | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n')
+        LATEST_NVM="$(github_latest_version "nvm-sh/nvm" "")"
+        NVM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/nvm-install.XXXXXX")"
+        download_file "https://raw.githubusercontent.com/nvm-sh/nvm/${LATEST_NVM}/install.sh" "$NVM_INSTALLER"
         if want "zsh"; then
-            curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${LATEST_NVM}/install.sh" | PROFILE=/dev/null bash
+            PROFILE=/dev/null bash "$NVM_INSTALLER"
         else
-            curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${LATEST_NVM}/install.sh" | bash
+            bash "$NVM_INSTALLER"
         fi
+        rm -f "$NVM_INSTALLER"
     fi
 fi
 
@@ -305,7 +312,12 @@ if want "fnm"; then
         if [[ "$UPDATE" == true ]]; then
             update "updating fnm"
             if is_macos; then brew upgrade fnm 2>/dev/null || true
-            else curl -fsSL https://fnm.vercel.app/install | bash -s -- "${FNM_SKIP[@]}"; fi
+            else
+                FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
+                download_file https://fnm.vercel.app/install "$FNM_INSTALLER"
+                bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+                rm -f "$FNM_INSTALLER"
+            fi
         else
             skip "fnm $(fnm --version 2>/dev/null) already installed"
         fi
@@ -315,7 +327,12 @@ if want "fnm"; then
             pkg_install unzip
         fi
         if is_macos; then brew install fnm
-        else curl -fsSL https://fnm.vercel.app/install | bash -s -- "${FNM_SKIP[@]}"; fi
+        else
+            FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
+            download_file https://fnm.vercel.app/install "$FNM_INSTALLER"
+            bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+            rm -f "$FNM_INSTALLER"
+        fi
     fi
 
     if is_macos && ! want "zsh"; then

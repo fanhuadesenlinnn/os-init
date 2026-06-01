@@ -51,6 +51,7 @@ go install github.com/dpanic/os-kickstart@latest
 - **Idempotent** — safe to re-run, skips what's already installed
 - **Cross-platform** — Linux + macOS (Linux-only items auto-hidden on Mac)
 - **Linux target detection** — detects Debian, RedHat, and Arch family systems for staged multi-distro support
+- **CN-ready config layer** — shared proxy, retry, timeout, GitHub proxy, and offline package settings
 - **Async update checks** — checks GitHub releases and go.dev for new versions in background
 - **Installed detection** — shows `[installed X.Y.Z]` for tools already on the system
 
@@ -139,6 +140,8 @@ Status badges in the menu:
 | Linux | Debian/Ubuntu, RedHat/Rocky/Fedora, or Arch/Manjaro family |
 | macOS | macOS with Homebrew |
 | Network | Internet connection for downloads |
+
+Optional runtime config is loaded from `modules/config/defaults.env`, `/etc/os-init/config.env`, and `~/.config/os-init/config.env`, with environment variables taking priority. Set `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `GITHUB_PROXY`, or `OS_INIT_OFFLINE=1` to control downloads in restricted networks.
 
 ---
 

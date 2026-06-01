@@ -35,12 +35,21 @@ fi
 
 install_yazi_from_zip() {
     local label="$1"
-    $label "downloading latest yazi binary from GitHub"
-    local ZIP_URL="https://github.com/sxyazi/yazi/releases/latest/download/yazi-x86_64-unknown-linux-gnu.zip"
+    local yazi_arch
+    case "$(uname -m)" in
+        x86_64|amd64) yazi_arch="x86_64" ;;
+        arm64|aarch64) yazi_arch="aarch64" ;;
+        *) die "Yazi 安装暂不支持当前架构: $(uname -m)" ;;
+    esac
+
+    $label "下载最新 Yazi 二进制包"
+    local ZIP_URL="https://github.com/sxyazi/yazi/releases/latest/download/yazi-${yazi_arch}-unknown-linux-gnu.zip"
+    local ZIP_NAME
+    ZIP_NAME="$(basename "$ZIP_URL")"
 
     TMP_DIR=$(mktemp -d /tmp/yazi-XXXXXX)
-    echo "  downloading: $ZIP_URL"
-    curl -fsSL -o "$TMP_DIR/yazi.zip" "$ZIP_URL"
+    echo "  获取: $ZIP_URL"
+    download_or_offline_file "$ZIP_URL" "$TMP_DIR/yazi.zip" "$ZIP_NAME"
     unzip -q "$TMP_DIR/yazi.zip" -d "$TMP_DIR"
 
     sudo install -m 755 "$TMP_DIR"/yazi-*/yazi /usr/local/bin/yazi

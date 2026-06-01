@@ -22,6 +22,7 @@
 5. 重写 Docker 为二进制安装。
 6. 逐步改造保留模块以支持 Arch/Debian/RedHat。
 7. 更新 README、测试、demo 和验证脚本。
+8. 删除原有构建流水线，重建构建发布包流水线，打 tag 并发布一个版本。
 
 如果一次无法完成全部改造，优先完成阶段 1 和阶段 2，并在交付说明中写清楚已完成阶段和下一阶段入口。
 
@@ -1041,6 +1042,54 @@ README 要改成中文，说明：
 - 支持代理和离线包。
 - 已删除桌面应用和告警模块。
 
+## 阶段 8：构建发布流水线和版本发布
+
+### 目标
+
+在阶段 1-7 全部实现、测试通过并推送后，重建 GitHub 构建发布流程，并发布一个可下载的正式版本。
+
+### 要改的文件
+
+- `.github/workflows/*`
+- `README.md`
+- 如有需要，`goreleaser` 或自定义打包配置文件。
+
+### 处理要求
+
+- 删除原有构建/发布流水线，不保留已经不适合新项目目标的 workflow。
+- 新建一个清晰的 release workflow，建议文件名为 `.github/workflows/release.yml`。
+- workflow 至少支持：
+  - tag `v*` 触发正式发布。
+  - 手动 `workflow_dispatch` 触发测试发布。
+  - Linux amd64、Linux arm64、Darwin amd64、Darwin arm64 构建。
+  - 产物命名带系统、架构和版本号。
+  - 每个压缩包包含主二进制、README、LICENSE。
+  - 生成 checksum 文件。
+  - 创建 GitHub Release 并上传所有发布包。
+- 如果继续使用 GoReleaser，配置必须和当前模块、产物名称、目标平台一致。
+- 如果不用 GoReleaser，workflow 中显式 `go build`、`tar.gz`、`shasum -a 256`、`gh release create/upload`。
+- 发布前先通过 GitHub/gh 查看现有 tag 和 release，避免版本号冲突。
+- 版本号由执行 AI 决定，推荐选择下一个合理小版本，例如 `v0.1.0`、`v0.2.0` 或在已有 tag 基础上递增。
+- 打 tag 前必须确认工作区干净，且所有阶段验证通过。
+- 发布后验证 GitHub Release 页面存在，且 release assets 完整。
+
+### 验收
+
+本地验证：
+
+```bash
+go test ./...
+find modules -name '*.sh' -print0 | xargs -0 -n1 bash -n
+go build ./...
+```
+
+GitHub 验证：
+
+- 新 tag 已推送到远程。
+- GitHub Actions release workflow 成功。
+- GitHub Release 已创建。
+- Release assets 至少包含 linux/darwin 的 amd64/arm64 包和 checksum。
+
 ## 全局安全要求
 
 必须遵守：
@@ -1127,6 +1176,7 @@ rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*
 5. `install docker from static binaries`
 6. `adapt retained modules for linux families`
 7. `localize tui and docs`
+8. `rebuild release workflow and publish version`
 
 每次提交前都运行基础验证。
 

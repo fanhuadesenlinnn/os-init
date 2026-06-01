@@ -33,26 +33,45 @@ fi
 
 install_go() {
     local label="$1"
-    GO_VERSION=$(curl -fsSL https://go.dev/VERSION?m=text | head -1)
+    local version_file go_os go_arch go_url archive_name
+
+    if [[ -z "${GO_VERSION:-}" ]]; then
+        if [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
+            die "离线模式请在配置中设置 GO_VERSION，例如 GO_VERSION=go1.22.5"
+        fi
+        version_file="$(mktemp "${TMPDIR:-/tmp}/go-version.XXXXXX")"
+        download_file "${GO_VERSION_URL:-https://go.dev/VERSION?m=text}" "$version_file"
+        GO_VERSION="$(head -1 "$version_file")"
+        rm -f "$version_file"
+    fi
 
     if [[ -z "$GO_VERSION" ]]; then
-        echo "  ERROR: could not determine latest Go version"
-        exit 1
+        die "无法确定 Go 版本"
     fi
+    [[ "$GO_VERSION" == go* ]] || GO_VERSION="go$GO_VERSION"
 
-    $label "downloading $GO_VERSION from go.dev"
+    $label "准备安装 $GO_VERSION"
 
     if is_linux; then
-        GO_URL="https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz"
+        go_os="linux"
     elif is_macos; then
-        local arch="amd64"
-        [[ "$(uname -m)" == "arm64" ]] && arch="arm64"
-        GO_URL="https://go.dev/dl/${GO_VERSION}.darwin-${arch}.tar.gz"
+        go_os="darwin"
+    else
+        die "Go 安装暂不支持当前系统: $OS"
     fi
 
+    case "$(uname -m)" in
+        x86_64|amd64) go_arch="amd64" ;;
+        arm64|aarch64) go_arch="arm64" ;;
+        *) die "Go 安装暂不支持当前架构: $(uname -m)" ;;
+    esac
+
+    local go_base="${GO_DOWNLOAD_BASE:-https://go.dev/dl}"
+    go_url="${go_base%/}/${GO_VERSION}.${go_os}-${go_arch}.tar.gz"
+    archive_name="$(basename "$go_url")"
     TMP_DIR=$(mktemp -d /tmp/go-XXXXXX)
-    echo "  downloading: $GO_URL"
-    curl -fsSL -o "$TMP_DIR/go.tar.gz" "$GO_URL"
+    echo "  获取: $go_url"
+    download_or_offline_file "$go_url" "$TMP_DIR/go.tar.gz" "$archive_name"
     sudo rm -rf "$GO_INSTALL_DIR"
     sudo tar -C /usr/local -xzf "$TMP_DIR/go.tar.gz"
     rm -rf "$TMP_DIR"

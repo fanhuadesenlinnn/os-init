@@ -8,10 +8,29 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-skip()    { echo -e "  ${GREEN}[SKIP]${NC} $1"; }
-install() { echo -e "  ${YELLOW}[INSTALL]${NC} $1"; }
-update()  { echo -e "  ${CYAN}[UPDATE]${NC} $1"; }
-remove()  { echo -e "  ${RED}[REMOVE]${NC} $1"; }
+skip()    { echo -e "  ${GREEN}[跳过]${NC} $1"; }
+install() { echo -e "  ${YELLOW}[安装]${NC} $1"; }
+update()  { echo -e "  ${CYAN}[更新]${NC} $1"; }
+remove()  { echo -e "  ${RED}[删除]${NC} $1"; }
+warn()    { echo -e "  ${YELLOW}[警告]${NC} $1"; }
+die()     { echo -e "  ${RED}[错误]${NC} $1" >&2; exit 1; }
+
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
+
+OS_INIT_CONFIG_KEYS=(
+    OS_INIT_LANG OS_INIT_REGION OS_INIT_OFFLINE OS_INIT_FILES_DIR
+    HTTP_PROXY HTTPS_PROXY NO_PROXY
+    DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
+    DOCKER_DOWNLOAD_BASE DOCKER_REGISTRY_MIRRORS DOCKER_INSECURE_REGISTRIES DOCKER_DATA_ROOT
+    ENABLE_MIHOMO MIHOMO_PACKAGE MIHOMO_VERSION MIHOMO_DOWNLOAD_BASE MIHOMO_BINARY_SOURCE
+    MIHOMO_SERVICE_NAME MIHOMO_CONFIG_DIR MIHOMO_CONFIG_FILE MIHOMO_CONFIG_SOURCE
+    MIHOMO_MIXED_PORT MIHOMO_ALLOW_LAN MIHOMO_BIND_ADDRESS
+    MIHOMO_CONTROLLER_HOST MIHOMO_CONTROLLER_PORT MIHOMO_DNS_LISTEN MIHOMO_SECRET
+    MIHOMO_STATE_DIR MIHOMO_EXTERNAL_UI_DIR MIHOMO_AUTO_ENABLE_SERVICE
+    ENABLE_METACUBEXD METACUBEXD_PACKAGE METACUBEXD_VERSION METACUBEXD_SOURCE METACUBEXD_WEB_ROOT
+    GO_VERSION GO_DOWNLOAD_BASE GO_VERSION_URL
+)
 
 # Action flags: --update refreshes to latest, --uninstall removes
 UPDATE=false
@@ -86,16 +105,129 @@ detect_init() {
     fi
 }
 
+real_user() {
+    if [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
+        echo "$SUDO_USER"
+    else
+        id -un
+    fi
+}
+
+real_home() {
+    local user
+    user="$(real_user)"
+    if [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
+        if command -v getent &>/dev/null; then
+            getent passwd "$user" | cut -d: -f6
+            return
+        fi
+        eval "printf '%s\n' ~$user"
+        return
+    fi
+    echo "${HOME:-}"
+}
+
 OS="$(detect_os)"
 OS_FAMILY="$(detect_linux_family)"
 INIT_SYSTEM="$(detect_init)"
+
+source_config_file() {
+    local file="$1"
+    if [[ -r "$file" ]]; then
+        # shellcheck disable=SC1090
+        source "$file"
+    fi
+}
+
+export_proxy_env() {
+    HTTP_PROXY="${HTTP_PROXY:-${http_proxy:-}}"
+    HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
+    NO_PROXY="${NO_PROXY:-${no_proxy:-}}"
+
+    export HTTP_PROXY HTTPS_PROXY NO_PROXY
+    export http_proxy="$HTTP_PROXY"
+    export https_proxy="$HTTPS_PROXY"
+    export no_proxy="$NO_PROXY"
+}
+
+load_os_init_config() {
+    local snapshot key value home
+    snapshot="$(mktemp "${TMPDIR:-/tmp}/os-init-env.XXXXXX")" || die "无法创建临时配置快照"
+    chmod 600 "$snapshot" 2>/dev/null || true
+
+    for key in "${OS_INIT_CONFIG_KEYS[@]}"; do
+        if eval '[[ ${'"$key"'+x} == x ]]'; then
+            value="$(eval "printf '%s' \"\${$key}\"")"
+            printf 'export %s=%q\n' "$key" "$value" >> "$snapshot"
+        fi
+    done
+
+    source_config_file "$OS_INIT_REPO_DIR/config/defaults.env"
+    source_config_file "/etc/os-init/config.env"
+    home="$(real_home)"
+    if [[ -n "$home" ]]; then
+        source_config_file "$home/.config/os-init/config.env"
+    fi
+
+    if [[ -s "$snapshot" ]]; then
+        # shellcheck disable=SC1090
+        source "$snapshot"
+    fi
+    rm -f "$snapshot"
+
+    for key in "${OS_INIT_CONFIG_KEYS[@]}"; do
+        export "$key"
+    done
+    export_proxy_env
+}
+
+detect_platform() {
+    OS="$(detect_os)"
+    OS_FAMILY="$(detect_linux_family)"
+    INIT_SYSTEM="$(detect_init)"
+    export OS OS_FAMILY INIT_SYSTEM
+}
+
+is_family() { [[ "$OS_FAMILY" == "$1" ]]; }
+require_linux() {
+    is_linux || die "该模块只支持 Linux"
+}
+require_systemd() {
+    require_linux
+    is_systemd || die "该模块需要 systemd，当前 init=${INIT_SYSTEM}"
+}
+
+pkg_update() {
+    if [[ "$OS" == "macos" ]]; then
+        ensure_brew
+        brew update
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        sudo apt-get update -qq
+    elif [[ "$OS_FAMILY" == "arch" ]]; then
+        sudo pacman -Sy --noconfirm
+    elif [[ "$OS_FAMILY" == "redhat" ]]; then
+        if command -v dnf &>/dev/null; then
+            sudo dnf makecache -y
+        elif command -v yum &>/dev/null; then
+            sudo yum makecache -y
+        else
+            die "RedHat 系统未找到 dnf/yum"
+        fi
+    else
+        die "不支持的包管理器家族: ${OS_FAMILY}"
+    fi
+}
 
 ensure_brew() {
     if command -v brew &>/dev/null; then
         return
     fi
-    echo "Homebrew not found -- installing..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    install "安装 Homebrew"
+    local tmp
+    tmp="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
+    download_file "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" "$tmp"
+    /bin/bash "$tmp"
+    rm -f "$tmp"
     eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
 }
 
@@ -104,7 +236,7 @@ pkg_install() {
         ensure_brew
         brew install "$@"
     elif [[ "$OS_FAMILY" == "debian" ]]; then
-        sudo apt-get update -qq
+        pkg_update
         sudo apt-get install -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
         sudo pacman -Sy --needed --noconfirm "$@"
@@ -114,11 +246,45 @@ pkg_install() {
         elif command -v yum &>/dev/null; then
             sudo yum install -y "$@"
         else
-            echo "No dnf/yum found for RedHat-family package install" >&2
-            return 1
+            die "RedHat 系统未找到 dnf/yum"
         fi
     else
-        echo "Unsupported package family: ${OS_FAMILY}" >&2
+        die "不支持的包管理器家族: ${OS_FAMILY}"
+    fi
+}
+
+pkg_remove() {
+    if [[ "$OS" == "macos" ]]; then
+        ensure_brew
+        brew uninstall "$@" 2>/dev/null || true
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        sudo apt-get remove -y "$@"
+    elif [[ "$OS_FAMILY" == "arch" ]]; then
+        sudo pacman -Rns --noconfirm "$@"
+    elif [[ "$OS_FAMILY" == "redhat" ]]; then
+        if command -v dnf &>/dev/null; then
+            sudo dnf remove -y "$@"
+        elif command -v yum &>/dev/null; then
+            sudo yum remove -y "$@"
+        else
+            die "RedHat 系统未找到 dnf/yum"
+        fi
+    else
+        die "不支持的包管理器家族: ${OS_FAMILY}"
+    fi
+}
+
+pkg_is_installed() {
+    local pkg="$1"
+    if [[ "$OS" == "macos" ]]; then
+        brew list "$pkg" &>/dev/null
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"
+    elif [[ "$OS_FAMILY" == "arch" ]]; then
+        pacman -Q "$pkg" &>/dev/null
+    elif [[ "$OS_FAMILY" == "redhat" ]]; then
+        rpm -q "$pkg" &>/dev/null
+    else
         return 1
     fi
 }
@@ -139,6 +305,142 @@ is_arch() { [[ "$OS_FAMILY" == "arch" ]]; }
 is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }
 is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
 is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
+
+rewrite_github_url() {
+    local url="$1"
+    if [[ -z "${GITHUB_PROXY:-}" ]]; then
+        echo "$url"
+        return
+    fi
+
+    case "$url" in
+        https://github.com/*|https://raw.githubusercontent.com/*)
+            if [[ "$GITHUB_PROXY" == *"{url}"* ]]; then
+                echo "${GITHUB_PROXY//\{url\}/$url}"
+            else
+                echo "${GITHUB_PROXY%/}/$url"
+            fi
+            ;;
+        *)
+            echo "$url"
+            ;;
+    esac
+}
+
+github_latest_version() {
+    local repo="$1" prefix="${2:-v}"
+    local url latest
+    url="$(rewrite_github_url "https://github.com/${repo}/releases/latest")"
+    if command -v curl &>/dev/null; then
+        latest="$(curl -fsSI "$url" 2>/dev/null | grep -i '^location:' | sed "s|.*/${prefix}||" | tr -d '\r\n')"
+    elif command -v wget &>/dev/null; then
+        latest="$(wget --server-response --spider "$url" 2>&1 | grep -i 'Location:' | tail -1 | sed "s|.*/${prefix}||" | tr -d '\r\n')"
+    else
+        die "需要 curl 或 wget 才能查询 GitHub 最新版本"
+    fi
+    [[ -n "$latest" ]] || die "无法获取 ${repo} 最新版本"
+    echo "$latest"
+}
+
+git_clone_depth() {
+    local depth="$1" url="$2" dest="$3"
+    git clone --depth="$depth" "$(rewrite_github_url "$url")" "$dest"
+}
+
+download_file() {
+    local url="$1" dest="$2"
+    [[ "${OS_INIT_OFFLINE:-0}" == "1" ]] && die "离线模式禁止下载: $url"
+
+    local final_url
+    final_url="$(rewrite_github_url "$url")"
+    mkdir -p "$(dirname "$dest")"
+    if command -v curl &>/dev/null; then
+        curl -fL --retry "${DOWNLOAD_RETRY:-3}" \
+            --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" \
+            --max-time "${DOWNLOAD_TIMEOUT:-30}" \
+            -o "$dest" "$final_url"
+    elif command -v wget &>/dev/null; then
+        wget --tries="${DOWNLOAD_RETRY:-3}" \
+            --timeout="${DOWNLOAD_TIMEOUT:-30}" \
+            -O "$dest" "$final_url"
+    else
+        die "需要 curl 或 wget 才能下载文件"
+    fi
+}
+
+find_offline_file() {
+    local filename="$1"
+    local dir candidate
+    local dirs=()
+    [[ -n "${OS_INIT_FILES_DIR:-}" ]] && dirs+=("$OS_INIT_FILES_DIR")
+    [[ -n "${SCRIPT_DIR:-}" ]] && dirs+=("$SCRIPT_DIR/files" "$SCRIPT_DIR")
+    dirs+=("$OS_INIT_REPO_DIR/files")
+
+    for dir in "${dirs[@]}"; do
+        candidate="$dir/$filename"
+        if [[ -n "$candidate" && -f "$candidate" ]]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+download_or_offline_file() {
+    local url="$1" dest="$2" filename="${3:-}"
+    if [[ -z "$filename" ]]; then
+        filename="$(basename "${url%%\?*}")"
+    fi
+
+    if [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
+        local offline_file
+        offline_file="$(find_offline_file "$filename")" || die "离线模式缺少文件: $filename"
+        install "使用离线文件 $filename"
+        mkdir -p "$(dirname "$dest")"
+        cp "$offline_file" "$dest"
+        return
+    fi
+
+    download_file "$url" "$dest"
+}
+
+backup_file() {
+    local file="$1"
+    if [[ -e "$file" ]]; then
+        local backup="${file}.bak-os-init.$(date +%Y%m%d%H%M%S)"
+        sudo cp -a "$file" "$backup"
+        echo "$backup"
+    fi
+}
+
+json_escape() {
+    local value="$1"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//$'\n'/\\n}"
+    printf '%s' "$value"
+}
+
+json_array_from_csv() {
+    local csv="${1:-}" item first=true
+    local -a items=()
+    printf '['
+    IFS=',' read -r -a items <<< "$csv"
+    for item in "${items[@]}"; do
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+        [[ -z "$item" ]] && continue
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            printf ','
+        fi
+        printf '"%s"' "$(json_escape "$item")"
+    done
+    printf ']'
+}
+
+load_os_init_config
 
 # Reliable update for shallow git clones (git pull often fails with divergent branches)
 git_update_shallow() {

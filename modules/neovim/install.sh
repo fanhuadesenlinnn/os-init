@@ -9,7 +9,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$REPO_DIR/lib.sh"
 
-NVIM_INSTALL_DIR="/opt/nvim-linux-x86_64"
+case "$(uname -m)" in
+    x86_64|amd64)
+        NVIM_ARCH="x86_64"
+        LAZYGIT_ARCH="x86_64"
+        ;;
+    arm64|aarch64)
+        NVIM_ARCH="arm64"
+        LAZYGIT_ARCH="arm64"
+        ;;
+    *)
+        NVIM_ARCH=""
+        LAZYGIT_ARCH=""
+        ;;
+esac
+NVIM_ARCH_DIR="nvim-linux-${NVIM_ARCH:-x86_64}"
+NVIM_INSTALL_DIR="/opt/$NVIM_ARCH_DIR"
 
 parse_update_flag "$@"
 
@@ -73,13 +88,15 @@ fi
 echo "[1/4] neovim..."
 install_nvim_linux() {
     local label="$1"
-    $label "downloading latest neovim from GitHub releases"
+    [[ -n "$NVIM_ARCH" ]] || die "Neovim 安装暂不支持当前架构: $(uname -m)"
+    $label "下载最新 Neovim 二进制包"
     TMP_DIR=$(mktemp -d /tmp/nvim-XXXXXX)
-    NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz"
-    echo "  downloading: $NVIM_URL"
-    curl -fsSL "$NVIM_URL" | tar -xz -C "$TMP_DIR"
+    NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/${NVIM_ARCH_DIR}.tar.gz"
+    echo "  获取: $NVIM_URL"
+    download_or_offline_file "$NVIM_URL" "$TMP_DIR/nvim.tar.gz" "$(basename "$NVIM_URL")"
+    tar -xzf "$TMP_DIR/nvim.tar.gz" -C "$TMP_DIR"
     sudo rm -rf "$NVIM_INSTALL_DIR"
-    sudo mv "$TMP_DIR/nvim-linux-x86_64" "$NVIM_INSTALL_DIR"
+    sudo mv "$TMP_DIR/$NVIM_ARCH_DIR" "$NVIM_INSTALL_DIR"
     sudo ln -sf "$NVIM_INSTALL_DIR/bin/nvim" /usr/local/bin/nvim
     rm -rf "$TMP_DIR"
     echo "  installed: $(nvim --version | head -1)"
@@ -132,19 +149,15 @@ fi
 echo "[3/4] lazygit..."
 install_lazygit_linux() {
     local label="$1"
-    $label "downloading latest lazygit from GitHub"
-    LAZYGIT_VERSION=$(curl -fsSI https://github.com/jesseduffield/lazygit/releases/latest 2>/dev/null \
-        | grep -i '^location:' | sed 's|.*/v||' | tr -d '\r\n')
-
-    if [[ -z "$LAZYGIT_VERSION" ]]; then
-        echo "  ERROR: could not determine latest lazygit version"
-        exit 1
-    fi
+    [[ -n "$LAZYGIT_ARCH" ]] || die "lazygit 安装暂不支持当前架构: $(uname -m)"
+    $label "下载最新 lazygit 二进制包"
+    LAZYGIT_VERSION="$(github_latest_version "jesseduffield/lazygit" "v")"
 
     TMP_DIR=$(mktemp -d /tmp/lazygit-XXXXXX)
-    LAZYGIT_URL="https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
-    echo "  downloading: $LAZYGIT_URL"
-    curl -fsSL "$LAZYGIT_URL" | tar -xz -C "$TMP_DIR"
+    LAZYGIT_URL="https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz"
+    echo "  获取: $LAZYGIT_URL"
+    download_or_offline_file "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz" "$(basename "$LAZYGIT_URL")"
+    tar -xzf "$TMP_DIR/lazygit.tar.gz" -C "$TMP_DIR"
     sudo mv "$TMP_DIR/lazygit" /usr/local/bin/lazygit
     sudo chmod +x /usr/local/bin/lazygit
     rm -rf "$TMP_DIR"
@@ -180,12 +193,12 @@ if [[ -d "$NVIM_CONFIG" ]]; then
         BACKUP="${NVIM_CONFIG}.bak.$(date +%s)"
         install "backing up existing nvim config to $BACKUP"
         mv "$NVIM_CONFIG" "$BACKUP"
-        git clone --depth=1 https://github.com/LazyVim/starter "$NVIM_CONFIG"
+        git_clone_depth 1 https://github.com/LazyVim/starter "$NVIM_CONFIG"
         rm -rf "$NVIM_CONFIG/.git"
     fi
 else
     install "cloning LazyVim starter to ~/.config/nvim/"
-    git clone --depth=1 https://github.com/LazyVim/starter "$NVIM_CONFIG"
+    git_clone_depth 1 https://github.com/LazyVim/starter "$NVIM_CONFIG"
     rm -rf "$NVIM_CONFIG/.git"
 fi
 
