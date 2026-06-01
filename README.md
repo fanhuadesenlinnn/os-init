@@ -11,8 +11,8 @@
 下载发布包：
 
 ```bash
-curl -sSL https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/kickstart_linux_amd64.tar.gz | tar xz
-./kickstart
+curl -sSL https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/os-init_linux_amd64.tar.gz | tar xz
+./os-init
 ```
 
 从源码构建：
@@ -21,7 +21,7 @@ curl -sSL https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/k
 git clone https://github.com/fanhuadesenlinnn/os-init.git
 cd os-init
 make build
-./kickstart
+./os-init
 ```
 
 ## 核心能力
@@ -117,6 +117,12 @@ make run
 ```
 
 最终发布包由 GitHub Actions 在 tag 推送后构建并发布。
+
+发布包名称：
+
+- `os-init_linux_amd64.tar.gz`
+- `os-init_linux_arm64.tar.gz`
+- `checksums.txt`
 
 ## 安全约定
 

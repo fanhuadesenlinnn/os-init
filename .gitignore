@@ -5,3 +5,5 @@ CLAUDE.md
 .claude
 kickstart
 os-kickstart
+os-init
+dist/

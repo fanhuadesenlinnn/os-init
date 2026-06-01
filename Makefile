@@ -1,7 +1,11 @@
-.PHONY: build run lint test release-local clean
+.PHONY: build run lint test clean
+
+BINARY ?= os-init
+VERSION ?= dev
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 
 build:
-	go build -ldflags "-s -w" -o kickstart .
+	go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o $(BINARY) .
 
 run:
 	go run .
@@ -12,8 +16,5 @@ lint:
 test:
 	go test ./...
 
-release-local:
-	goreleaser release --snapshot --clean
-
 clean:
-	rm -f kickstart
+	rm -rf os-init kickstart dist
