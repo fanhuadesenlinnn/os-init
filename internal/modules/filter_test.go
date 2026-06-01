@@ -3,7 +3,7 @@ package modules
 import (
 	"testing"
 
-	"github.com/dpanic/os-kickstart/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 func TestModuleMatchesTarget_UsesOSFallback(t *testing.T) {

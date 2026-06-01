@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# KICKSTART -- dynamic kernel tuning based on RAM from dpanic/patchfiles
+# OS-INIT -- dynamic kernel tuning based on RAM, adapted from dpanic/patchfiles
 # Tunes: nf_conntrack_max, tcp_max_tw_buckets, fs.file-max
 
 if [ "$EUID" -ne 0 ]; then

@@ -13,9 +13,9 @@ var modeOptions = []struct {
 	label string
 	desc  string
 }{
-	{modeInstall, "Install", "Fresh installation of selected modules"},
-	{modeUpdate, "Update", "Update already installed modules"},
-	{modeUninstall, "Uninstall", "Remove selected modules"},
+	{modeInstall, "安装", "全新安装选中的模块"},
+	{modeUpdate, "更新", "更新已经安装的模块"},
+	{modeUninstall, "卸载", "移除选中的模块"},
 }
 
 type modeModel struct {
@@ -60,8 +60,8 @@ func (m modeModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  Select mode") + "\n")
-	b.WriteString(MutedStyle.Render("  ↑/↓ navigate • enter confirm • esc back") + "\n\n")
+	b.WriteString(titleStyle.Render("  选择执行模式") + "\n")
+	b.WriteString(MutedStyle.Render("  ↑/↓ 移动 • enter 确认 • esc 返回") + "\n\n")
 
 	for i, opt := range modeOptions {
 		cursor := "  "

@@ -28,13 +28,13 @@ func Prime() (cancel func()) {
 		return func() {}
 	}
 
-	fmt.Println("Caching sudo credentials so installer can run without interruption...")
+	fmt.Println("正在缓存 sudo 凭据，避免安装过程中反复输入密码...")
 	cmd := exec.Command("sudo", "-v")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "sudo refresh failed (%v); you may be prompted again later.\n", err)
+		fmt.Fprintf(os.Stderr, "sudo 刷新失败（%v），后续脚本可能还会再次提示输入密码。\n", err)
 		return func() {}
 	}
 

@@ -1,6 +1,6 @@
 package modules
 
-import "github.com/dpanic/os-kickstart/internal/platform"
+import "github.com/fanhuadesenlinnn/os-init/internal/platform"
 
 // Module describes a selectable item in the TUI menu.
 type Module struct {
@@ -25,35 +25,35 @@ type Module struct {
 func AllModules() []Module {
 	return []Module{
 		// ── Optimizations ──
-		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "Kernel ▸ sysctl.d", Description: "network, memory, conntrack tuning", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/sysctl.d/99-os-init.conf:bbr"},
-		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "Kernel ▸ limits.d", Description: "file descriptor & process limits", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/security/limits.d/99-os-init.conf:2097152"},
-		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "Kernel ▸ I/O scheduler", Description: "none (SSD/NVMe)", Category: "optimization", OS: "linux", InstalledCheck: "/etc/udev/rules.d/60-scheduler.rules"},
-		{ID: "kernel-autotune", Script: "kernel/optimize.sh", Components: []string{"autotune"}, Label: "Kernel ▸ autotune", Description: "RAM-based autotune service", Category: "optimization", OS: "linux", InstalledCheck: "/etc/systemd/system/autotune.service"},
-		{ID: "sshd", Script: "sshd/setup.sh", Label: "SSH ▸ sshd hardening", Description: "disables password auth", Category: "optimization", OS: "linux", InstalledCmd: "sshd"},
+		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "内核 ▸ sysctl.d", Description: "网络、内存、conntrack 调优", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/sysctl.d/99-os-init.conf:bbr"},
+		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "内核 ▸ limits.d", Description: "文件句柄和进程数限制", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/security/limits.d/99-os-init.conf:2097152"},
+		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "内核 ▸ I/O 调度器", Description: "SSD/NVMe 使用 none", Category: "optimization", OS: "linux", InstalledCheck: "/etc/udev/rules.d/60-scheduler.rules"},
+		{ID: "kernel-autotune", Script: "kernel/optimize.sh", Components: []string{"autotune"}, Label: "内核 ▸ 自动调优", Description: "按内存自动生成启动调优", Category: "optimization", OS: "linux", InstalledCheck: "/etc/systemd/system/autotune.service"},
+		{ID: "sshd", Script: "sshd/setup.sh", Label: "SSH ▸ sshd 加固", Description: "禁用密码登录并验证配置", Category: "optimization", OS: "linux", InstalledCmd: "sshd"},
 
 		// ── Installations / Shell ──
-		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Category: "installation", Subsection: "Shell", OS: "all", InstalledCmd: "zsh"},
-		{ID: "shell-fzf", Script: "shell/install.sh", Components: []string{"fzf"}, Label: "fzf", Description: "fuzzy finder", Category: "installation", Subsection: "Shell", OS: "all", InstalledCmd: "fzf"},
-		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship prompt", Category: "installation", Subsection: "Shell", OS: "all", InstalledCmd: "starship"},
-		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Category: "installation", Subsection: "Shell", OS: "all", InstalledCmd: "direnv"},
-		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-autosuggestions", Category: "installation", Subsection: "Shell", OS: "all", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"},
-		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-syntax-highlighting", Category: "installation", Subsection: "Shell", OS: "all", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"},
-		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node version manager", Category: "installation", Subsection: "Shell", OS: "all", InstalledCheck: "$HOME/.nvm/nvm.sh"},
-		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "Fast Node Manager", Category: "installation", Subsection: "Shell", OS: "all", InstalledCmd: "fnm"},
-		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "git config", Description: "LFS, SSH-over-HTTPS", Category: "installation", Subsection: "Shell", OS: "all", InstalledCmd: "git"},
-		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Category: "installation", Subsection: "Shell", OS: "linux", InstalledCmd: "byobu"},
+		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "zsh"},
+		{ID: "shell-fzf", Script: "shell/install.sh", Components: []string{"fzf"}, Label: "fzf", Description: "模糊查找工具", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "fzf"},
+		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "starship"},
+		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "direnv"},
+		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"},
+		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"},
+		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCheck: "$HOME/.nvm/nvm.sh"},
+		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "fnm"},
+		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "git"},
+		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", InstalledCmd: "byobu"},
 
 		// ── Installations / Terminal ──
-		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "disk analyzer", Category: "installation", Subsection: "Terminal", OS: "all", InstalledCmd: "ncdu"},
-		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "terminal file manager", Category: "installation", Subsection: "Terminal", OS: "all", InstalledCmd: "yazi"},
+		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", InstalledCmd: "ncdu"},
+		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", InstalledCmd: "yazi"},
 
 		// ── Installations / Network ──
-		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "proxy core, config test, MetaCubeXD UI", Category: "installation", Subsection: "Network", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "mihomo"},
+		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "mihomo"},
 
 		// ── Installations / Dev Tools ──
-		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "static engine binaries, compose plugin, daemon config", Category: "installation", Subsection: "Dev Tools", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "docker"},
-		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "programming language from go.dev", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "go"},
-		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "editor with IDE features", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "nvim"},
+		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "docker"},
+		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", InstalledCmd: "go"},
+		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", InstalledCmd: "nvim"},
 	}
 }
 
@@ -148,7 +148,7 @@ func NeedsWebhook(selected []Module) bool {
 
 // InstallSubsections returns the ordered list of subsection names for installations.
 func InstallSubsections() []string {
-	return []string{"Shell", "Terminal", "Network", "Dev Tools"}
+	return []string{"Shell 工具", "终端工具", "网络代理", "开发工具"}
 }
 
 // ScriptGroup represents a single script invocation with merged components.

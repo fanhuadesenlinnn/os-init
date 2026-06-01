@@ -1,4 +1,4 @@
-// Package tui implements the terminal user interface for os-kickstart.
+// Package tui implements the terminal user interface for os-init.
 package tui
 
 import (
@@ -37,12 +37,12 @@ func (m bannerModel) View() string {
 		Foreground(ColorAccent).
 		PaddingLeft(2)
 
-	logo := logoStyle.Render("OS Kickstart by dpanic")
+	logo := logoStyle.Render("OS Init")
 
 	subtitle := lipgloss.NewStyle().
 		Foreground(ColorAccent2).
 		PaddingLeft(2).
-		Render("System optimization & dev environment setup")
+		Render("面向中国大陆网络环境的系统初始化工具")
 
 	ver := m.version
 	if m.commit != "none" && m.commit != "" {

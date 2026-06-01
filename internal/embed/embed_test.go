@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	kickembed "github.com/dpanic/os-kickstart/internal/embed"
+	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
 )
 
 func TestExtract_CreatesFilesInTmpDir(t *testing.T) {

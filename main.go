@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dpanic/os-kickstart/internal/sudo"
-	"github.com/dpanic/os-kickstart/internal/tui"
+	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
+	"github.com/fanhuadesenlinnn/os-init/internal/tui"
 )
 
 //go:embed all:modules
@@ -43,7 +43,7 @@ func main() {
 	}()
 
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
 		tui.RunCleanup()
 		os.Exit(1)
 	}

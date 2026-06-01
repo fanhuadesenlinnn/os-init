@@ -1,184 +1,131 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 24.04" />
-  <img src="https://img.shields.io/badge/macOS-Supported-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Go-Binary-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go" />
-  <img src="https://img.shields.io/badge/TUI-Bubble_Tea-FF69B4?style=flat-square" alt="Bubble Tea TUI" />
-</p>
+# OS Init
 
-# OS Kickstart
-
-> **One binary to bootstrap a full dev environment on Ubuntu or macOS.**
-
-by **Dusan Panic** \<dpanic@gmail.com\>
+面向中国大陆网络环境的 Linux 系统初始化工具。它保留原有 TUI 的多选、搜索、安装/更新/卸载体验，同时把安装逻辑调整为适配 Arch 系、Debian 系、RedHat 系的脚本体系。
 
 <p align="center">
-  <img src="demo.gif" alt="OS Kickstart TUI demo" width="720" />
+  <img src="demo.gif" alt="OS Init TUI 演示" width="720" />
 </p>
 
----
+## 快速开始
 
-## Quick Start
-
-**Download the latest release:**
+下载发布包：
 
 ```bash
-curl -sSL https://github.com/dpanic/os-kickstart/releases/latest/download/kickstart_linux_amd64.tar.gz | tar xz
+curl -sSL https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/kickstart_linux_amd64.tar.gz | tar xz
 ./kickstart
 ```
 
-**Or build from source:**
+从源码构建：
 
 ```bash
-git clone https://github.com/dpanic/os-kickstart.git
-cd os-kickstart
+git clone https://github.com/fanhuadesenlinnn/os-init.git
+cd os-init
 make build
 ./kickstart
 ```
 
-**Or install via Go:**
+## 核心能力
+
+- 单文件 TUI：Go 二进制内嵌脚本和配置，进入后直接选择模块执行。
+- 三种模式：安装、更新、卸载。
+- 发行版识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro。
+- 中国大陆网络适配：统一代理变量、GitHub 代理、下载重试、超时、离线包目录。
+- 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
+- Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
+- 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
+
+## 当前模块
+
+### 系统优化
+
+| 模块 | 功能 |
+| --- | --- |
+| 内核 sysctl.d | 网络、内存、conntrack、BBR 等参数 |
+| 内核 limits.d | 文件句柄和进程数限制 |
+| I/O 调度器 | SSD/NVMe 使用 `none` |
+| 自动调优 | 按内存生成启动时调优 |
+| SSH 加固 | 使用 `sshd_config.d` 优先写入，执行前验证配置 |
+
+### 软件安装
+
+| 分组 | 模块 |
+| --- | --- |
+| Shell 工具 | zsh、oh-my-zsh、fzf、starship、direnv、zsh 插件、nvm/fnm、Git 配置、byobu/tmux |
+| 终端工具 | ncdu、Yazi |
+| 网络代理 | Mihomo |
+| 开发工具 | Docker、Go、Neovim + LazyVim |
+
+## 已移除模块
+
+以下模块不再作为新方案的一部分：
+
+| 模块 | 删除原因 |
+| --- | --- |
+| GNOME Optimize | Ubuntu/GNOME 桌面强相关 |
+| Nautilus Optimize | Ubuntu/GNOME/Nautilus 强相关 |
+| AppArmor Setup / Monitor | Debian/Ubuntu 偏向，RedHat 默认 SELinux，Slack 在大陆不稳定 |
+| USB Monitor | Webhook 目标和文案需要另行设计 |
+| Browsers & Apps | 桌面浏览器和 Signal 对服务器初始化价值低，国内网络不稳定 |
+| PeaZip | `.deb`/macOS 偏向，不适合三大发行版统一方案 |
+
+## 配置
+
+配置加载顺序：
+
+1. `modules/config/defaults.env`
+2. `/etc/os-init/config.env`
+3. `~/.config/os-init/config.env`
+4. 当前环境变量
+
+常用变量：
 
 ```bash
-go install github.com/dpanic/os-kickstart@latest
+export HTTP_PROXY=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+export NO_PROXY=localhost,127.0.0.1,::1
+export GITHUB_PROXY=https://gh-proxy.com/
+export OS_INIT_OFFLINE=1
+export OS_INIT_OFFLINE_DIR=/opt/os-init/packages
 ```
 
----
+Docker 和 Mihomo 也可以通过同一套配置调整版本、下载地址、镜像源、systemd 代理等参数。
 
-## Features
+## TUI 操作
 
-- **Single binary** — all shell scripts and configs embedded via `go:embed`, zero dependencies
-- **Interactive TUI** — multi-select menu with categories, search filter, scroll viewport
-- **Install / Update / Uninstall** — fresh install, refresh to latest, or clean removal
-- **Idempotent** — safe to re-run, skips what's already installed
-- **Cross-platform** — Linux + macOS (Linux-only items auto-hidden on Mac)
-- **Linux target detection** — detects Debian, RedHat, and Arch family systems for staged multi-distro support
-- **CN-ready config layer** — shared proxy, retry, timeout, GitHub proxy, and offline package settings
-- **Async update checks** — checks GitHub releases and go.dev for new versions in background
-- **Installed detection** — shows `[installed X.Y.Z]` for tools already on the system
+| 按键 | 动作 |
+| --- | --- |
+| `↑/↓` 或 `j/k` | 移动 |
+| `Space` | 选择/取消 |
+| `Ctrl+A` | 全选/取消全选 |
+| `/` | 过滤搜索 |
+| `Enter` | 确认 |
+| `Esc` | 返回或清空过滤 |
+| `q` | 退出 |
 
----
+状态徽标：
 
-## What's Included
+- `[已安装]`：已经安装，但没有版本信息。
+- `[已安装 X.Y.Z]`：已经安装，并显示当前版本。
+- `[可更新 X.Y.Z → A.B.C]`：检测到新版本。
 
-### Optimizations *(Linux only)*
-
-| Module | Description |
-|--------|-------------|
-| Kernel sysctl | Network, memory, conntrack tuning |
-| Kernel limits | File descriptor & process limits |
-| Kernel I/O scheduler | `none` for SSD/NVMe |
-| Kernel autotune | RAM-based dynamic kernel params at boot |
-| SSH hardening | OpenSSH server hardening (disables password auth) |
-
-### Installations
-
-#### Shell
-
-| Component | Description |
-|-----------|-------------|
-| zsh + oh-my-zsh | Modern shell with plugin framework |
-| fzf | Fuzzy finder |
-| starship | Cross-shell prompt with custom config |
-| direnv | Per-directory environment variables |
-| zsh plugins | autosuggestions + syntax-highlighting |
-| nvm | Node.js version manager |
-| byobu + tmux | Terminal multiplexer with mouse support *(Linux)* |
-| git config | LFS, SSH-over-HTTPS, gitconfig template |
-
-#### Terminal
-
-| Tool | Description |
-|------|-------------|
-| ncdu | Interactive disk usage analyzer |
-| Yazi | Blazing-fast terminal file manager |
-
-#### Network
-
-| Tool | Description |
-|------|-------------|
-| Mihomo | Proxy core, config rendering/testing, optional MetaCubeXD dashboard |
-
-#### Dev Tools
-
-| Tool | Description |
-|------|-------------|
-| Docker | Linux static Engine binaries + Compose CLI plugin + daemon config |
-| Go | Latest from go.dev |
-| Neovim + LazyVim | IDE-grade editor with ripgrep, fd, lazygit |
-
----
-
-## TUI Controls
-
-| Key | Action |
-|-----|--------|
-| `Up/Down` | Navigate |
-| `Space` | Toggle selection |
-| `Ctrl+A` | Select / deselect all |
-| `/` | Filter / search |
-| `Enter` | Confirm |
-| `Esc` | Clear filter / go back |
-| `q` | Quit |
-
----
-
-## Modes
-
-After selecting items, choose a mode:
-
-| Mode | Description |
-|------|-------------|
-| **Install** | Fresh install, skips already-installed items |
-| **Update** | Refresh to latest versions |
-| **Uninstall** | Remove installed tools, revert optimizations from backups |
-
-Status badges in the menu:
-
-- `[installed X.Y.Z]` — installed with version
-- **`[update X.Y.Z -> A.B.C]`** — newer version available (bold white)
-- `[installed]` — installed, version unknown
-
----
-
-## Requirements
-
-| | Requirement |
-|-|-------------|
-| Linux | Debian/Ubuntu, RedHat/Rocky/Fedora, or Arch/Manjaro family |
-| macOS | macOS with Homebrew |
-| Network | Internet connection for downloads |
-
-Optional runtime config is loaded from `modules/config/defaults.env`, `/etc/os-init/config.env`, and `~/.config/os-init/config.env`, with environment variables taking priority. Set `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `GITHUB_PROXY`, or `OS_INIT_OFFLINE=1` to control downloads in restricted networks.
-
----
-
-## Build & Release
+## 构建
 
 ```bash
-make build           # Build binary
-make test            # Run tests
-make run             # Run from source
-make release-local   # GoReleaser snapshot
+make build
+make test
+make run
 ```
 
-Releases are automated via GitHub Actions — push a `v*` tag to create a release with binaries for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64.
+最终发布包由 GitHub Actions 在 tag 推送后构建并发布。
 
----
+## 安全约定
 
-## Safety
-
-- Existing `~/.zshrc` is never overwritten (instructions printed instead)
-- Existing `~/.config/nvim` is backed up before LazyVim clone
-- **Uninstall** restores system configs from `.bak-kickstart` backups
-- Docker data (`/var/lib/docker`) is preserved on uninstall
-
----
+- 不直接覆盖用户已有 `~/.zshrc`。
+- Neovim 配置安装前会备份已有目录。
+- SSH 修改前执行 `sshd -t` 验证。
+- Docker 卸载时保留 `/var/lib/docker` 数据。
+- 系统配置优先写入 drop-in 文件，降低对发行版默认配置的破坏。
 
 ## License
 
 MIT
-
----
-
-<p align="center">
-  <sub>Built with <a href="https://github.com/charmbracelet/bubbletea">Bubble Tea</a></sub>
-</p>

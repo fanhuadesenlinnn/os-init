@@ -1,4 +1,4 @@
-# KICKSTART -- hardened sshd config from dpanic/patchfiles
+# OS-INIT -- hardened sshd config, adapted from dpanic/patchfiles
 Port 22
 AddressFamily any
 ListenAddress 0.0.0.0

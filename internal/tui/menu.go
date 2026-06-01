@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dpanic/os-kickstart/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"golang.org/x/term"
 )
 
@@ -20,25 +20,25 @@ type menuItem struct {
 }
 
 type menuModel struct {
-	items      []menuItem
-	allMods    []modules.Module
-	cursor     int
-	selected   map[int]bool
-	width      int
-	height     int
-	offset     int
-	checksRan  bool
-	spinner    spinner.Model
-	filtering  bool
-	filter     string
-	visible    []int // indices of visible items when filtering
-	ready      bool  // true after first navigation key — blocks phantom space on startup
+	items     []menuItem
+	allMods   []modules.Module
+	cursor    int
+	selected  map[int]bool
+	width     int
+	height    int
+	offset    int
+	checksRan bool
+	spinner   spinner.Model
+	filtering bool
+	filter    string
+	visible   []int // indices of visible items when filtering
+	ready     bool  // true after first navigation key — blocks phantom space on startup
 }
 
 func newMenuModel(mods []modules.Module) menuModel {
 	var items []menuItem
 
-	items = append(items, menuItem{separator: true, label: "Optimizations"})
+	items = append(items, menuItem{separator: true, label: "系统优化"})
 	for _, m := range mods {
 		if m.Category == "optimization" {
 			items = append(items, menuItem{module: m})
@@ -46,7 +46,7 @@ func newMenuModel(mods []modules.Module) menuModel {
 	}
 
 	items = append(items, menuItem{separator: true, label: ""}) // spacer
-	items = append(items, menuItem{separator: true, label: "Installations"})
+	items = append(items, menuItem{separator: true, label: "软件安装"})
 	for _, sub := range modules.InstallSubsections() {
 		hasItems := false
 		for _, m := range mods {
@@ -81,18 +81,18 @@ func newMenuModel(mods []modules.Module) menuModel {
 		}
 		mod := items[i].module
 		if mod.InstalledCmd != "" && isInstalled(mod.InstalledCmd) {
-			items[i].Status = "[installed]"
+			items[i].Status = statusInstalled
 		} else if mod.InstalledCheck != "" {
 			path := os.ExpandEnv(mod.InstalledCheck)
 			if _, err := os.Stat(path); err == nil {
-				items[i].Status = "[installed]"
+				items[i].Status = statusInstalled
 			}
 		} else if mod.InstalledGrepFile != "" {
 			parts := strings.SplitN(mod.InstalledGrepFile, ":", 2)
 			if len(parts) == 2 {
 				data, err := os.ReadFile(parts[0])
 				if err == nil && strings.Contains(string(data), parts[1]) {
-					items[i].Status = "[installed]"
+					items[i].Status = statusInstalled
 				}
 			}
 		}
@@ -135,7 +135,7 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 				if !m.items[i].separator && m.items[i].module.ID == r.moduleID {
 					current := m.items[i].Status
 					// Only upgrade: update > installed+ver > installed > empty
-					if strings.HasPrefix(r.status, "[update") {
+					if isUpdateStatus(r.status) {
 						m.items[i].Status = r.status
 					} else if strings.Contains(r.status, " ") && !strings.Contains(current, " ") {
 						// New has version, current doesn't
@@ -328,8 +328,8 @@ func (m menuModel) View() string {
 	}
 
 	// ── Header ──────────────────────────────────────────────────
-	titleText := HeaderTitleStyle.Render("OS Kickstart")
-	byText := HeaderByLineStyle.Render(" by dpanic")
+	titleText := HeaderTitleStyle.Render("OS Init")
+	byText := HeaderByLineStyle.Render(" 中国大陆优化")
 	headerLeft := lipgloss.JoinHorizontal(lipgloss.Center, titleText, byText)
 
 	// spinner moved to footer
@@ -342,12 +342,12 @@ func (m menuModel) View() string {
 		key  string
 		desc string
 	}{
-		{"↑/↓", "navigate"},
-		{"space", "select"},
-		{"ctrl+a", "all"},
-		{"/", "filter"},
-		{"enter", "confirm"},
-		{"q", "quit"},
+		{"↑/↓", "移动"},
+		{"space", "选择"},
+		{"ctrl+a", "全选"},
+		{"/", "过滤"},
+		{"enter", "确认"},
+		{"q", "退出"},
 	}
 	var helpSegments []string
 	sep := HelpSepStyle.Render(" · ")
@@ -367,8 +367,8 @@ func (m menuModel) View() string {
 		)
 	} else if m.filter != "" {
 		b.WriteString(
-			lipgloss.NewStyle().Foreground(ColorAccent2).Render(" filter: "+m.filter) +
-				MutedStyle.Render(" (esc clear)") + "\n",
+			lipgloss.NewStyle().Foreground(ColorAccent2).Render(" 过滤: "+m.filter) +
+				MutedStyle.Render(" (esc 清空)") + "\n",
 		)
 	}
 
@@ -420,7 +420,7 @@ func (m menuModel) View() string {
 
 	// Show scroll indicator or pad
 	if end < len(lines) {
-		b.WriteString(MutedStyle.Render(fmt.Sprintf("  ▼ %d more", len(lines)-end)) + "\n")
+		b.WriteString(MutedStyle.Render(fmt.Sprintf("  ▼ 还有 %d 项", len(lines)-end)) + "\n")
 		rendered++
 	}
 
@@ -433,21 +433,21 @@ func (m menuModel) View() string {
 	// ── Footer status bar ───────────────────────────────────────
 	count := len(m.selected)
 	total := m.selectableCount()
-	leftText := FooterCountStyle.Render(fmt.Sprintf(" %d / %d selected", count, total))
+	leftText := FooterCountStyle.Render(fmt.Sprintf(" 已选 %d / %d", count, total))
 
 	updates := 0
 	for _, item := range m.items {
-		if strings.HasPrefix(item.Status, "[update") {
+		if isUpdateStatus(item.Status) {
 			updates++
 		}
 	}
 
 	rightText := ""
 	if !m.checksRan {
-		rightText = m.spinner.View() + HeaderSpinnerLabel.Render(" checking for updates ")
+		rightText = m.spinner.View() + HeaderSpinnerLabel.Render(" 正在检查更新 ")
 	} else if updates > 0 {
 		rightText = FooterUpdateStyle.Render(
-			fmt.Sprintf("%d update(s) available ", updates),
+			fmt.Sprintf("%d 项可更新 ", updates),
 		)
 	}
 
@@ -488,7 +488,7 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 	checkbox := "[ ]"
 	if m.selected[i] {
 		checkbox = lipgloss.NewStyle().Foreground(ColorOK).Render("[✓]")
-	} else if strings.HasPrefix(item.Status, "[installed") {
+	} else if isInstalledStatus(item.Status) {
 		checkbox = lipgloss.NewStyle().Foreground(ColorMuted).Render("[✓]")
 	}
 
@@ -505,9 +505,9 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 
 	if item.Status != "" {
 		switch {
-		case strings.HasPrefix(item.Status, "[update"):
+		case isUpdateStatus(item.Status):
 			line += " " + updateAvailableStyle.Render(item.Status)
-		case strings.HasPrefix(item.Status, "[installed"):
+		case isInstalledStatus(item.Status):
 			line += " " + installedStyle.Render(item.Status)
 		default:
 			line += " " + MutedStyle.Render(item.Status)

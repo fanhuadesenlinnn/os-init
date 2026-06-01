@@ -1,5 +1,5 @@
-# OS Kickstart TUI Demo
-# Recorded with VHS: https://github.com/charmbracelet/vhs
+# OS Init TUI 演示
+# 使用 VHS 录制: https://github.com/charmbracelet/vhs
 
 Output demo.gif
 
@@ -16,10 +16,10 @@ Type "./kickstart"
 Sleep 400ms
 Enter
 
-# Wait for menu + update checks
+# 等待菜单和更新检查
 Sleep 4s
 
-# Scroll through the menu
+# 浏览菜单
 Down
 Sleep 250ms
 Down
@@ -75,7 +75,7 @@ Sleep 250ms
 
 Sleep 1s
 
-# Scroll back up to top
+# 回到菜单顶部
 Up
 Sleep 150ms
 Up
@@ -131,11 +131,11 @@ Sleep 150ms
 
 Sleep 500ms
 
-# Select the first optimization
+# 选择第一个系统优化项
 Space
 Sleep 300ms
 
-# Skip down to Shell section
+# 移动到 Shell 分组
 Down
 Sleep 200ms
 Down
@@ -153,13 +153,13 @@ Sleep 200ms
 Down
 Sleep 200ms
 
-# Select fzf
+# 选择 fzf
 Space
 Sleep 300ms
 
 Sleep 500ms
 
-# Demo filter search
+# 演示过滤搜索
 Type "/"
 Sleep 300ms
 Type "docker"
@@ -167,23 +167,23 @@ Sleep 1s
 Escape
 Sleep 500ms
 
-# Select all with ctrl+a
+# 使用 ctrl+a 全选
 Ctrl+a
 Sleep 1s
 
-# Confirm
+# 确认
 Enter
 Sleep 1s
 
-# Pick Install mode
+# 选择安装模式
 Enter
 Sleep 1s
 
-# Cancel at confirm screen
+# 在确认页取消
 Escape
 
 Sleep 1s
 
-# Quit
+# 退出
 Type "q"
 Sleep 500ms

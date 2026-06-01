@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dpanic/os-kickstart/internal/modules"
-	"github.com/dpanic/os-kickstart/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 )
 
 const maxOutputLines = 5
@@ -115,7 +115,7 @@ func (m executorModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  Running scripts...") + "\n\n")
+	b.WriteString(titleStyle.Render("  正在执行脚本...") + "\n\n")
 
 	for i, g := range m.groups {
 		var icon string

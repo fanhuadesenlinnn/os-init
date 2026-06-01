@@ -4,9 +4,9 @@ import (
 	"io/fs"
 
 	tea "github.com/charmbracelet/bubbletea"
-	kickembed "github.com/dpanic/os-kickstart/internal/embed"
-	"github.com/dpanic/os-kickstart/internal/modules"
-	"github.com/dpanic/os-kickstart/internal/platform"
+	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 // Config holds parameters passed from main.go.

@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dpanic/os-kickstart/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 )
 
 type summaryModel struct {
@@ -34,7 +34,7 @@ func (m summaryModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  Results") + "\n\n")
+	b.WriteString(titleStyle.Render("  执行结果") + "\n\n")
 
 	succeeded := 0
 	failed := 0
@@ -47,11 +47,11 @@ func (m summaryModel) View() string {
 
 		if r.ExitCode == 0 {
 			icon = OKStyle.Render("  ✓")
-			status = OKStyle.Render("OK")
+			status = OKStyle.Render("成功")
 			succeeded++
 		} else {
 			icon = ErrorStyle.Render("  ✗")
-			status = ErrorStyle.Render(fmt.Sprintf("exit %d", r.ExitCode))
+			status = ErrorStyle.Render(fmt.Sprintf("退出码 %d", r.ExitCode))
 			failed++
 		}
 
@@ -62,15 +62,15 @@ func (m summaryModel) View() string {
 		b.WriteString(line + "\n")
 
 		if r.LogFile != "" {
-			b.WriteString(MutedStyle.Render(fmt.Sprintf("    log: %s", r.LogFile)) + "\n")
+			b.WriteString(MutedStyle.Render(fmt.Sprintf("    日志: %s", r.LogFile)) + "\n")
 		}
 	}
 
 	// Summary line
 	b.WriteString("\n")
-	summary := fmt.Sprintf("  %d succeeded", succeeded)
+	summary := fmt.Sprintf("  %d 个成功", succeeded)
 	if failed > 0 {
-		summary += fmt.Sprintf(", %d failed", failed)
+		summary += fmt.Sprintf(", %d 个失败", failed)
 	}
 	if failed > 0 {
 		b.WriteString(ErrorStyle.Render(summary))
@@ -78,7 +78,7 @@ func (m summaryModel) View() string {
 		b.WriteString(OKStyle.Render(summary))
 	}
 
-	b.WriteString("\n\n" + MutedStyle.Render("  q/enter to exit"))
+	b.WriteString("\n\n" + MutedStyle.Render("  q/enter 退出"))
 
 	return b.String()
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpanic/os-kickstart/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 )
 
 func writeScript(t *testing.T, dir, relPath, content string) string {

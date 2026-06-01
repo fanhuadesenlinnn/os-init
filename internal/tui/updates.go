@@ -12,12 +12,12 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dpanic/os-kickstart/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 )
 
 type updateCheckResult struct {
 	moduleID string
-	status   string // "[update available]", "[latest]", "[installed]", ""
+	status   string // "[可更新 X → Y]", "[已安装 X]", "[已安装]", ""
 }
 
 type updateCheckDoneMsg struct {
@@ -106,12 +106,12 @@ func runUpdateChecks(mods []modules.Module) tea.Cmd {
 						if ver != "" {
 							results[idx] = updateCheckResult{
 								moduleID: m.ID,
-								status:   fmt.Sprintf("[installed %s]", ver),
+								status:   statusInstalledWithVersion(ver),
 							}
 						} else {
 							results[idx] = updateCheckResult{
 								moduleID: m.ID,
-								status:   "[installed]",
+								status:   statusInstalled,
 							}
 						}
 					} else {
@@ -142,12 +142,12 @@ func checkVersion(ctx context.Context, c versionChecker) updateCheckResult {
 		latest = getLatestGitHubVersion(ctx, c.repo)
 	}
 	if latest == "" || installed == latest {
-		return updateCheckResult{moduleID: c.moduleID, status: fmt.Sprintf("[installed %s]", installed)}
+		return updateCheckResult{moduleID: c.moduleID, status: statusInstalledWithVersion(installed)}
 	}
 
 	return updateCheckResult{
 		moduleID: c.moduleID,
-		status:   fmt.Sprintf("[update %s → %s]", installed, latest),
+		status:   fmt.Sprintf(statusUpdate, installed, latest),
 	}
 }
 

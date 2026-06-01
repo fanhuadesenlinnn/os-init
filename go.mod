@@ -1,4 +1,4 @@
-module github.com/dpanic/os-kickstart
+module github.com/fanhuadesenlinnn/os-init
 
 go 1.26.1
 

@@ -1,8 +1,8 @@
 package tui
 
 import (
-	"github.com/dpanic/os-kickstart/internal/modules"
-	"github.com/dpanic/os-kickstart/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 )
 
 // screen represents which TUI screen is active.
@@ -30,11 +30,11 @@ const (
 func (m mode) String() string {
 	switch m {
 	case modeInstall:
-		return "install"
+		return "安装"
 	case modeUpdate:
-		return "update"
+		return "更新"
 	case modeUninstall:
-		return "uninstall"
+		return "卸载"
 	}
 	return ""
 }

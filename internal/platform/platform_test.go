@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dpanic/os-kickstart/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 func TestDetectFrom_ClassifiesLinuxFamilies(t *testing.T) {
