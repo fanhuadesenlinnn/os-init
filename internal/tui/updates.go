@@ -69,18 +69,6 @@ var versionCheckers = []versionChecker{
 		versionCmd: []string{"nvim", "--version"},
 		versionRe:  regexp.MustCompile(`v(\d+\.\d+\.\d+)`),
 	},
-	{
-		moduleID:   "peazip",
-		repo:       "peazip/PeaZip",
-		versionCmd: []string{"dpkg-query", "-W", "-f=${Version}", "peazip"},
-		versionRe:  regexp.MustCompile(`(\d+\.\d+\.\d+)`),
-	},
-	{
-		moduleID:   "app-signal",
-		repo:       "signalapp/Signal-Desktop",
-		versionCmd: []string{"dpkg-query", "-W", "-f=${Version}", "signal-desktop"},
-		versionRe:  regexp.MustCompile(`(\d+\.\d+\.\d+)`),
-	},
 }
 
 // runUpdateChecks checks both version updates (GitHub) and installed status for all modules.

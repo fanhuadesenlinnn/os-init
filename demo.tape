@@ -19,7 +19,7 @@ Enter
 # Wait for menu + update checks
 Sleep 4s
 
-# Scroll all the way down to bottom (26 items + separators)
+# Scroll through the menu
 Down
 Sleep 250ms
 Down
@@ -131,12 +131,7 @@ Sleep 150ms
 
 Sleep 500ms
 
-# Select GNOME Optimize
-Space
-Sleep 300ms
-
-# Select Nautilus
-Down
+# Select the first optimization
 Space
 Sleep 300ms
 

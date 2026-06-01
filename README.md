@@ -61,9 +61,6 @@ go install github.com/dpanic/os-kickstart@latest
 
 | Module | Description |
 |--------|-------------|
-| GNOME Optimize | Disable animations, sounds, hot corners, non-essential extensions |
-| Nautilus Optimize | Restrict Tracker indexing, limit thumbnails, clear cache |
-| AppArmor Setup | Learning mode + Slack reminder after 7 days |
 | Kernel sysctl | Network, memory, conntrack tuning |
 | Kernel limits | File descriptor & process limits |
 | Kernel I/O scheduler | `none` for SSD/NVMe |
@@ -99,15 +96,6 @@ go install github.com/dpanic/os-kickstart@latest
 | Docker | Engine + Compose + BuildX + daemon config |
 | Go | Latest from go.dev |
 | Neovim + LazyVim | IDE-grade editor with ripgrep, fd, lazygit |
-
-#### Browsers & Apps *(Linux only)*
-
-| App | Description |
-|-----|-------------|
-| Google Chrome | APT repo |
-| Brave | APT repo |
-| Signal Desktop | APT repo |
-| PeaZip | Archive manager (200+ formats) |
 
 ---
 
@@ -147,7 +135,7 @@ Status badges in the menu:
 
 | | Requirement |
 |-|-------------|
-| Linux | Ubuntu 24.04 with GNOME 46 |
+| Linux | Ubuntu 24.04 |
 | macOS | macOS with Homebrew |
 | Network | Internet connection for downloads |
 
@@ -170,7 +158,6 @@ Releases are automated via GitHub Actions — push a `v*` tag to create a releas
 
 - Existing `~/.zshrc` is never overwritten (instructions printed instead)
 - Existing `~/.config/nvim` is backed up before LazyVim clone
-- Snap-related AppArmor profiles stay in enforce mode
 - **Uninstall** restores system configs from `.bak-kickstart` backups
 - Docker data (`/var/lib/docker`) is preserved on uninstall
 

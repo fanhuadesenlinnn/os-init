@@ -2,29 +2,24 @@ package modules
 
 // Module describes a selectable item in the TUI menu.
 type Module struct {
-	ID           string   // unique key, e.g. "kernel-sysctl"
-	Script       string   // relative path, e.g. "kernel/optimize.sh"
-	Components   []string // sub-components or nil for standalone
-	Label        string   // display name in menu
-	Description  string   // short description
-	Category     string   // "optimization" or "installation"
-	Subsection   string   // grouping within category (e.g. "Shell", "Dev Tools")
-	OS           string   // "all", "linux", "darwin"
-	NeedsSudo    bool     // invoke with sudo bash
-	InstalledCmd      string // command to check if installed (empty = no check)
-	InstalledCheck    string // file path to check if exists (empty = no check)
-	InstalledGrepFile string // "filepath:pattern" — check if file contains pattern
+	ID                string   // unique key, e.g. "kernel-sysctl"
+	Script            string   // relative path, e.g. "kernel/optimize.sh"
+	Components        []string // sub-components or nil for standalone
+	Label             string   // display name in menu
+	Description       string   // short description
+	Category          string   // "optimization" or "installation"
+	Subsection        string   // grouping within category (e.g. "Shell", "Dev Tools")
+	OS                string   // "all", "linux", "darwin"
+	NeedsSudo         bool     // invoke with sudo bash
+	InstalledCmd      string   // command to check if installed (empty = no check)
+	InstalledCheck    string   // file path to check if exists (empty = no check)
+	InstalledGrepFile string   // "filepath:pattern" — check if file contains pattern
 }
 
 // AllModules returns the full registry, unfiltered.
 func AllModules() []Module {
 	return []Module{
 		// ── Optimizations ──
-		{ID: "gnome", Script: "gnome/optimize.sh", Label: "GNOME Optimize", Description: "disable animations, sounds, hot corners", Category: "optimization", OS: "linux", InstalledCmd: "gsettings"},
-		{ID: "nautilus", Script: "nautilus/optimize.sh", Label: "Nautilus Optimize", Description: "restrict Tracker, limit thumbnails", Category: "optimization", OS: "linux", InstalledCmd: "nautilus"},
-		{ID: "apparmor", Script: "apparmor/setup.sh", Label: "AppArmor Setup", Description: "learning mode with Slack reminder", Category: "optimization", OS: "linux", NeedsSudo: true, InstalledCmd: "apparmor_status"},
-		{ID: "apparmor-monitor", Script: "apparmor/monitor.sh", Label: "AppArmor Monitor", Description: "continuous violation alerts via Slack", Category: "optimization", OS: "linux", NeedsSudo: true, InstalledCheck: "/etc/systemd/system/apparmor-monitor.timer"},
-		{ID: "usb-monitor", Script: "usb/monitor.sh", Label: "USB Monitor", Description: "alert on new USB device insertions via webhook", Category: "optimization", OS: "linux", NeedsSudo: true, InstalledCheck: "/etc/udev/rules.d/99-usb-monitor.rules"},
 		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "Kernel ▸ sysctl.conf", Description: "network, memory, conntrack tuning", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/sysctl.conf:bbr"},
 		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "Kernel ▸ limits", Description: "file descriptor & process limits", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/security/limits.conf:2097152"},
 		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "Kernel ▸ I/O scheduler", Description: "none (SSD/NVMe)", Category: "optimization", OS: "linux", InstalledCheck: "/etc/udev/rules.d/60-scheduler.rules"},
@@ -51,12 +46,6 @@ func AllModules() []Module {
 		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "engine, compose, buildx, daemon config", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "docker"},
 		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "programming language from go.dev", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "go"},
 		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "editor with IDE features", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "nvim"},
-
-		// ── Installations / Browsers & Apps ──
-		{ID: "browser-chrome", Script: "browsers/install.sh", Components: []string{"chrome"}, Label: "Google Chrome", Category: "installation", Subsection: "Browsers & Apps", OS: "linux", InstalledCmd: "google-chrome"},
-		{ID: "browser-brave", Script: "browsers/install.sh", Components: []string{"brave"}, Label: "Brave", Category: "installation", Subsection: "Browsers & Apps", OS: "linux", InstalledCmd: "brave-browser"},
-		{ID: "app-signal", Script: "browsers/install.sh", Components: []string{"signal"}, Label: "Signal Desktop", Category: "installation", Subsection: "Browsers & Apps", OS: "linux", InstalledCmd: "signal-desktop"},
-		{ID: "peazip", Script: "peazip/install.sh", Label: "PeaZip", Description: "archive manager (200+ formats)", Category: "installation", Subsection: "Browsers & Apps", OS: "linux", InstalledCmd: "peazip"},
 	}
 }
 
@@ -75,26 +64,21 @@ func ForOS(goos string) []Module {
 // NeedsUserInfo returns true if any module in the selection requires the GitInfo screen.
 func NeedsUserInfo(selected []Module) bool {
 	for _, m := range selected {
-		if m.ID == "shell-git" || m.ID == "apparmor" || m.ID == "apparmor-monitor" {
+		if m.ID == "shell-git" {
 			return true
 		}
 	}
 	return false
 }
 
-// NeedsWebhook returns true if apparmor or usb-monitor is in the selection.
+// NeedsWebhook returns true if any selected module needs a webhook URL.
 func NeedsWebhook(selected []Module) bool {
-	for _, m := range selected {
-		if m.ID == "apparmor" || m.ID == "apparmor-monitor" || m.ID == "usb-monitor" {
-			return true
-		}
-	}
 	return false
 }
 
 // InstallSubsections returns the ordered list of subsection names for installations.
 func InstallSubsections() []string {
-	return []string{"Shell", "Terminal", "Dev Tools", "Browsers & Apps"}
+	return []string{"Shell", "Terminal", "Dev Tools"}
 }
 
 // ScriptGroup represents a single script invocation with merged components.

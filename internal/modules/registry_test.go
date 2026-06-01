@@ -1,6 +1,9 @@
 package modules_test
 
 import (
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/dpanic/os-kickstart/internal/modules"
@@ -69,14 +72,20 @@ func TestForOS_IncludesAllAndLinuxOnLinux(t *testing.T) {
 func TestNeedsSudo_AllowedModulesOnly(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
-	allowed := map[string]bool{
-		"apparmor/setup.sh":   true,
-		"apparmor/monitor.sh": true,
-		"usb/monitor.sh":      true,
-	}
 	for _, m := range mods {
-		if m.NeedsSudo && !allowed[m.Script] {
-			t.Errorf("module %q has NeedsSudo but is not in the allowed list", m.ID)
+		if m.NeedsSudo {
+			t.Errorf("module %q should not require sudo in the registry", m.ID)
+		}
+	}
+}
+
+func TestAllModules_RegisteredScriptsExist(t *testing.T) {
+	t.Parallel()
+
+	for _, m := range modules.AllModules() {
+		scriptPath := filepath.Join("..", "..", "modules", filepath.FromSlash(m.Script))
+		if _, err := os.Stat(scriptPath); err != nil {
+			t.Errorf("registered script for module %q does not exist: %s", m.ID, m.Script)
 		}
 	}
 }
@@ -103,7 +112,7 @@ func TestGroupByScript_MergesComponents(t *testing.T) {
 	}
 }
 
-func TestNeedsUserInfo_ShellGitAndApparmor(t *testing.T) {
+func TestNeedsUserInfo_ShellGitOnly(t *testing.T) {
 	t.Parallel()
 	if modules.NeedsUserInfo([]modules.Module{{ID: "docker"}}) {
 		t.Error("docker should not need user info")
@@ -111,23 +120,22 @@ func TestNeedsUserInfo_ShellGitAndApparmor(t *testing.T) {
 	if !modules.NeedsUserInfo([]modules.Module{{ID: "shell-git"}}) {
 		t.Error("shell-git should need user info")
 	}
-	if !modules.NeedsUserInfo([]modules.Module{{ID: "apparmor"}}) {
-		t.Error("apparmor should need user info")
-	}
-	if !modules.NeedsUserInfo([]modules.Module{{ID: "apparmor-monitor"}}) {
-		t.Error("apparmor-monitor should need user info")
+}
+
+func TestNeedsWebhook_ReturnsFalseWithoutWebhookModules(t *testing.T) {
+	t.Parallel()
+	for _, m := range modules.AllModules() {
+		if modules.NeedsWebhook([]modules.Module{m}) {
+			t.Errorf("module %q should not need webhook", m.ID)
+		}
 	}
 }
 
-func TestNeedsWebhook_ApparmorModules(t *testing.T) {
+func TestInstallSubsections_ReturnsCurrentGroups(t *testing.T) {
 	t.Parallel()
-	if modules.NeedsWebhook([]modules.Module{{ID: "docker"}}) {
-		t.Error("docker should not need webhook")
-	}
-	if !modules.NeedsWebhook([]modules.Module{{ID: "apparmor"}}) {
-		t.Error("apparmor should need webhook")
-	}
-	if !modules.NeedsWebhook([]modules.Module{{ID: "apparmor-monitor"}}) {
-		t.Error("apparmor-monitor should need webhook")
+
+	want := []string{"Shell", "Terminal", "Dev Tools"}
+	if got := modules.InstallSubsections(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected install subsections: got %v, want %v", got, want)
 	}
 }

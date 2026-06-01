@@ -15,17 +15,6 @@ import (
 
 const maxOutputLines = 5
 
-// scriptNeedsWebhookArg reports whether the module script takes the
-// webhook URL as its first positional argument. Keep in sync with
-// modules.NeedsWebhook in internal/modules/registry.go.
-func scriptNeedsWebhookArg(script string) bool {
-	switch script {
-	case "apparmor/setup.sh", "apparmor/monitor.sh", "usb/monitor.sh":
-		return true
-	}
-	return false
-}
-
 type executorModel struct {
 	groups   []modules.ScriptGroup
 	results  []runner.Result
@@ -51,18 +40,6 @@ func newExecutorModel(
 	webhookURL string,
 ) executorModel {
 	groups := modules.GroupByScript(selected)
-
-	// Skip webhook-requiring scripts if no webhook URL provided
-	if webhookURL == "" {
-		filtered := make([]modules.ScriptGroup, 0, len(groups))
-		for _, g := range groups {
-			if scriptNeedsWebhookArg(g.Script) {
-				continue
-			}
-			filtered = append(filtered, g)
-		}
-		groups = filtered
-	}
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -201,20 +178,13 @@ func (m executorModel) runCurrent() tea.Cmd {
 	modeFlag := m.mode
 	env := m.env
 	sudo := g.NeedsSudo
-	webhookURL := m.webhookURL
 	prog := m.program
-
-	// Webhook-requiring scripts: URL is passed as the first positional arg.
-	components := g.Components
-	if scriptNeedsWebhookArg(g.Script) && webhookURL != "" {
-		components = []string{webhookURL}
-	}
 
 	return func() tea.Msg {
 		result, err := runner.Run(context.Background(), runner.Params{
 			TmpDir:     tmpDir,
 			Script:     g.Script,
-			Components: components,
+			Components: g.Components,
 			Mode:       modeFlag,
 			Env:        env,
 			LogDir:     "logs",
