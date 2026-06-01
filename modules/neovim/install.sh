@@ -28,6 +28,14 @@ NVIM_INSTALL_DIR="/opt/$NVIM_ARCH_DIR"
 
 parse_update_flag "$@"
 
+fd_package_name() {
+    if is_macos || is_arch; then
+        echo "fd"
+    else
+        echo "fd-find"
+    fi
+}
+
 TITLE="Setup"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
 echo "=== Neovim + LazyVim $TITLE ==="
@@ -60,8 +68,8 @@ if [[ "$UNINSTALL" == true ]]; then
 
     # ripgrep + fd
     if is_linux; then
-        command -v rg &>/dev/null && { remove "removing ripgrep"; sudo apt-get remove -y ripgrep 2>/dev/null || true; }
-        (command -v fdfind &>/dev/null || command -v fd &>/dev/null) && { remove "removing fd-find"; sudo apt-get remove -y fd-find 2>/dev/null || true; }
+        command -v rg &>/dev/null && { remove "removing ripgrep"; pkg_remove ripgrep 2>/dev/null || true; }
+        (command -v fdfind &>/dev/null || command -v fd &>/dev/null) && { remove "removing fd"; pkg_remove "$(fd_package_name)" 2>/dev/null || true; }
     elif is_macos; then
         command -v rg &>/dev/null && { remove "removing ripgrep"; brew uninstall ripgrep 2>/dev/null || true; }
         command -v fd &>/dev/null && { remove "removing fd"; brew uninstall fd 2>/dev/null || true; }
@@ -133,11 +141,7 @@ fi
 if command -v fdfind &>/dev/null || command -v fd &>/dev/null; then
     skip "fd-find already installed"
 else
-    if is_macos; then
-        PKGS_TO_INSTALL+=(fd)
-    else
-        PKGS_TO_INSTALL+=(fd-find)
-    fi
+    PKGS_TO_INSTALL+=("$(fd_package_name)")
 fi
 
 if [[ ${#PKGS_TO_INSTALL[@]} -gt 0 ]]; then

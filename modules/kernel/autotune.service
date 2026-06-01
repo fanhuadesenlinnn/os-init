@@ -1,5 +1,5 @@
 [Unit]
-Description=Dynamic kernel parameter tuning based on RAM (kickstart)
+Description=Dynamic kernel parameter tuning based on RAM (os-init)
 After=systemd-sysctl.service network-online.target
 Requires=systemd-sysctl.service
 Wants=network-online.target
@@ -8,7 +8,7 @@ Wants=network-online.target
 Type=oneshot
 User=root
 Group=root
-ExecStart=/usr/bin/autotune.sh
+ExecStart=/usr/local/sbin/autotune.sh
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal

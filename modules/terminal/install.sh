@@ -47,7 +47,7 @@ if [[ "$UNINSTALL" == true ]]; then
         if command -v ncdu &>/dev/null; then
             remove "removing ncdu"
             if is_macos; then brew uninstall ncdu 2>/dev/null || true
-            else sudo apt-get remove -y ncdu 2>/dev/null || true; fi
+            else pkg_remove ncdu 2>/dev/null || true; fi
         else
             skip "ncdu not installed"
         fi

@@ -103,7 +103,7 @@ if [[ "$UNINSTALL" == true ]]; then
         if command -v direnv &>/dev/null; then
             remove "removing direnv"
             if is_macos; then brew uninstall direnv 2>/dev/null || true
-            else sudo apt-get remove -y direnv 2>/dev/null || true; fi
+            else pkg_remove direnv 2>/dev/null || true; fi
         else
             skip "direnv not installed"
         fi
@@ -114,7 +114,7 @@ if [[ "$UNINSTALL" == true ]]; then
         if command -v git-lfs &>/dev/null; then
             remove "removing git-lfs"
             if is_macos; then brew uninstall git-lfs 2>/dev/null || true
-            else sudo apt-get remove -y git-lfs 2>/dev/null || true; fi
+            else pkg_remove git-lfs 2>/dev/null || true; fi
         else
             skip "git-lfs not installed"
         fi
@@ -124,7 +124,7 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REMOVE] byobu..."
         if command -v byobu &>/dev/null; then
             remove "removing byobu"
-            if is_linux; then sudo apt-get remove -y byobu 2>/dev/null || true; fi
+            if is_linux; then pkg_remove byobu 2>/dev/null || true; fi
             [[ -d "$HOME/.byobu" ]] && { remove "removing ~/.byobu"; rm -rf "$HOME/.byobu"; }
         else
             skip "byobu not installed"
@@ -154,10 +154,8 @@ if want "zsh"; then
     if command -v zsh &>/dev/null; then
         skip "zsh $(zsh --version | head -1) already installed"
     else
-        if is_linux; then
-            install "installing zsh"
-            pkg_install zsh
-        fi
+        install "installing zsh"
+        pkg_install zsh
     fi
 
     if [[ "$(basename "$SHELL")" != "zsh" ]]; then

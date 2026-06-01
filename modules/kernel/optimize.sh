@@ -39,14 +39,6 @@ count_steps() {
 TOTAL=$(count_steps)
 next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 
-backup_file() {
-    local target="$1"
-    if [[ -f "$target" ]]; then
-        sudo cp "$target" "${target}.bak-kickstart"
-        echo "  backup: ${target}.bak-kickstart"
-    fi
-}
-
 append_if_missing() {
     local target="$1"
     local marker="$2"
@@ -71,7 +63,7 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REVERT] autotune service..."
         sudo systemctl stop autotune.service 2>/dev/null || true
         sudo systemctl disable autotune.service 2>/dev/null || true
-        sudo rm -f /etc/systemd/system/autotune.service /usr/bin/autotune.sh
+        sudo rm -f /etc/systemd/system/autotune.service /usr/local/sbin/autotune.sh /usr/bin/autotune.sh
         sudo systemctl daemon-reload
         remove "autotune service and script removed"
     fi
@@ -85,23 +77,17 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "limits"; then
         echo "[REVERT] limits..."
-        if [[ -f /etc/security/limits.conf.bak-kickstart ]]; then
-            sudo cp /etc/security/limits.conf.bak-kickstart /etc/security/limits.conf
-            remove "limits.conf restored from backup"
-        else
-            skip "no limits.conf backup found"
-        fi
+        sudo rm -f /etc/security/limits.d/99-os-init.conf
+        sudo rm -f /etc/systemd/system.conf.d/99-os-init.conf /etc/systemd/user.conf.d/99-os-init.conf
+        sudo systemctl daemon-reexec 2>/dev/null || true
+        remove "os-init limits drop-ins removed"
     fi
 
     if want "sysctl"; then
         echo "[REVERT] sysctl..."
-        if [[ -f /etc/sysctl.conf.bak-kickstart ]]; then
-            sudo cp /etc/sysctl.conf.bak-kickstart /etc/sysctl.conf
-            sudo sysctl -p >/dev/null 2>&1 || true
-            remove "sysctl.conf restored from backup"
-        else
-            skip "no sysctl.conf backup found"
-        fi
+        sudo rm -f /etc/sysctl.d/99-os-init.conf
+        sudo sysctl --system >/dev/null 2>&1 || true
+        remove "os-init sysctl drop-in removed"
     fi
 
     echo ""
@@ -112,43 +98,44 @@ fi
 
 # ── sysctl.conf ───────────────────────────────────────────────────────────────
 if want "sysctl"; then
-    next "sysctl.conf"
+    next "sysctl drop-in"
 
-    backup_file /etc/sysctl.conf
-    sudo cp "$SCRIPT_DIR/sysctl.conf" /etc/sysctl.conf
-    sudo sysctl -p >/dev/null 2>&1 || echo "  warning: some sysctl params may require autotune/reboot"
-    echo "  done: /etc/sysctl.conf (from modules/kernel/sysctl.conf)"
+    SYSCTL_TARGET="/etc/sysctl.d/99-os-init.conf"
+    backup_file "$SYSCTL_TARGET" >/dev/null || true
+    sudo install -m 0644 -D "$SCRIPT_DIR/sysctl.conf" "$SYSCTL_TARGET"
+    sudo sysctl --system >/dev/null 2>&1 || echo "  warning: some sysctl params may require autotune/reboot"
+    echo "  done: $SYSCTL_TARGET (from modules/kernel/sysctl.conf)"
 fi
 
 # ── limits ────────────────────────────────────────────────────────────────────
 if want "limits"; then
     next "file descriptor & process limits"
 
-    backup_file /etc/security/limits.conf
-    sudo cp "$SCRIPT_DIR/limits.conf" /etc/security/limits.conf
-    echo "  done: /etc/security/limits.conf (from modules/kernel/limits.conf)"
+    LIMITS_TARGET="/etc/security/limits.d/99-os-init.conf"
+    backup_file "$LIMITS_TARGET" >/dev/null || true
+    sudo install -m 0644 -D "$SCRIPT_DIR/limits.conf" "$LIMITS_TARGET"
+    echo "  done: $LIMITS_TARGET (from modules/kernel/limits.conf)"
 
     # PAM session modules -- append if missing
-    append_if_missing /etc/pam.d/common-session \
-        "pam_limits.so" \
-        "# KICKSTART -- enable pam_limits for desktop sessions
+    for pam_file in \
+        /etc/pam.d/common-session \
+        /etc/pam.d/common-session-noninteractive \
+        /etc/pam.d/system-auth \
+        /etc/pam.d/password-auth \
+        /etc/pam.d/system-login; do
+        [[ -f "$pam_file" ]] || continue
+        append_if_missing "$pam_file" \
+            "pam_limits.so" \
+            "# os-init -- enable pam_limits
 session required pam_limits.so"
+    done
 
-    append_if_missing /etc/pam.d/common-session-noninteractive \
-        "pam_limits.so" \
-        "# KICKSTART -- enable pam_limits for SSH sessions
-session required pam_limits.so"
-
-    # systemd DefaultLimitNOFILE -- append if missing
-    append_if_missing /etc/systemd/system.conf \
-        "DefaultLimitNOFILE=2097152" \
-        "# KICKSTART -- increase systemd file descriptor limit
-DefaultLimitNOFILE=2097152"
-
-    append_if_missing /etc/systemd/user.conf \
-        "DefaultLimitNOFILE=2097152" \
-        "# KICKSTART -- increase systemd user file descriptor limit
-DefaultLimitNOFILE=2097152"
+    sudo install -m 0755 -d /etc/systemd/system.conf.d /etc/systemd/user.conf.d
+    printf '%s\n' '[Manager]' 'DefaultLimitNOFILE=2097152' 'DefaultLimitNPROC=1048576' \
+        | sudo tee /etc/systemd/system.conf.d/99-os-init.conf >/dev/null
+    printf '%s\n' '[Manager]' 'DefaultLimitNOFILE=2097152' 'DefaultLimitNPROC=1048576' \
+        | sudo tee /etc/systemd/user.conf.d/99-os-init.conf >/dev/null
+    sudo systemctl daemon-reexec 2>/dev/null || true
 
     echo "  done: limits + PAM + systemd"
 fi
@@ -157,7 +144,7 @@ fi
 if want "scheduler"; then
     next "I/O scheduler (none -- best for SSD/NVMe)"
 
-    sudo cp "$SCRIPT_DIR/60-scheduler.rules" /etc/udev/rules.d/60-scheduler.rules
+    sudo install -m 0644 -D "$SCRIPT_DIR/60-scheduler.rules" /etc/udev/rules.d/60-scheduler.rules
     sudo udevadm control --reload 2>/dev/null || true
     sudo udevadm trigger 2>/dev/null || true
     echo "  done: /etc/udev/rules.d/60-scheduler.rules (from modules/kernel/60-scheduler.rules)"
@@ -167,10 +154,9 @@ fi
 if want "autotune"; then
     next "RAM-based autotune (conntrack, tw_buckets, file-max)"
 
-    sudo cp "$SCRIPT_DIR/autotune.sh" /usr/bin/autotune.sh
-    sudo chmod +x /usr/bin/autotune.sh
+    sudo install -m 0755 -D "$SCRIPT_DIR/autotune.sh" /usr/local/sbin/autotune.sh
 
-    sudo cp "$SCRIPT_DIR/autotune.service" /etc/systemd/system/autotune.service
+    sudo install -m 0644 -D "$SCRIPT_DIR/autotune.service" /etc/systemd/system/autotune.service
     sudo systemctl daemon-reload
     sudo systemctl enable autotune.service 2>/dev/null || true
     echo "  done: /usr/bin/autotune.sh + autotune.service (from modules/kernel/)"
