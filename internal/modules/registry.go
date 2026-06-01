@@ -51,7 +51,7 @@ func AllModules() []Module {
 		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "proxy core, config test, MetaCubeXD UI", Category: "installation", Subsection: "Network", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "mihomo"},
 
 		// ── Installations / Dev Tools ──
-		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "engine, compose, buildx, daemon config", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "docker"},
+		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "static engine binaries, compose plugin, daemon config", Category: "installation", Subsection: "Dev Tools", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "docker"},
 		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "programming language from go.dev", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "go"},
 		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "editor with IDE features", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "nvim"},
 	}

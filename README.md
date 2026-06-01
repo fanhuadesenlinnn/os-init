@@ -101,7 +101,7 @@ go install github.com/dpanic/os-kickstart@latest
 
 | Tool | Description |
 |------|-------------|
-| Docker | Engine + Compose + BuildX + daemon config |
+| Docker | Linux static Engine binaries + Compose CLI plugin + daemon config |
 | Go | Latest from go.dev |
 | Neovim + LazyVim | IDE-grade editor with ripgrep, fd, lazygit |
 
