@@ -49,7 +49,8 @@ go install github.com/dpanic/os-kickstart@latest
 - **Interactive TUI** — multi-select menu with categories, search filter, scroll viewport
 - **Install / Update / Uninstall** — fresh install, refresh to latest, or clean removal
 - **Idempotent** — safe to re-run, skips what's already installed
-- **Cross-platform** — Ubuntu 24.04 + macOS (Linux-only items auto-hidden on Mac)
+- **Cross-platform** — Linux + macOS (Linux-only items auto-hidden on Mac)
+- **Linux target detection** — detects Debian, RedHat, and Arch family systems for staged multi-distro support
 - **Async update checks** — checks GitHub releases and go.dev for new versions in background
 - **Installed detection** — shows `[installed X.Y.Z]` for tools already on the system
 
@@ -135,7 +136,7 @@ Status badges in the menu:
 
 | | Requirement |
 |-|-------------|
-| Linux | Ubuntu 24.04 |
+| Linux | Debian/Ubuntu, RedHat/Rocky/Fedora, or Arch/Manjaro family |
 | macOS | macOS with Homebrew |
 | Network | Internet connection for downloads |
 

@@ -1,5 +1,7 @@
 package modules
 
+import "github.com/dpanic/os-kickstart/internal/platform"
+
 // Module describes a selectable item in the TUI menu.
 type Module struct {
 	ID                string   // unique key, e.g. "kernel-sysctl"
@@ -10,6 +12,9 @@ type Module struct {
 	Category          string   // "optimization" or "installation"
 	Subsection        string   // grouping within category (e.g. "Shell", "Dev Tools")
 	OS                string   // "all", "linux", "darwin"
+	Families          []string // "all", "debian", "redhat", "arch", "darwin"
+	Requires          []string // "linux", "systemd"
+	Tags              []string // "server", "dev", "cn-ready"
 	NeedsSudo         bool     // invoke with sudo bash
 	InstalledCmd      string   // command to check if installed (empty = no check)
 	InstalledCheck    string   // file path to check if exists (empty = no check)
@@ -51,14 +56,76 @@ func AllModules() []Module {
 
 // ForOS returns modules matching the given OS ("linux" or "darwin").
 func ForOS(goos string) []Module {
+	return ForTarget(platform.Target{
+		GOOS:   goos,
+		Family: familyForGOOS(goos),
+		Init:   "unknown",
+	})
+}
+
+// ForTarget returns modules matching the detected operating system target.
+func ForTarget(target platform.Target) []Module {
 	all := AllModules()
 	filtered := make([]Module, 0, len(all))
 	for _, m := range all {
-		if m.OS == "all" || m.OS == goos {
+		if moduleMatchesTarget(m, target) {
 			filtered = append(filtered, m)
 		}
 	}
 	return filtered
+}
+
+func moduleMatchesTarget(m Module, target platform.Target) bool {
+	goos := normalizedGOOS(target)
+	if m.OS != "" && m.OS != "all" && m.OS != goos {
+		return false
+	}
+	if len(m.Families) > 0 && !familyMatches(m.Families, target.Family) {
+		return false
+	}
+	for _, requirement := range m.Requires {
+		switch requirement {
+		case "linux":
+			if goos != "linux" {
+				return false
+			}
+		case "systemd":
+			if target.Init != "systemd" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func normalizedGOOS(target platform.Target) string {
+	if target.GOOS != "" {
+		return target.GOOS
+	}
+	switch target.Family {
+	case platform.FamilyDarwin:
+		return "darwin"
+	case platform.FamilyArch, platform.FamilyDebian, platform.FamilyRedHat:
+		return "linux"
+	default:
+		return ""
+	}
+}
+
+func familyMatches(families []string, family platform.Family) bool {
+	for _, item := range families {
+		if item == "all" || item == string(family) {
+			return true
+		}
+	}
+	return false
+}
+
+func familyForGOOS(goos string) platform.Family {
+	if goos == "darwin" {
+		return platform.FamilyDarwin
+	}
+	return platform.FamilyUnknown
 }
 
 // NeedsUserInfo returns true if any module in the selection requires the GitInfo screen.

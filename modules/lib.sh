@@ -40,7 +40,55 @@ detect_os() {
     esac
 }
 
+lower() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+detect_linux_family() {
+    if [[ "$OS" != "linux" ]]; then
+        echo "$OS"
+        return
+    fi
+
+    local id="" id_like=""
+    if [[ -r /etc/os-release ]]; then
+        # /etc/os-release is defined as shell-compatible key=value data.
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        id="$(lower "${ID:-}")"
+        id_like="$(lower "${ID_LIKE:-}")"
+    fi
+
+    case "$id" in
+        arch|manjaro|endeavouros) echo "arch"; return ;;
+        debian|ubuntu|linuxmint|kali) echo "debian"; return ;;
+        rhel|centos|rocky|almalinux|fedora|oracle|oraclelinux|ol) echo "redhat"; return ;;
+    esac
+
+    case " $id_like " in
+        *" arch "*) echo "arch"; return ;;
+        *" debian "*|*" ubuntu "*) echo "debian"; return ;;
+        *" rhel "*|*" fedora "*|*" centos "*) echo "redhat"; return ;;
+    esac
+
+    echo "unknown"
+}
+
+detect_init() {
+    if [[ "$OS" != "linux" ]]; then
+        echo "unknown"
+    elif [[ -d /run/systemd/system ]]; then
+        echo "systemd"
+    elif command -v rc-service &>/dev/null; then
+        echo "openrc"
+    else
+        echo "unknown"
+    fi
+}
+
 OS="$(detect_os)"
+OS_FAMILY="$(detect_linux_family)"
+INIT_SYSTEM="$(detect_init)"
 
 ensure_brew() {
     if command -v brew &>/dev/null; then
@@ -55,9 +103,23 @@ pkg_install() {
     if [[ "$OS" == "macos" ]]; then
         ensure_brew
         brew install "$@"
-    else
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
         sudo apt-get update -qq
         sudo apt-get install -y "$@"
+    elif [[ "$OS_FAMILY" == "arch" ]]; then
+        sudo pacman -Sy --needed --noconfirm "$@"
+    elif [[ "$OS_FAMILY" == "redhat" ]]; then
+        if command -v dnf &>/dev/null; then
+            sudo dnf install -y "$@"
+        elif command -v yum &>/dev/null; then
+            sudo yum install -y "$@"
+        else
+            echo "No dnf/yum found for RedHat-family package install" >&2
+            return 1
+        fi
+    else
+        echo "Unsupported package family: ${OS_FAMILY}" >&2
+        return 1
     fi
 }
 
@@ -73,6 +135,10 @@ cask_install() {
 
 is_macos() { [[ "$OS" == "macos" ]]; }
 is_linux() { [[ "$OS" == "linux" ]]; }
+is_arch() { [[ "$OS_FAMILY" == "arch" ]]; }
+is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }
+is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
+is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
 
 # Reliable update for shallow git clones (git pull often fails with divergent branches)
 git_update_shallow() {

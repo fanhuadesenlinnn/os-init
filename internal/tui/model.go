@@ -2,11 +2,11 @@ package tui
 
 import (
 	"io/fs"
-	"runtime"
 
 	tea "github.com/charmbracelet/bubbletea"
 	kickembed "github.com/dpanic/os-kickstart/internal/embed"
 	"github.com/dpanic/os-kickstart/internal/modules"
+	"github.com/dpanic/os-kickstart/internal/platform"
 )
 
 // Config holds parameters passed from main.go.
@@ -38,13 +38,14 @@ type Model struct {
 	userName        string
 	userEmail       string
 	webhookURL      string
-	tmpDir    string
-	cleanupFn func()
+	tmpDir          string
+	cleanupFn       func()
 }
 
 // New creates a new root Model.
 func New(cfg Config) Model {
-	mods := modules.ForOS(runtime.GOOS)
+	target := platform.Detect()
+	mods := modules.ForTarget(target)
 	return Model{
 		config: cfg,
 		screen: screenMenu,
