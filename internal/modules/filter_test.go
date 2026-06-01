@@ -51,3 +51,31 @@ func TestModuleMatchesTarget_RequiresSystemd(t *testing.T) {
 		t.Fatal("module should not match non-systemd target")
 	}
 }
+
+func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
+	t.Parallel()
+
+	systemd := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"})
+	if !hasModule(systemd, "mihomo") {
+		t.Fatal("mihomo should appear on Debian-family systemd targets")
+	}
+
+	openrc := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "openrc"})
+	if hasModule(openrc, "mihomo") {
+		t.Fatal("mihomo should be hidden on non-systemd targets")
+	}
+
+	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
+	if hasModule(darwin, "mihomo") {
+		t.Fatal("mihomo should be hidden on darwin targets")
+	}
+}
+
+func hasModule(mods []Module, id string) bool {
+	for _, m := range mods {
+		if m.ID == id {
+			return true
+		}
+	}
+	return false
+}

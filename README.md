@@ -91,6 +91,12 @@ go install github.com/dpanic/os-kickstart@latest
 | ncdu | Interactive disk usage analyzer |
 | Yazi | Blazing-fast terminal file manager |
 
+#### Network
+
+| Tool | Description |
+|------|-------------|
+| Mihomo | Proxy core, config rendering/testing, optional MetaCubeXD dashboard |
+
 #### Dev Tools
 
 | Tool | Description |

@@ -47,6 +47,9 @@ func AllModules() []Module {
 		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "disk analyzer", Category: "installation", Subsection: "Terminal", OS: "all", InstalledCmd: "ncdu"},
 		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "terminal file manager", Category: "installation", Subsection: "Terminal", OS: "all", InstalledCmd: "yazi"},
 
+		// ── Installations / Network ──
+		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "proxy core, config test, MetaCubeXD UI", Category: "installation", Subsection: "Network", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "mihomo"},
+
 		// ── Installations / Dev Tools ──
 		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "engine, compose, buildx, daemon config", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "docker"},
 		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "programming language from go.dev", Category: "installation", Subsection: "Dev Tools", OS: "all", InstalledCmd: "go"},
@@ -145,7 +148,7 @@ func NeedsWebhook(selected []Module) bool {
 
 // InstallSubsections returns the ordered list of subsection names for installations.
 func InstallSubsections() []string {
-	return []string{"Shell", "Terminal", "Dev Tools"}
+	return []string{"Shell", "Terminal", "Network", "Dev Tools"}
 }
 
 // ScriptGroup represents a single script invocation with merged components.

@@ -134,7 +134,7 @@ func TestNeedsWebhook_ReturnsFalseWithoutWebhookModules(t *testing.T) {
 func TestInstallSubsections_ReturnsCurrentGroups(t *testing.T) {
 	t.Parallel()
 
-	want := []string{"Shell", "Terminal", "Dev Tools"}
+	want := []string{"Shell", "Terminal", "Network", "Dev Tools"}
 	if got := modules.InstallSubsections(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected install subsections: got %v, want %v", got, want)
 	}
