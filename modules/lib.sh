@@ -20,17 +20,27 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_OFFLINE OS_INIT_FILES_DIR
-    HTTP_PROXY HTTPS_PROXY NO_PROXY
-    DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
+    OS_INIT_PROXY HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
+    DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY DOWNLOAD_URL_PROXY
+    HOMEBREW_INSTALL_URL
+    OH_MY_ZSH_REPO FZF_REPO STARSHIP_INSTALL_URL DIRENV_PACKAGE
+    ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
+    NVM_VERSION NVM_INSTALL_BASE NVM_INSTALL_URL FNM_INSTALL_URL
     DOCKER_DOWNLOAD_BASE DOCKER_CHANNEL DOCKER_VERSION DOCKER_COMPOSE_VERSION DOCKER_COMPOSE_DOWNLOAD_BASE
+    DOCKER_TGZ_URL DOCKER_COMPOSE_DOWNLOAD_URL
     DOCKER_REGISTRY_MIRRORS DOCKER_INSECURE_REGISTRIES DOCKER_DATA_ROOT
     ENABLE_MIHOMO MIHOMO_PACKAGE MIHOMO_VERSION MIHOMO_DOWNLOAD_BASE MIHOMO_BINARY_SOURCE
+    MIHOMO_DOWNLOAD_URL
     MIHOMO_SERVICE_NAME MIHOMO_CONFIG_DIR MIHOMO_CONFIG_FILE MIHOMO_CONFIG_SOURCE
     MIHOMO_MIXED_PORT MIHOMO_ALLOW_LAN MIHOMO_BIND_ADDRESS
     MIHOMO_CONTROLLER_HOST MIHOMO_CONTROLLER_PORT MIHOMO_DNS_LISTEN MIHOMO_SECRET
     MIHOMO_STATE_DIR MIHOMO_EXTERNAL_UI_DIR MIHOMO_AUTO_ENABLE_SERVICE
-    ENABLE_METACUBEXD METACUBEXD_PACKAGE METACUBEXD_VERSION METACUBEXD_SOURCE METACUBEXD_WEB_ROOT
-    GO_VERSION GO_DOWNLOAD_BASE GO_VERSION_URL
+    ENABLE_METACUBEXD METACUBEXD_PACKAGE METACUBEXD_VERSION METACUBEXD_SOURCE METACUBEXD_REPO METACUBEXD_WEB_ROOT
+    GO_VERSION GO_DOWNLOAD_BASE GO_VERSION_URL GO_DOWNLOAD_URL
+    NVIM_DOWNLOAD_BASE NVIM_DOWNLOAD_URL
+    LAZYGIT_VERSION LAZYGIT_DOWNLOAD_BASE LAZYGIT_DOWNLOAD_URL
+    LAZYVIM_STARTER_REPO
+    YAZI_DOWNLOAD_BASE YAZI_DOWNLOAD_URL
 )
 
 # Action flags: --update refreshes to latest, --uninstall removes
@@ -141,13 +151,22 @@ source_config_file() {
 }
 
 export_proxy_env() {
+    OS_INIT_PROXY="${OS_INIT_PROXY:-${os_init_proxy:-}}"
     HTTP_PROXY="${HTTP_PROXY:-${http_proxy:-}}"
     HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
+    ALL_PROXY="${ALL_PROXY:-${all_proxy:-}}"
     NO_PROXY="${NO_PROXY:-${no_proxy:-}}"
 
-    export HTTP_PROXY HTTPS_PROXY NO_PROXY
+    if [[ -n "${OS_INIT_PROXY:-}" ]]; then
+        HTTP_PROXY="${HTTP_PROXY:-$OS_INIT_PROXY}"
+        HTTPS_PROXY="${HTTPS_PROXY:-$OS_INIT_PROXY}"
+        ALL_PROXY="${ALL_PROXY:-$OS_INIT_PROXY}"
+    fi
+
+    export OS_INIT_PROXY HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
     export http_proxy="$HTTP_PROXY"
     export https_proxy="$HTTPS_PROXY"
+    export all_proxy="$ALL_PROXY"
     export no_proxy="$NO_PROXY"
 }
 
@@ -203,14 +222,14 @@ pkg_update() {
         ensure_brew
         brew update
     elif [[ "$OS_FAMILY" == "debian" ]]; then
-        sudo apt-get update -qq
+        sudo_env apt-get update -qq
     elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo pacman -Sy --noconfirm
+        sudo_env pacman -Sy --noconfirm
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
         if command -v dnf &>/dev/null; then
-            sudo dnf makecache -y
+            sudo_env dnf makecache -y
         elif command -v yum &>/dev/null; then
-            sudo yum makecache -y
+            sudo_env yum makecache -y
         else
             die "RedHat 系统未找到 dnf/yum"
         fi
@@ -226,7 +245,7 @@ ensure_brew() {
     install "安装 Homebrew"
     local tmp
     tmp="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
-    download_file "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" "$tmp"
+    download_file "$(resource_url HOMEBREW_INSTALL_URL "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh")" "$tmp"
     /bin/bash "$tmp"
     rm -f "$tmp"
     eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
@@ -238,14 +257,14 @@ pkg_install() {
         brew install "$@"
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         pkg_update
-        sudo apt-get install -y "$@"
+        sudo_env apt-get install -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo pacman -Sy --needed --noconfirm "$@"
+        sudo_env pacman -Sy --needed --noconfirm "$@"
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
         if command -v dnf &>/dev/null; then
-            sudo dnf install -y "$@"
+            sudo_env dnf install -y "$@"
         elif command -v yum &>/dev/null; then
-            sudo yum install -y "$@"
+            sudo_env yum install -y "$@"
         else
             die "RedHat 系统未找到 dnf/yum"
         fi
@@ -259,14 +278,14 @@ pkg_remove() {
         ensure_brew
         brew uninstall "$@" 2>/dev/null || true
     elif [[ "$OS_FAMILY" == "debian" ]]; then
-        sudo apt-get remove -y "$@"
+        sudo_env apt-get remove -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo pacman -Rns --noconfirm "$@"
+        sudo_env pacman -Rns --noconfirm "$@"
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
         if command -v dnf &>/dev/null; then
-            sudo dnf remove -y "$@"
+            sudo_env dnf remove -y "$@"
         elif command -v yum &>/dev/null; then
-            sudo yum remove -y "$@"
+            sudo_env yum remove -y "$@"
         else
             die "RedHat 系统未找到 dnf/yum"
         fi
@@ -307,6 +326,37 @@ is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }
 is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
 is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
 
+sudo_env() {
+    if [[ "$(id -u)" == "0" ]]; then
+        "$@"
+    else
+        sudo -E "$@"
+    fi
+}
+
+resource_url() {
+    local key="$1" fallback="$2" value
+    value="${!key:-}"
+    if [[ -n "$value" ]]; then
+        echo "$value"
+    else
+        echo "$fallback"
+    fi
+}
+
+repo_url() {
+    resource_url "$@"
+}
+
+render_url_proxy() {
+    local proxy="$1" url="$2"
+    if [[ "$proxy" == *"{url}"* ]]; then
+        echo "${proxy//\{url\}/$url}"
+    else
+        echo "${proxy%/}/$url"
+    fi
+}
+
 rewrite_github_url() {
     local url="$1"
     if [[ -z "${GITHUB_PROXY:-}" ]]; then
@@ -316,10 +366,28 @@ rewrite_github_url() {
 
     case "$url" in
         https://github.com/*|https://raw.githubusercontent.com/*)
-            if [[ "$GITHUB_PROXY" == *"{url}"* ]]; then
-                echo "${GITHUB_PROXY//\{url\}/$url}"
+            render_url_proxy "$GITHUB_PROXY" "$url"
+            ;;
+        *)
+            echo "$url"
+            ;;
+    esac
+}
+
+rewrite_download_url() {
+    local url="$1" rewritten
+    rewritten="$(rewrite_github_url "$url")"
+    if [[ "$rewritten" != "$url" ]]; then
+        echo "$rewritten"
+        return
+    fi
+
+    case "$url" in
+        http://*|https://*)
+            if [[ -n "${DOWNLOAD_URL_PROXY:-}" ]]; then
+                render_url_proxy "$DOWNLOAD_URL_PROXY" "$url"
             else
-                echo "${GITHUB_PROXY%/}/$url"
+                echo "$url"
             fi
             ;;
         *)
@@ -328,10 +396,21 @@ rewrite_github_url() {
     esac
 }
 
+git_with_proxy() {
+    local -a git_args=()
+    if [[ -n "${HTTP_PROXY:-}" ]]; then
+        git_args+=(-c "http.proxy=${HTTP_PROXY}")
+    fi
+    if [[ -n "${HTTPS_PROXY:-}" ]]; then
+        git_args+=(-c "https.proxy=${HTTPS_PROXY}")
+    fi
+    git "${git_args[@]}" "$@"
+}
+
 github_latest_version() {
     local repo="$1" prefix="${2:-v}"
     local url latest
-    url="$(rewrite_github_url "https://github.com/${repo}/releases/latest")"
+    url="$(rewrite_download_url "https://github.com/${repo}/releases/latest")"
     if command -v curl &>/dev/null; then
         latest="$(curl -fsSI "$url" 2>/dev/null | grep -i '^location:' | sed "s|.*/${prefix}||" | tr -d '\r\n')"
     elif command -v wget &>/dev/null; then
@@ -345,7 +424,7 @@ github_latest_version() {
 
 git_clone_depth() {
     local depth="$1" url="$2" dest="$3"
-    git clone --depth="$depth" "$(rewrite_github_url "$url")" "$dest"
+    git_with_proxy clone --depth="$depth" "$(rewrite_download_url "$url")" "$dest"
 }
 
 download_file() {
@@ -353,7 +432,7 @@ download_file() {
     [[ "${OS_INIT_OFFLINE:-0}" == "1" ]] && die "离线模式禁止下载: $url"
 
     local final_url
-    final_url="$(rewrite_github_url "$url")"
+    final_url="$(rewrite_download_url "$url")"
     mkdir -p "$(dirname "$dest")"
     if command -v curl &>/dev/null; then
         curl -fL --retry "${DOWNLOAD_RETRY:-3}" \
@@ -448,6 +527,6 @@ git_update_shallow() {
     local dir="$1"
     local branch
     branch=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null) || branch="master"
-    git -C "$dir" fetch origin --depth=1 -q
-    git -C "$dir" reset --hard "origin/$branch"
+    git_with_proxy -C "$dir" fetch origin --depth=1 -q
+    git_with_proxy -C "$dir" reset --hard "origin/$branch"
 }
