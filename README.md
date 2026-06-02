@@ -70,6 +70,14 @@ make build
 
 ## 配置
 
+程序启动时会先检查用户配置文件。如果没有发现 `/etc/os-init/config.env` 或 `~/.config/os-init/config.env`，TUI 会提示是否创建默认配置文件；默认创建到：
+
+```bash
+~/.config/os-init/config.env
+```
+
+创建出来的配置文件带中文注释，说明每个代理、资源地址和离线参数的用途。
+
 配置加载顺序：
 
 1. `modules/config/defaults.env`
@@ -93,12 +101,18 @@ export OS_INIT_FILES_DIR=/opt/os-init/packages
 
 Docker 和 Mihomo 也可以通过同一套配置调整版本、下载地址、镜像源、systemd 代理等参数。
 
-可先复制示例配置再修改：
+也可以提前复制示例配置再修改：
 
 ```bash
-sudo mkdir -p /etc/os-init
-sudo cp modules/config/config.env.example /etc/os-init/config.env
-sudoedit /etc/os-init/config.env
+mkdir -p ~/.config/os-init
+cp modules/config/config.env.example ~/.config/os-init/config.env
+${EDITOR:-vi} ~/.config/os-init/config.env
+```
+
+如果不想每次启动显示配置提示页，可以设置：
+
+```bash
+OS_INIT_CONFIG_PROMPT=0
 ```
 
 资源下载可以按两种方式覆盖：

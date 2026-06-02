@@ -7,15 +7,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"unicode"
 )
 
 const embeddedDefaults = "modules/config/defaults.env"
 
+var (
+	originalEnvOnce sync.Once
+	originalEnv     map[string]string
+)
+
 // Apply loads os-init env files for Go-side network work, preserving
 // environment variables as the final override just like modules/lib.sh.
 func Apply(assets fs.FS) {
-	original := snapshotEnv()
+	originalEnvOnce.Do(func() {
+		originalEnv = snapshotEnv()
+	})
 
 	if assets != nil {
 		loadFSFile(assets, embeddedDefaults)
@@ -25,7 +33,7 @@ func Apply(assets fs.FS) {
 		loadLocalFile(filepath.Join(home, ".config", "os-init", "config.env"))
 	}
 
-	for key, value := range original {
+	for key, value := range originalEnv {
 		_ = os.Setenv(key, value)
 	}
 	exportProxyEnv()

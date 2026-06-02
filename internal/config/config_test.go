@@ -1,8 +1,12 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"testing/fstest"
 )
 
 func TestParseEnv(t *testing.T) {
@@ -28,4 +32,114 @@ bad-key=value
 	if _, ok := got["bad-key"]; ok {
 		t.Fatal("invalid key should be ignored")
 	}
+}
+
+func TestCreateUserConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	files := fstest.MapFS{
+		embeddedExample: {Data: []byte("# 中文说明\nOS_INIT_PROXY=\n")},
+	}
+
+	path, err := CreateUserConfig(files)
+	if err != nil {
+		t.Fatalf("CreateUserConfig failed: %v", err)
+	}
+
+	wantPath := filepath.Join(os.Getenv("HOME"), ".config", "os-init", "config.env")
+	if path != wantPath {
+		t.Fatalf("unexpected path: got %q, want %q", path, wantPath)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "中文说明") {
+		t.Fatalf("config template was not copied: %q", string(data))
+	}
+
+	if err := os.WriteFile(path, []byte("CUSTOM=1\n"), 0o600); err != nil {
+		t.Fatalf("write custom config: %v", err)
+	}
+	if _, err := CreateUserConfig(files); err != nil {
+		t.Fatalf("second CreateUserConfig failed: %v", err)
+	}
+	data, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config after second create: %v", err)
+	}
+	if string(data) != "CUSTOM=1\n" {
+		t.Fatalf("existing config should not be overwritten: %q", string(data))
+	}
+}
+
+func TestApplyUsesUserConfigCreatedAfterInitialLoad(t *testing.T) {
+	preserveEnv(t,
+		"OS_INIT_FILES_DIR",
+		"OS_INIT_PROXY",
+		"HTTP_PROXY",
+		"http_proxy",
+		"HTTPS_PROXY",
+		"https_proxy",
+		"ALL_PROXY",
+		"all_proxy",
+		"NO_PROXY",
+		"no_proxy",
+	)
+	resetOriginalEnvForTest()
+	t.Cleanup(resetOriginalEnvForTest)
+	os.Unsetenv("OS_INIT_FILES_DIR")
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	files := fstest.MapFS{
+		embeddedDefaults: {Data: []byte("OS_INIT_FILES_DIR=\nNO_PROXY=localhost\n")},
+	}
+
+	Apply(files)
+	if got := os.Getenv("OS_INIT_FILES_DIR"); got != "" {
+		t.Fatalf("unexpected OS_INIT_FILES_DIR after defaults: %q", got)
+	}
+
+	userConfigDir := filepath.Join(home, ".config", "os-init")
+	if err := os.MkdirAll(userConfigDir, 0o700); err != nil {
+		t.Fatalf("create user config dir: %v", err)
+	}
+	userConfig := filepath.Join(userConfigDir, "config.env")
+	if err := os.WriteFile(userConfig, []byte("OS_INIT_FILES_DIR=/opt/os-init/packages\n"), 0o600); err != nil {
+		t.Fatalf("write user config: %v", err)
+	}
+
+	Apply(files)
+	if got := os.Getenv("OS_INIT_FILES_DIR"); got != "/opt/os-init/packages" {
+		t.Fatalf("user config should win after second Apply, got %q", got)
+	}
+}
+
+func resetOriginalEnvForTest() {
+	originalEnvOnce = sync.Once{}
+	originalEnv = nil
+}
+
+func preserveEnv(t *testing.T, keys ...string) {
+	t.Helper()
+
+	type envValue struct {
+		value string
+		ok    bool
+	}
+	previous := make(map[string]envValue, len(keys))
+	for _, key := range keys {
+		value, ok := os.LookupEnv(key)
+		previous[key] = envValue{value: value, ok: ok}
+	}
+	t.Cleanup(func() {
+		for key, item := range previous {
+			if item.ok {
+				_ = os.Setenv(key, item.value)
+			} else {
+				_ = os.Unsetenv(key)
+			}
+		}
+	})
 }

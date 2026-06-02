@@ -10,6 +10,7 @@ type screen int
 
 const (
 	screenBanner screen = iota
+	screenConfig
 	screenMenu
 	screenMode
 	screenGitInfo
@@ -53,6 +54,8 @@ func (m mode) Flag() string {
 // Shared messages between screens.
 
 type switchScreenMsg struct{ to screen }
+
+type configReadyMsg struct{}
 
 type selectedModulesMsg struct{ modules []modules.Module }
 

@@ -2,9 +2,10 @@ package tui
 
 import (
 	"io/fs"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/fanhuadesenlinnn/os-init/internal/config"
+	appconfig "github.com/fanhuadesenlinnn/os-init/internal/config"
 	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
@@ -25,13 +26,14 @@ type Model struct {
 	height int
 
 	// Screen models
-	banner   bannerModel
-	menu     menuModel
-	mode     modeModel
-	gitInfo  gitInfoModel
-	confirm  confirmModel
-	executor executorModel
-	summary  summaryModel
+	banner        bannerModel
+	configStartup configStartupModel
+	menu          menuModel
+	mode          modeModel
+	gitInfo       gitInfoModel
+	confirm       confirmModel
+	executor      executorModel
+	summary       summaryModel
 
 	// Shared state
 	selectedModules []modules.Module
@@ -45,15 +47,26 @@ type Model struct {
 
 // New creates a new root Model.
 func New(cfg Config) Model {
-	config.Apply(cfg.Assets)
+	appconfig.Apply(cfg.Assets)
+	model := Model{
+		config:        cfg,
+		screen:        screenConfig,
+		configStartup: newConfigStartupModel(cfg.Assets),
+		mode:          newModeModel(),
+	}
+	if os.Getenv("OS_INIT_CONFIG_PROMPT") == "0" {
+		model.screen = screenMenu
+		model.menu = newMenuModel(modules.ForTarget(platform.Detect()))
+	}
+	return model
+}
+
+func (m Model) startMenu() (Model, tea.Cmd) {
 	target := platform.Detect()
 	mods := modules.ForTarget(target)
-	return Model{
-		config: cfg,
-		screen: screenMenu,
-		menu:   newMenuModel(mods),
-		mode:   newModeModel(),
-	}
+	m.menu = newMenuModel(mods)
+	m.screen = screenMenu
+	return m, m.menu.Init()
 }
 
 var (
@@ -81,7 +94,7 @@ func RunCleanup() {
 
 // Init returns the initial command for the program.
 func (m Model) Init() tea.Cmd {
-	return m.menu.Init()
+	return m.initScreen(m.screen)
 }
 
 // Update handles messages and routes them to the active screen.
@@ -106,6 +119,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.screen {
 	case screenBanner:
 		m.banner, cmd = m.banner.Update(msg)
+	case screenConfig:
+		m.configStartup, cmd = m.configStartup.Update(msg)
 	case screenMenu:
 		m.menu, cmd = m.menu.Update(msg)
 	case screenMode:
@@ -122,6 +137,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle screen transition messages
 	switch msg := msg.(type) {
+	case configReadyMsg:
+		return m.startMenu()
+
 	case switchScreenMsg:
 		m.screen = msg.to
 		switch msg.to {
@@ -199,6 +217,8 @@ func (m Model) View() string {
 	switch m.screen {
 	case screenBanner:
 		return m.banner.View()
+	case screenConfig:
+		return m.configStartup.View()
 	case screenMenu:
 		return m.menu.View()
 	case screenMode:
@@ -219,6 +239,8 @@ func (m Model) initScreen(s screen) tea.Cmd {
 	switch s {
 	case screenBanner:
 		return m.banner.Init()
+	case screenConfig:
+		return m.configStartup.Init()
 	case screenMenu:
 		return m.menu.Init()
 	case screenMode:

@@ -12,7 +12,7 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 50ms
 Set Framerate 24
 
-Type "./kickstart"
+Type "OS_INIT_CONFIG_PROMPT=0 ./os-init"
 Sleep 400ms
 Enter
 
