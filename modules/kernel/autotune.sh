@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OS-INIT -- dynamic kernel tuning based on RAM, adapted from dpanic/patchfiles
-# Tunes: nf_conntrack_max, tcp_max_tw_buckets, fs.file-max
+# OS-INIT -- dynamic kernel tuning based on RAM.
+# Tunes: nf_conntrack_max, tcp_max_tw_buckets, fs.file-max, TCP socket buffers.
 
 if [ "$EUID" -ne 0 ]; then
     echo "Error: must be run as root" >&2
@@ -11,6 +11,18 @@ fi
 
 MIN_CONNTRACK=65536
 PER_GB=65536
+
+set_sysctl_if_exists() {
+    local key="$1" value="$2" path current
+    path="/proc/sys/${key//./\/}"
+    [ -e "$path" ] || return 0
+
+    current=$(sysctl -n "$key" 2>/dev/null || echo "")
+    if [ "$current" != "$value" ]; then
+        echo "Setting $key=$value (was=$current)"
+        sysctl -w "$key=$value" >/dev/null 2>&1 || true
+    fi
+}
 
 MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
 RAM_GB=$(awk "BEGIN {ram_gb = $MEM_KB / 1024 / 1024; print (ram_gb == int(ram_gb)) ? int(ram_gb) : int(ram_gb) + 1}")
@@ -49,16 +61,30 @@ if [ "$FM_CURRENT" -ne "$FILE_MAX_TARGET" ]; then
     sysctl -w fs.file-max="$FILE_MAX_TARGET" >/dev/null
 fi
 
-# NIC ring buffers - set to hardware max for each active interface
-for IFACE in $(ip -o link show up | awk -F': ' '{print $2}' | grep -vE '^(lo|docker|br-|veth|tap|virbr)'); do
-    RX_MAX=$(ethtool -g "$IFACE" 2>/dev/null | awk '/Pre-set/,/Current/' | awk '/^RX:/{print $2}' | head -1)
-    RX_CUR=$(ethtool -g "$IFACE" 2>/dev/null | awk '/Current/,0' | awk '/^RX:/{print $2}' | head -1)
-    TX_MAX=$(ethtool -g "$IFACE" 2>/dev/null | awk '/Pre-set/,/Current/' | awk '/^TX:/{print $2}' | head -1)
+# TCP/UDP buffer sizing. Use 5% of RAM with a 16 MiB floor.
+BUFFER_TARGET=$((MEM_KB * 5 / 100 * 1024))
+[ "$BUFFER_TARGET" -lt 16777216 ] && BUFFER_TARGET=16777216
 
-    if [ -n "$RX_MAX" ] && [ -n "$RX_CUR" ] && [ "$RX_CUR" -lt "$RX_MAX" ] 2>/dev/null; then
-        echo "Setting $IFACE ring buffer RX=$RX_MAX TX=$TX_MAX (was RX=$RX_CUR)"
-        ethtool -G "$IFACE" rx "$RX_MAX" tx "${TX_MAX:-$RX_MAX}" 2>/dev/null || true
-    else
-        echo "$IFACE ring buffer already at max ($RX_CUR), nothing to do."
-    fi
-done
+set_sysctl_if_exists net.core.rmem_max "$BUFFER_TARGET"
+set_sysctl_if_exists net.core.wmem_max "$BUFFER_TARGET"
+set_sysctl_if_exists net.ipv4.tcp_rmem "4096 87380 $BUFFER_TARGET"
+set_sysctl_if_exists net.ipv4.tcp_wmem "4096 65536 $BUFFER_TARGET"
+set_sysctl_if_exists net.ipv4.tcp_congestion_control_version 3
+
+# NIC ring buffers - set to hardware max for each active interface when ethtool exists.
+if command -v ethtool >/dev/null 2>&1 && command -v ip >/dev/null 2>&1; then
+    for IFACE in $(ip -o link show up | awk -F': ' '{print $2}' | grep -vE '^(lo|docker|br-|veth|tap|virbr)'); do
+        RX_MAX=$(ethtool -g "$IFACE" 2>/dev/null | awk '/Pre-set/,/Current/' | awk '/^RX:/{print $2}' | head -1)
+        RX_CUR=$(ethtool -g "$IFACE" 2>/dev/null | awk '/Current/,0' | awk '/^RX:/{print $2}' | head -1)
+        TX_MAX=$(ethtool -g "$IFACE" 2>/dev/null | awk '/Pre-set/,/Current/' | awk '/^TX:/{print $2}' | head -1)
+
+        if [ -n "$RX_MAX" ] && [ -n "$RX_CUR" ] && [ "$RX_CUR" -lt "$RX_MAX" ] 2>/dev/null; then
+            echo "Setting $IFACE ring buffer RX=$RX_MAX TX=$TX_MAX (was RX=$RX_CUR)"
+            ethtool -G "$IFACE" rx "$RX_MAX" tx "${TX_MAX:-$RX_MAX}" 2>/dev/null || true
+        else
+            echo "$IFACE ring buffer already at max (${RX_CUR:-unknown}), nothing to do."
+        fi
+    done
+else
+    echo "Skipping NIC ring buffer tuning because ethtool or ip is unavailable."
+fi

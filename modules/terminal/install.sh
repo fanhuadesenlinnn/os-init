@@ -40,14 +40,14 @@ TITLE="Setup"
 echo "=== Terminal Tools $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
+require_linux
 
 if [[ "$UNINSTALL" == true ]]; then
     if want "ncdu"; then
         echo "[REMOVE] ncdu..."
         if command -v ncdu &>/dev/null; then
             remove "removing ncdu"
-            if is_macos; then brew uninstall ncdu 2>/dev/null || true
-            else pkg_remove ncdu 2>/dev/null || true; fi
+            pkg_remove ncdu 2>/dev/null || true
         else
             skip "ncdu not installed"
         fi

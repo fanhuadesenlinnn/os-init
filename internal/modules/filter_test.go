@@ -10,7 +10,7 @@ func TestModuleMatchesTarget_UsesOSFallback(t *testing.T) {
 	t.Parallel()
 
 	linux := platform.Target{GOOS: "linux", Family: platform.FamilyDebian}
-	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}
+	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyUnknown}
 
 	if !moduleMatchesTarget(Module{OS: "linux"}, linux) {
 		t.Fatal("linux module should match linux target")
@@ -18,8 +18,8 @@ func TestModuleMatchesTarget_UsesOSFallback(t *testing.T) {
 	if moduleMatchesTarget(Module{OS: "linux"}, darwin) {
 		t.Fatal("linux module should not match darwin target")
 	}
-	if !moduleMatchesTarget(Module{OS: "all"}, darwin) {
-		t.Fatal("all module should match darwin target")
+	if moduleMatchesTarget(Module{OS: "all"}, darwin) {
+		t.Fatal("all module should not match non-Linux targets")
 	}
 }
 
@@ -65,9 +65,9 @@ func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 		t.Fatal("mihomo should be hidden on non-systemd targets")
 	}
 
-	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
-	if hasModule(darwin, "mihomo") {
-		t.Fatal("mihomo should be hidden on darwin targets")
+	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyUnknown, Init: "unknown"})
+	if len(darwin) != 0 {
+		t.Fatal("non-Linux targets should not receive any modules")
 	}
 }
 

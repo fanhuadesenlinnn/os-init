@@ -29,7 +29,7 @@ NVIM_INSTALL_DIR="/opt/$NVIM_ARCH_DIR"
 parse_update_flag "$@"
 
 fd_package_name() {
-    if is_macos || is_arch; then
+    if is_arch; then
         echo "fd"
     else
         echo "fd-find"
@@ -40,16 +40,13 @@ TITLE="Setup"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
 echo "=== Neovim + LazyVim $TITLE ==="
 echo ""
+require_linux
 
 if [[ "$UNINSTALL" == true ]]; then
     # neovim
     if command -v nvim &>/dev/null; then
         remove "removing neovim"
-        if is_macos; then
-            brew uninstall neovim 2>/dev/null || true
-        elif is_linux; then
-            sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
-        fi
+        sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
     else
         skip "neovim not installed"
     fi
@@ -57,23 +54,14 @@ if [[ "$UNINSTALL" == true ]]; then
     # lazygit
     if command -v lazygit &>/dev/null; then
         remove "removing lazygit"
-        if is_macos; then
-            brew uninstall lazygit 2>/dev/null || true
-        elif is_linux; then
-            sudo rm -f /usr/local/bin/lazygit
-        fi
+        sudo rm -f /usr/local/bin/lazygit
     else
         skip "lazygit not installed"
     fi
 
     # ripgrep + fd
-    if is_linux; then
-        command -v rg &>/dev/null && { remove "removing ripgrep"; pkg_remove ripgrep 2>/dev/null || true; }
-        (command -v fdfind &>/dev/null || command -v fd &>/dev/null) && { remove "removing fd"; pkg_remove "$(fd_package_name)" 2>/dev/null || true; }
-    elif is_macos; then
-        command -v rg &>/dev/null && { remove "removing ripgrep"; brew uninstall ripgrep 2>/dev/null || true; }
-        command -v fd &>/dev/null && { remove "removing fd"; brew uninstall fd 2>/dev/null || true; }
-    fi
+    command -v rg &>/dev/null && { remove "removing ripgrep"; pkg_remove ripgrep 2>/dev/null || true; }
+    (command -v fdfind &>/dev/null || command -v fd &>/dev/null) && { remove "removing fd"; pkg_remove "$(fd_package_name)" 2>/dev/null || true; }
 
     # nvim config
     if [[ -d "$HOME/.config/nvim" ]]; then
@@ -92,7 +80,7 @@ if [[ "$UNINSTALL" == true ]]; then
     exit 0
 fi
 
-# [1/4] Neovim via Homebrew (macOS) or GitHub release tarball (Linux x86_64)
+# [1/4] Neovim via GitHub release tarball
 echo "[1/4] neovim..."
 install_nvim_linux() {
     local label="$1"
@@ -112,24 +100,15 @@ install_nvim_linux() {
 
 if command -v nvim &>/dev/null && nvim --version &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
-        if is_macos; then
-            update "updating neovim via brew"
-            brew upgrade neovim 2>/dev/null || skip "neovim already at latest"
-        elif is_linux; then
-            install_nvim_linux update
-        fi
+        install_nvim_linux update
     else
         skip "nvim $(nvim --version | head -1) already installed"
     fi
 else
-    if is_macos; then
-        pkg_install neovim
-    elif is_linux; then
-        install_nvim_linux install
-    fi
+    install_nvim_linux install
 fi
 
-# [2/4] ripgrep + fd (brew: fd; apt: fd-find)
+# [2/4] ripgrep + fd-find
 echo "[2/4] ripgrep + fd-find..."
 PKGS_TO_INSTALL=()
 if command -v rg &>/dev/null; then
@@ -170,21 +149,12 @@ install_lazygit_linux() {
 
 if command -v lazygit &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
-        if is_macos; then
-            update "updating lazygit via brew"
-            brew upgrade lazygit 2>/dev/null || skip "lazygit already at latest"
-        elif is_linux; then
-            install_lazygit_linux update
-        fi
+        install_lazygit_linux update
     else
         skip "lazygit already installed"
     fi
 else
-    if is_macos; then
-        pkg_install lazygit
-    elif is_linux; then
-        install_lazygit_linux install
-    fi
+    install_lazygit_linux install
 fi
 
 # [4/4] LazyVim starter config

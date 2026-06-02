@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install Yazi terminal file manager (brew on macOS, GitHub binary on Linux)
+# Install Yazi terminal file manager from Linux GitHub binary
 # Author: Dusan Panic <dpanic@gmail.com>
 # Safe to re-run -- idempotent
 
@@ -15,12 +15,12 @@ TITLE="Install"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
 echo "=== Yazi Terminal File Manager ($TITLE) ==="
 echo ""
+require_linux
 
 if [[ "$UNINSTALL" == true ]]; then
     if command -v yazi &>/dev/null; then
         remove "removing yazi binary"
         sudo rm -f /usr/local/bin/yazi /usr/local/bin/ya
-        if is_macos; then brew uninstall yazi 2>/dev/null || true; fi
     else
         skip "yazi not installed"
     fi
@@ -64,21 +64,12 @@ install_yazi_from_zip() {
 echo "[1/3] yazi..."
 if command -v yazi &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
-        if is_macos; then
-            update "updating yazi via brew"
-            brew upgrade yazi 2>/dev/null || skip "yazi already at latest"
-        elif is_linux; then
-            install_yazi_from_zip update
-        fi
+        install_yazi_from_zip update
     else
         skip "yazi $(yazi --version 2>/dev/null || echo '?') already installed"
     fi
 else
-    if is_macos; then
-        pkg_install yazi
-    elif is_linux; then
-        install_yazi_from_zip install
-    fi
+    install_yazi_from_zip install
 fi
 
 # [2/3] Yazi config directory

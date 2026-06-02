@@ -1,0 +1,12 @@
+[Unit]
+Description=OS Init network queue and MSS tuning
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/os-init-network-tune.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

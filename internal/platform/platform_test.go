@@ -103,12 +103,12 @@ ID_LIKE=arch
 	}
 }
 
-func TestDetectFrom_Darwin(t *testing.T) {
+func TestDetectFrom_NonLinuxReturnsUnknownFamily(t *testing.T) {
 	t.Parallel()
 
 	target := platform.DetectFrom("darwin", "/path/that/does/not/exist")
-	if target.Family != platform.FamilyDarwin {
-		t.Fatalf("family = %q, want %q", target.Family, platform.FamilyDarwin)
+	if target.Family != platform.FamilyUnknown {
+		t.Fatalf("family = %q, want %q", target.Family, platform.FamilyUnknown)
 	}
 }
 

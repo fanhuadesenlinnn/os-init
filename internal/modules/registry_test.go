@@ -38,34 +38,27 @@ func TestAllModules_HasOptimizationsAndInstallations(t *testing.T) {
 	}
 }
 
-func TestForOS_FiltersLinuxOnlyOnDarwin(t *testing.T) {
+func TestForOS_ReturnsNoModulesForNonLinux(t *testing.T) {
 	t.Parallel()
+
 	mods := modules.ForOS("darwin")
-	for _, m := range mods {
-		if m.OS == "linux" {
-			t.Errorf("linux-only module %q should not appear on darwin", m.ID)
-		}
+	if len(mods) != 0 {
+		t.Fatalf("expected no modules on non-Linux targets, got %d", len(mods))
 	}
 }
 
-func TestForOS_IncludesAllAndLinuxOnLinux(t *testing.T) {
+func TestForOS_IncludesLinuxModulesOnLinux(t *testing.T) {
 	t.Parallel()
+
 	mods := modules.ForOS("linux")
 	hasLinux := false
-	hasAll := false
 	for _, m := range mods {
 		if m.OS == "linux" {
 			hasLinux = true
 		}
-		if m.OS == "all" {
-			hasAll = true
-		}
 	}
 	if !hasLinux {
 		t.Error("expected linux-specific modules on linux")
-	}
-	if !hasAll {
-		t.Error("expected cross-platform modules on linux")
 	}
 }
 
@@ -86,6 +79,16 @@ func TestAllModules_RegisteredScriptsExist(t *testing.T) {
 		scriptPath := filepath.Join("..", "..", "modules", filepath.FromSlash(m.Script))
 		if _, err := os.Stat(scriptPath); err != nil {
 			t.Errorf("registered script for module %q does not exist: %s", m.ID, m.Script)
+		}
+	}
+}
+
+func TestAllModules_DoesNotRegisterSSHD(t *testing.T) {
+	t.Parallel()
+
+	for _, m := range modules.AllModules() {
+		if m.ID == "sshd" {
+			t.Fatal("sshd hardening module should not be registered")
 		}
 	}
 }

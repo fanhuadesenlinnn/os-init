@@ -53,6 +53,7 @@ TITLE="Setup"
 echo "=== Shell Tools $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
+require_linux
 
 # ── Uninstall mode ────────────────────────────────────────────────────────────
 if [[ "$UNINSTALL" == true ]]; then
@@ -80,8 +81,7 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REMOVE] fnm..."
         if command -v fnm &>/dev/null; then
             remove "removing fnm"
-            if is_macos; then brew uninstall fnm 2>/dev/null || true
-            else rm -f "$(command -v fnm)"; fi
+            rm -f "$(command -v fnm)"
             rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
         else
             skip "fnm not installed"
@@ -113,8 +113,7 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REMOVE] direnv..."
         if command -v direnv &>/dev/null; then
             remove "removing direnv"
-            if is_macos; then brew uninstall direnv 2>/dev/null || true
-            else pkg_remove "${DIRENV_PACKAGE:-direnv}" 2>/dev/null || true; fi
+            pkg_remove "${DIRENV_PACKAGE:-direnv}" 2>/dev/null || true
         else
             skip "direnv not installed"
         fi
@@ -124,8 +123,7 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REMOVE] git-lfs..."
         if command -v git-lfs &>/dev/null; then
             remove "removing git-lfs"
-            if is_macos; then brew uninstall git-lfs 2>/dev/null || true
-            else pkg_remove git-lfs 2>/dev/null || true; fi
+            pkg_remove git-lfs 2>/dev/null || true
         else
             skip "git-lfs not installed"
         fi
@@ -135,7 +133,7 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REMOVE] byobu..."
         if command -v byobu &>/dev/null; then
             remove "removing byobu"
-            if is_linux; then pkg_remove byobu 2>/dev/null || true; fi
+            pkg_remove byobu 2>/dev/null || true
             [[ -d "$HOME/.byobu" ]] && { remove "removing ~/.byobu"; rm -rf "$HOME/.byobu"; }
         else
             skip "byobu not installed"
@@ -320,110 +318,87 @@ if want "fnm"; then
     if command -v fnm &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
             update "updating fnm"
-            if is_macos; then brew upgrade fnm 2>/dev/null || true
-            else
-                FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-                download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
-                bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
-                rm -f "$FNM_INSTALLER"
-            fi
+            FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
+            download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
+            bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+            rm -f "$FNM_INSTALLER"
         else
             skip "fnm $(fnm --version 2>/dev/null) already installed"
         fi
     else
         install "installing fnm"
-        if is_linux && ! command -v unzip &>/dev/null; then
+        if ! command -v unzip &>/dev/null; then
             pkg_install unzip
         fi
-        if is_macos; then brew install fnm
-        else
-            FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-            download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
-            bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
-            rm -f "$FNM_INSTALLER"
-        fi
-    fi
-
-    if is_macos && ! want "zsh"; then
-        echo ""
-        echo "  Add to your shell rc file (~/.bashrc or ~/.zshrc):"
-        echo '    eval "$(fnm env --use-on-cd --shell zsh)"  # or --shell bash'
+        FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
+        download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
+        bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+        rm -f "$FNM_INSTALLER"
     fi
 fi
 
-# ── byobu + tmux (Linux: byobu + configs; macOS: tmux only) ───────────────────
+# ── byobu + tmux ──────────────────────────────────────────────────────────────
 if want "byobu"; then
     next "byobu + tmux"
 
-    if is_linux; then
-        PKGS=()
-        if command -v byobu &>/dev/null; then
-            skip "byobu already installed"
-        else
-            PKGS+=(byobu)
-        fi
-
-        if command -v tmux &>/dev/null; then
-            skip "tmux $(tmux -V) already installed"
-        else
-            PKGS+=(tmux)
-        fi
-
-        if [[ ${#PKGS[@]} -gt 0 ]]; then
-            install "installing ${PKGS[*]}"
-            pkg_install "${PKGS[@]}"
-        fi
-
-        BYOBU_DIR="$HOME/.byobu"
-        BYOBU_CONFIGS=(".tmux.conf" ".ctrl-a-workaround" "backend" "color.tmux" "datetime.tmux" "keybindings" "keybindings.tmux" "status")
-
-        if [[ -d "$BYOBU_DIR" ]]; then
-            local_changed=0
-            for cfg in "${BYOBU_CONFIGS[@]}"; do
-                src="$SCRIPT_DIR/byobu/$cfg"
-                dst="$BYOBU_DIR/$cfg"
-                if [[ ! -f "$src" ]]; then
-                    continue
-                fi
-                if [[ -f "$dst" ]] && diff -q "$src" "$dst" &>/dev/null; then
-                    continue
-                fi
-                if [[ -f "$dst" ]]; then
-                    install "updating $cfg (old backed up to ${cfg}.bak)"
-                    cp "$dst" "${dst}.bak"
-                else
-                    install "copying $cfg"
-                fi
-                cp "$src" "$dst"
-                local_changed=$((local_changed + 1))
-            done
-            if [[ $local_changed -eq 0 ]]; then
-                skip "byobu config already up to date"
-            fi
-        else
-            install "creating ~/.byobu/ with configs"
-            mkdir -p "$BYOBU_DIR"
-            for cfg in "${BYOBU_CONFIGS[@]}"; do
-                src="$SCRIPT_DIR/byobu/$cfg"
-                [[ -f "$src" ]] && cp "$src" "$BYOBU_DIR/$cfg"
-            done
-        fi
-
-        if [[ -f "$BYOBU_DIR/backend" ]] && grep -q "tmux" "$BYOBU_DIR/backend"; then
-            skip "byobu backend already set to tmux"
-        else
-            install "setting byobu backend to tmux"
-            echo "BYOBU_BACKEND=tmux" > "$BYOBU_DIR/backend"
-        fi
+    PKGS=()
+    if command -v byobu &>/dev/null; then
+        skip "byobu already installed"
+    else
+        PKGS+=(byobu)
     fi
 
-    if is_macos; then
-        if command -v tmux &>/dev/null; then
-            skip "tmux $(tmux -V) already installed"
-        else
-            install "installing tmux via brew"
-            pkg_install tmux
+    if command -v tmux &>/dev/null; then
+        skip "tmux $(tmux -V) already installed"
+    else
+        PKGS+=(tmux)
+    fi
+
+    if [[ ${#PKGS[@]} -gt 0 ]]; then
+        install "installing ${PKGS[*]}"
+        pkg_install "${PKGS[@]}"
+    fi
+
+    BYOBU_DIR="$HOME/.byobu"
+    BYOBU_CONFIGS=(".tmux.conf" ".ctrl-a-workaround" "backend" "color.tmux" "datetime.tmux" "keybindings" "keybindings.tmux" "status")
+
+    if [[ -d "$BYOBU_DIR" ]]; then
+        local_changed=0
+        for cfg in "${BYOBU_CONFIGS[@]}"; do
+            src="$SCRIPT_DIR/byobu/$cfg"
+            dst="$BYOBU_DIR/$cfg"
+            if [[ ! -f "$src" ]]; then
+                continue
+            fi
+            if [[ -f "$dst" ]] && diff -q "$src" "$dst" &>/dev/null; then
+                continue
+            fi
+            if [[ -f "$dst" ]]; then
+                install "updating $cfg (old backed up to ${cfg}.bak)"
+                cp "$dst" "${dst}.bak"
+            else
+                install "copying $cfg"
+            fi
+            cp "$src" "$dst"
+            local_changed=$((local_changed + 1))
+        done
+        if [[ $local_changed -eq 0 ]]; then
+            skip "byobu config already up to date"
         fi
+    else
+        install "creating ~/.byobu/ with configs"
+        mkdir -p "$BYOBU_DIR"
+        for cfg in "${BYOBU_CONFIGS[@]}"; do
+            src="$SCRIPT_DIR/byobu/$cfg"
+            [[ -f "$src" ]] && cp "$src" "$BYOBU_DIR/$cfg"
+        done
+    fi
+
+    if [[ -f "$BYOBU_DIR/backend" ]] && grep -q "tmux" "$BYOBU_DIR/backend"; then
+        skip "byobu backend already set to tmux"
+    else
+        install "setting byobu backend to tmux"
+        echo "BYOBU_BACKEND=tmux" > "$BYOBU_DIR/backend"
     fi
 fi
 

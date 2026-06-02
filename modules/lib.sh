@@ -22,7 +22,6 @@ OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_OFFLINE OS_INIT_FILES_DIR
     OS_INIT_PROXY HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
     DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY DOWNLOAD_URL_PROXY
-    HOMEBREW_INSTALL_URL
     OH_MY_ZSH_REPO FZF_REPO STARSHIP_INSTALL_URL DIRENV_PACKAGE
     ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
     NVM_VERSION NVM_INSTALL_BASE NVM_INSTALL_URL FNM_INSTALL_URL
@@ -64,7 +63,6 @@ parse_update_flag() {
 
 detect_os() {
     case "$(uname -s)" in
-        Darwin) echo "macos" ;;
         Linux)  echo "linux" ;;
         *)      echo "unknown" ;;
     esac
@@ -218,10 +216,8 @@ require_systemd() {
 }
 
 pkg_update() {
-    if [[ "$OS" == "macos" ]]; then
-        ensure_brew
-        brew update
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
+    require_linux
+    if [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get update -qq
     elif [[ "$OS_FAMILY" == "arch" ]]; then
         sudo_env pacman -Sy --noconfirm
@@ -238,24 +234,9 @@ pkg_update() {
     fi
 }
 
-ensure_brew() {
-    if command -v brew &>/dev/null; then
-        return
-    fi
-    install "安装 Homebrew"
-    local tmp
-    tmp="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
-    download_file "$(resource_url HOMEBREW_INSTALL_URL "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh")" "$tmp"
-    /bin/bash "$tmp"
-    rm -f "$tmp"
-    eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
-}
-
 pkg_install() {
-    if [[ "$OS" == "macos" ]]; then
-        ensure_brew
-        brew install "$@"
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
+    require_linux
+    if [[ "$OS_FAMILY" == "debian" ]]; then
         pkg_update
         sudo_env apt-get install -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
@@ -274,10 +255,8 @@ pkg_install() {
 }
 
 pkg_remove() {
-    if [[ "$OS" == "macos" ]]; then
-        ensure_brew
-        brew uninstall "$@" 2>/dev/null || true
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
+    require_linux
+    if [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get remove -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
         sudo_env pacman -Rns --noconfirm "$@"
@@ -296,9 +275,8 @@ pkg_remove() {
 
 pkg_is_installed() {
     local pkg="$1"
-    if [[ "$OS" == "macos" ]]; then
-        brew list "$pkg" &>/dev/null
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
+    require_linux
+    if [[ "$OS_FAMILY" == "debian" ]]; then
         dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
         pacman -Q "$pkg" &>/dev/null
@@ -309,17 +287,6 @@ pkg_is_installed() {
     fi
 }
 
-cask_install() {
-    if [[ "$OS" == "macos" ]]; then
-        ensure_brew
-        brew install --cask "$@"
-    else
-        echo "cask_install is macOS-only" >&2
-        return 1
-    fi
-}
-
-is_macos() { [[ "$OS" == "macos" ]]; }
 is_linux() { [[ "$OS" == "linux" ]]; }
 is_arch() { [[ "$OS_FAMILY" == "arch" ]]; }
 is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }

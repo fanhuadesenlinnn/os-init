@@ -1,6 +1,6 @@
 # OS Init
 
-面向中国大陆网络环境的 Linux 系统初始化工具。它保留原有 TUI 的多选、搜索、安装/更新/卸载体验，同时把安装逻辑调整为适配 Arch 系、Debian 系、RedHat 系的脚本体系。
+面向中国大陆网络环境的 Linux 系统初始化工具。它保留原有 TUI 的多选、搜索、安装/更新/卸载体验，同时把安装逻辑调整为适配 Arch 系、Debian 系、RedHat 系的脚本体系；不再提供 macOS 支持。
 
 <p align="center">
   <img src="demo.gif" alt="OS Init TUI 演示" width="720" />
@@ -30,6 +30,7 @@ make build
 - 三种模式：安装、更新、卸载。
 - 发行版识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro。
 - 中国大陆网络适配：统一代理变量、GitHub 代理、下载重试、超时、离线包目录。
+- TCP/UDP 优化：吸收 `tcp.vpsing.de` 的有效配置，加入 IPv4 优先、BBR/FQ、ECN、MTU 探测、RPS/RSS、MSS clamp。
 - 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
 - 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
@@ -43,8 +44,9 @@ make build
 | 内核 sysctl.d | 网络、内存、conntrack、BBR 等参数 |
 | 内核 limits.d | 文件句柄和进程数限制 |
 | I/O 调度器 | SSD/NVMe 使用 `none` |
-| 自动调优 | 按内存生成启动时调优 |
-| SSH 加固 | 使用 `sshd_config.d` 优先写入，执行前验证配置 |
+| 自动调优 | 按内存动态调整 conntrack、TCP 缓冲区、file-max |
+| IPv4 优先 | 修改 `gai.conf`，双栈解析时优先使用 IPv4 |
+| 队列与 MSS | RPS/RSS 多核分发、网卡 ring buffer、TCP MSS clamp |
 
 ### 软件安装
 
@@ -67,6 +69,9 @@ make build
 | USB Monitor | Webhook 目标和文案需要另行设计 |
 | Browsers & Apps | 桌面浏览器和 Signal 对服务器初始化价值低，国内网络不稳定 |
 | PeaZip | `.deb`/macOS 偏向，不适合三大发行版统一方案 |
+| SSH 加固 | 远程连接风险较高，移出默认初始化能力 |
+
+各模块会修改哪些系统配置，见 [MODULE_SYSTEM_CHANGES.md](MODULE_SYSTEM_CHANGES.md)。
 
 ## 配置
 
@@ -162,7 +167,6 @@ make run
 
 - 不直接覆盖用户已有 `~/.zshrc`。
 - Neovim 配置安装前会备份已有目录。
-- SSH 修改前执行 `sshd -t` 验证。
 - Docker 卸载时保留 `/var/lib/docker` 数据。
 - 系统配置优先写入 drop-in 文件，降低对发行版默认配置的破坏。
 

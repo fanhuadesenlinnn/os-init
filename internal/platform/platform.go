@@ -12,7 +12,6 @@ import (
 type Family string
 
 const (
-	FamilyDarwin  Family = "darwin"
 	FamilyDebian  Family = "debian"
 	FamilyRedHat  Family = "redhat"
 	FamilyArch    Family = "arch"
@@ -40,10 +39,6 @@ func DetectFrom(goos, osReleasePath string) Target {
 		Init:   detectInit(goos),
 	}
 
-	if goos == "darwin" {
-		target.Family = FamilyDarwin
-		return target
-	}
 	if goos != "linux" {
 		return target
 	}
