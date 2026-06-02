@@ -28,6 +28,17 @@ want() {
     return 1
 }
 
+nvm_version() {
+    local version="${NVM_VERSION:-}"
+    [[ -n "$version" ]] || version="$(github_latest_version "nvm-sh/nvm" "")"
+    echo "$version"
+}
+
+nvm_install_url() {
+    local version="$1"
+    resource_url NVM_INSTALL_URL "${NVM_INSTALL_BASE%/}/${version}/install.sh"
+}
+
 STEP=0
 count_steps() {
     local total=0
@@ -103,7 +114,7 @@ if [[ "$UNINSTALL" == true ]]; then
         if command -v direnv &>/dev/null; then
             remove "removing direnv"
             if is_macos; then brew uninstall direnv 2>/dev/null || true
-            else pkg_remove direnv 2>/dev/null || true; fi
+            else pkg_remove "${DIRENV_PACKAGE:-direnv}" 2>/dev/null || true; fi
         else
             skip "direnv not installed"
         fi
@@ -174,7 +185,7 @@ if want "zsh"; then
         fi
     else
         install "cloning oh-my-zsh"
-        git_clone_depth 1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
+        git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
     fi
 fi
 
@@ -192,7 +203,7 @@ if want "fzf"; then
         fi
     else
         install "cloning fzf from git"
-        git_clone_depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
+        git_clone_depth 1 "$(repo_url FZF_REPO "https://github.com/junegunn/fzf.git")" "$HOME/.fzf"
         "$HOME/.fzf/install" --all --no-bash --no-fish
     fi
 fi
@@ -205,7 +216,7 @@ if want "starship"; then
         if [[ "$UPDATE" == true ]]; then
             update "updating starship"
             STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
-            download_file https://starship.rs/install.sh "$STARSHIP_INSTALLER"
+            download_file "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER"
             sh "$STARSHIP_INSTALLER" -y
             rm -f "$STARSHIP_INSTALLER"
         else
@@ -214,7 +225,7 @@ if want "starship"; then
     else
         install "installing starship"
         STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
-        download_file https://starship.rs/install.sh "$STARSHIP_INSTALLER"
+        download_file "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER"
         sh "$STARSHIP_INSTALLER" -y
         rm -f "$STARSHIP_INSTALLER"
     fi
@@ -236,7 +247,7 @@ if want "direnv"; then
         skip "direnv $(direnv version) already installed"
     else
         install "installing direnv"
-        pkg_install direnv
+        pkg_install "${DIRENV_PACKAGE:-direnv}"
     fi
 fi
 
@@ -255,7 +266,7 @@ if want "plugins"; then
         fi
     else
         install "cloning zsh-autosuggestions"
-        git_clone_depth 1 https://github.com/zsh-users/zsh-autosuggestions.git \
+        git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
             "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
     fi
 
@@ -268,7 +279,7 @@ if want "plugins"; then
         fi
     else
         install "cloning zsh-syntax-highlighting"
-        git_clone_depth 1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
+        git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
             "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
     fi
 fi
@@ -280,17 +291,17 @@ if want "nvm"; then
     if [[ -d "$HOME/.nvm" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating nvm to latest"
-            LATEST_NVM="$(github_latest_version "nvm-sh/nvm" "")"
-            git -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
-            git -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
+            LATEST_NVM="$(nvm_version)"
+            git_with_proxy -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
+            git_with_proxy -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
         else
             skip "nvm already installed at ~/.nvm"
         fi
     else
         install "installing nvm"
-        LATEST_NVM="$(github_latest_version "nvm-sh/nvm" "")"
+        LATEST_NVM="$(nvm_version)"
         NVM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/nvm-install.XXXXXX")"
-        download_file "https://raw.githubusercontent.com/nvm-sh/nvm/${LATEST_NVM}/install.sh" "$NVM_INSTALLER"
+        download_file "$(nvm_install_url "$LATEST_NVM")" "$NVM_INSTALLER"
         if want "zsh"; then
             PROFILE=/dev/null bash "$NVM_INSTALLER"
         else
@@ -312,7 +323,7 @@ if want "fnm"; then
             if is_macos; then brew upgrade fnm 2>/dev/null || true
             else
                 FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-                download_file https://fnm.vercel.app/install "$FNM_INSTALLER"
+                download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
                 bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
                 rm -f "$FNM_INSTALLER"
             fi
@@ -327,7 +338,7 @@ if want "fnm"; then
         if is_macos; then brew install fnm
         else
             FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-            download_file https://fnm.vercel.app/install "$FNM_INSTALLER"
+            download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
             bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
             rm -f "$FNM_INSTALLER"
         fi

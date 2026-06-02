@@ -43,9 +43,10 @@ install_yazi_from_zip() {
     esac
 
     $label "下载最新 Yazi 二进制包"
-    local ZIP_URL="https://github.com/sxyazi/yazi/releases/latest/download/yazi-${yazi_arch}-unknown-linux-gnu.zip"
+    local ZIP_URL
+    ZIP_URL="$(resource_url YAZI_DOWNLOAD_URL "${YAZI_DOWNLOAD_BASE%/}/yazi-${yazi_arch}-unknown-linux-gnu.zip")"
     local ZIP_NAME
-    ZIP_NAME="$(basename "$ZIP_URL")"
+    ZIP_NAME="$(basename "${ZIP_URL%%\?*}")"
 
     TMP_DIR=$(mktemp -d /tmp/yazi-XXXXXX)
     echo "  获取: $ZIP_URL"

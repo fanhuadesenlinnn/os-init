@@ -67,8 +67,8 @@ install_go() {
     esac
 
     local go_base="${GO_DOWNLOAD_BASE:-https://go.dev/dl}"
-    go_url="${go_base%/}/${GO_VERSION}.${go_os}-${go_arch}.tar.gz"
-    archive_name="$(basename "$go_url")"
+    go_url="$(resource_url GO_DOWNLOAD_URL "${go_base%/}/${GO_VERSION}.${go_os}-${go_arch}.tar.gz")"
+    archive_name="$(basename "${go_url%%\?*}")"
     TMP_DIR=$(mktemp -d /tmp/go-XXXXXX)
     echo "  获取: $go_url"
     download_or_offline_file "$go_url" "$TMP_DIR/go.tar.gz" "$archive_name"

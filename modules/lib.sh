@@ -427,6 +427,11 @@ git_clone_depth() {
     git_with_proxy clone --depth="$depth" "$(rewrite_download_url "$url")" "$dest"
 }
 
+git_clone_depth_branch() {
+    local depth="$1" branch="$2" url="$3" dest="$4"
+    git_with_proxy clone --depth="$depth" -b "$branch" "$(rewrite_download_url "$url")" "$dest"
+}
+
 download_file() {
     local url="$1" dest="$2"
     [[ "${OS_INIT_OFFLINE:-0}" == "1" ]] && die "离线模式禁止下载: $url"

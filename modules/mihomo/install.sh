@@ -63,6 +63,11 @@ mihomo_version() {
 }
 
 mihomo_download_url() {
+    if [[ -n "${MIHOMO_DOWNLOAD_URL:-}" ]]; then
+        echo "$MIHOMO_DOWNLOAD_URL"
+        return
+    fi
+
     if [[ -n "${MIHOMO_BINARY_SOURCE:-}" ]]; then
         echo "$MIHOMO_BINARY_SOURCE"
         return
@@ -302,7 +307,7 @@ install_metacubexd() {
     elif [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
         warn "离线模式未设置 METACUBEXD_SOURCE，跳过 MetaCubeXD 面板"
     else
-        git clone --depth=1 -b gh-pages "$(rewrite_github_url "https://github.com/metacubex/metacubexd.git")" "$tmp/ui"
+        git_clone_depth_branch 1 gh-pages "$(repo_url METACUBEXD_REPO "https://github.com/metacubex/metacubexd.git")" "$tmp/ui"
         sudo rm -rf "$target"
         sudo mkdir -p "$(dirname "$target")"
         sudo cp -a "$tmp/ui" "$target"

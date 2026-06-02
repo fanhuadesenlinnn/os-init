@@ -67,6 +67,10 @@ docker_version() {
 
 docker_archive_url() {
     local version
+    if [[ -n "${DOCKER_TGZ_URL:-}" ]]; then
+        echo "$DOCKER_TGZ_URL"
+        return
+    fi
     version="$(docker_version)"
     echo "$(docker_static_base_url)/docker-${version}.tgz"
 }
@@ -80,6 +84,10 @@ compose_version() {
 
 compose_download_url() {
     local version base
+    if [[ -n "${DOCKER_COMPOSE_DOWNLOAD_URL:-}" ]]; then
+        echo "$DOCKER_COMPOSE_DOWNLOAD_URL"
+        return
+    fi
     version="$(compose_version)"
     base="${DOCKER_COMPOSE_DOWNLOAD_BASE:-https://github.com/docker/compose/releases/download}"
     echo "${base%/}/v${version}/docker-compose-linux-$(compose_arch)"
@@ -110,7 +118,7 @@ install_prerequisites() {
 install_docker_binaries() {
     local url file_name tmp
     url="$(docker_archive_url)"
-    file_name="$(basename "$url")"
+    file_name="$(basename "${url%%\?*}")"
     tmp="$(mktemp -d /tmp/docker-bin-XXXXXX)"
 
     install "获取 Docker 静态二进制: $file_name"
@@ -124,7 +132,7 @@ install_docker_binaries() {
 install_compose_plugin() {
     local url file_name tmp
     url="$(compose_download_url)"
-    file_name="$(basename "$url")"
+    file_name="$(basename "${url%%\?*}")"
     tmp="$(mktemp -d /tmp/docker-compose-XXXXXX)"
 
     install "安装 Docker Compose CLI 插件: $file_name"

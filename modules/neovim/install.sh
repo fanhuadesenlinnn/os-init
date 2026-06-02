@@ -99,9 +99,9 @@ install_nvim_linux() {
     [[ -n "$NVIM_ARCH" ]] || die "Neovim 安装暂不支持当前架构: $(uname -m)"
     $label "下载最新 Neovim 二进制包"
     TMP_DIR=$(mktemp -d /tmp/nvim-XXXXXX)
-    NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/${NVIM_ARCH_DIR}.tar.gz"
+    NVIM_URL="$(resource_url NVIM_DOWNLOAD_URL "${NVIM_DOWNLOAD_BASE%/}/${NVIM_ARCH_DIR}.tar.gz")"
     echo "  获取: $NVIM_URL"
-    download_or_offline_file "$NVIM_URL" "$TMP_DIR/nvim.tar.gz" "$(basename "$NVIM_URL")"
+    download_or_offline_file "$NVIM_URL" "$TMP_DIR/nvim.tar.gz" "$(basename "${NVIM_URL%%\?*}")"
     tar -xzf "$TMP_DIR/nvim.tar.gz" -C "$TMP_DIR"
     sudo rm -rf "$NVIM_INSTALL_DIR"
     sudo mv "$TMP_DIR/$NVIM_ARCH_DIR" "$NVIM_INSTALL_DIR"
@@ -155,12 +155,12 @@ install_lazygit_linux() {
     local label="$1"
     [[ -n "$LAZYGIT_ARCH" ]] || die "lazygit 安装暂不支持当前架构: $(uname -m)"
     $label "下载最新 lazygit 二进制包"
-    LAZYGIT_VERSION="$(github_latest_version "jesseduffield/lazygit" "v")"
+    LAZYGIT_VERSION="${LAZYGIT_VERSION:-$(github_latest_version "jesseduffield/lazygit" "v")}"
 
     TMP_DIR=$(mktemp -d /tmp/lazygit-XXXXXX)
-    LAZYGIT_URL="https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz"
+    LAZYGIT_URL="$(resource_url LAZYGIT_DOWNLOAD_URL "${LAZYGIT_DOWNLOAD_BASE%/}/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz")"
     echo "  获取: $LAZYGIT_URL"
-    download_or_offline_file "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz" "$(basename "$LAZYGIT_URL")"
+    download_or_offline_file "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz" "$(basename "${LAZYGIT_URL%%\?*}")"
     tar -xzf "$TMP_DIR/lazygit.tar.gz" -C "$TMP_DIR"
     sudo mv "$TMP_DIR/lazygit" /usr/local/bin/lazygit
     sudo chmod +x /usr/local/bin/lazygit
@@ -197,12 +197,12 @@ if [[ -d "$NVIM_CONFIG" ]]; then
         BACKUP="${NVIM_CONFIG}.bak.$(date +%s)"
         install "backing up existing nvim config to $BACKUP"
         mv "$NVIM_CONFIG" "$BACKUP"
-        git_clone_depth 1 https://github.com/LazyVim/starter "$NVIM_CONFIG"
+        git_clone_depth 1 "$(repo_url LAZYVIM_STARTER_REPO "https://github.com/LazyVim/starter")" "$NVIM_CONFIG"
         rm -rf "$NVIM_CONFIG/.git"
     fi
 else
     install "cloning LazyVim starter to ~/.config/nvim/"
-    git_clone_depth 1 https://github.com/LazyVim/starter "$NVIM_CONFIG"
+    git_clone_depth 1 "$(repo_url LAZYVIM_STARTER_REPO "https://github.com/LazyVim/starter")" "$NVIM_CONFIG"
     rm -rf "$NVIM_CONFIG/.git"
 fi
 
