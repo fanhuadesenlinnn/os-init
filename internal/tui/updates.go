@@ -3,7 +3,9 @@ package tui
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -168,9 +170,10 @@ func tryGetVersion(ctx context.Context, cmd string) string {
 	return ""
 }
 
-// getLatestGoVersion fetches the latest Go version from go.dev/dl/?mode=json.
+// getLatestGoVersion fetches the latest Go version from the configured endpoint.
 func getLatestGoVersion(ctx context.Context) string {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://go.dev/dl/?mode=json&include=all", nil)
+	url := configuredURL("GO_VERSION_URL", "https://go.dev/VERSION?m=text")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rewriteDownloadURL(url), nil)
 	if err != nil {
 		return ""
 	}
@@ -181,12 +184,12 @@ func getLatestGoVersion(ctx context.Context) string {
 	}
 	defer resp.Body.Close()
 
-	// Response is JSON array, first element has "version": "go1.24.1"
-	// Just extract with regex from first few bytes
-	buf := make([]byte, 512)
-	n, _ := resp.Body.Read(buf)
-	re := regexp.MustCompile(`"version"\s*:\s*"go(\d+\.\d+\.\d+)"`)
-	if m := re.FindSubmatch(buf[:n]); len(m) > 1 {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return ""
+	}
+	re := regexp.MustCompile(`go(\d+\.\d+\.\d+)`)
+	if m := re.FindSubmatch(body); len(m) > 1 {
 		return string(m[1])
 	}
 	return ""
@@ -220,7 +223,7 @@ func getInstalledVersion(ctx context.Context, cmd []string, re *regexp.Regexp) s
 // endpoint, stops at the 302 redirect, and extracts the version tag
 // from the Location header.
 func getLatestGitHubVersion(ctx context.Context, repo string) string {
-	url := fmt.Sprintf("https://github.com/%s/releases/latest", repo)
+	url := rewriteDownloadURL(fmt.Sprintf("https://github.com/%s/releases/latest", repo))
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,
@@ -257,4 +260,45 @@ func getLatestGitHubVersion(ctx context.Context, repo string) string {
 		return m
 	}
 	return ""
+}
+
+func configuredURL(envKey, fallback string) string {
+	if value := os.Getenv(envKey); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func rewriteDownloadURL(rawURL string) string {
+	rewritten := rewriteGitHubURL(rawURL)
+	if rewritten != rawURL {
+		return rewritten
+	}
+	if proxy := os.Getenv("DOWNLOAD_URL_PROXY"); proxy != "" && isHTTPURL(rawURL) {
+		return renderURLProxy(proxy, rawURL)
+	}
+	return rawURL
+}
+
+func rewriteGitHubURL(rawURL string) string {
+	proxy := os.Getenv("GITHUB_PROXY")
+	if proxy == "" {
+		return rawURL
+	}
+	if strings.HasPrefix(rawURL, "https://github.com/") ||
+		strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") {
+		return renderURLProxy(proxy, rawURL)
+	}
+	return rawURL
+}
+
+func renderURLProxy(proxy, rawURL string) string {
+	if strings.Contains(proxy, "{url}") {
+		return strings.ReplaceAll(proxy, "{url}", rawURL)
+	}
+	return strings.TrimRight(proxy, "/") + "/" + rawURL
+}
+
+func isHTTPURL(rawURL string) bool {
+	return strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://")
 }

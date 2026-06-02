@@ -4,6 +4,7 @@ import (
 	"io/fs"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fanhuadesenlinnn/os-init/internal/config"
 	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
@@ -44,6 +45,7 @@ type Model struct {
 
 // New creates a new root Model.
 func New(cfg Config) Model {
+	config.Apply(cfg.Assets)
 	target := platform.Detect()
 	mods := modules.ForTarget(target)
 	return Model{

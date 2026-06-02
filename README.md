@@ -80,15 +80,35 @@ make build
 常用变量：
 
 ```bash
+export OS_INIT_PROXY=http://127.0.0.1:7890
 export HTTP_PROXY=http://127.0.0.1:7890
 export HTTPS_PROXY=http://127.0.0.1:7890
+export ALL_PROXY=socks5://127.0.0.1:7890
 export NO_PROXY=localhost,127.0.0.1,::1
 export GITHUB_PROXY=https://gh-proxy.com/
+export DOWNLOAD_URL_PROXY=
 export OS_INIT_OFFLINE=1
-export OS_INIT_OFFLINE_DIR=/opt/os-init/packages
+export OS_INIT_FILES_DIR=/opt/os-init/packages
 ```
 
 Docker 和 Mihomo 也可以通过同一套配置调整版本、下载地址、镜像源、systemd 代理等参数。
+
+可先复制示例配置再修改：
+
+```bash
+sudo mkdir -p /etc/os-init
+sudo cp modules/config/config.env.example /etc/os-init/config.env
+sudoedit /etc/os-init/config.env
+```
+
+资源下载可以按两种方式覆盖：
+
+- 设置通用代理：`OS_INIT_PROXY`、`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`。
+- 设置 URL 代理：`GITHUB_PROXY` 只改写 GitHub/raw.githubusercontent.com，`DOWNLOAD_URL_PROXY` 可改写所有 `http/https` 下载地址。
+- 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`。
+- 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`FZF_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
+
+TUI 后台更新检查也会读取同一套配置，所以 Go/GitHub 的版本检查会跟安装脚本使用一致的代理和资源配置。
 
 ## TUI 操作
 
