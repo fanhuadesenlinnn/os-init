@@ -13,6 +13,7 @@ const (
 )
 
 var summaryKeys = []string{
+	"OS_INIT_LANG",
 	"OS_INIT_PROXY",
 	"HTTP_PROXY",
 	"HTTPS_PROXY",

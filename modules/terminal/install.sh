@@ -35,15 +35,15 @@ count_steps() {
 TOTAL=$(count_steps)
 next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 
-TITLE="Setup"
-[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
-echo "=== Terminal Tools $TITLE ==="
-echo "  Components: ${COMPONENTS[*]}"
+TITLE="$(os_init_text "安装" "setup")"
+[[ "$UNINSTALL" == true ]] && TITLE="$(os_init_text "卸载" "uninstall")"
+echo "=== $(os_init_text "终端工具" "Terminal Tools") $TITLE ==="
+echo "  $(os_init_text "组件" "Components"): ${COMPONENTS[*]}"
 echo ""
 
 if [[ "$UNINSTALL" == true ]]; then
     if want "ncdu"; then
-        echo "[REMOVE] ncdu..."
+        echo "$(os_init_text "[删除]" "[REMOVE]") ncdu..."
         if command -v ncdu &>/dev/null; then
             remove "removing ncdu"
             pkg_remove ncdu 2>/dev/null || true
@@ -53,7 +53,7 @@ if [[ "$UNINSTALL" == true ]]; then
     fi
 
     echo ""
-    echo "=== Terminal tools uninstall complete ==="
+    echo "=== $(os_init_text "终端工具卸载完成" "Terminal tools uninstall complete") ==="
     exit 0
 fi
 
@@ -69,8 +69,8 @@ if want "ncdu"; then
 fi
 
 echo ""
-echo "=== Terminal tools setup complete ==="
-echo "  Installed: ${COMPONENTS[*]}"
+echo "=== $(os_init_text "终端工具安装完成" "Terminal tools setup complete") ==="
+echo "  $(os_init_text "已处理" "Processed"): ${COMPONENTS[*]}"
 echo ""
-echo "Quick start:"
-want "ncdu" && echo "  ncdu  -- interactive disk usage analyzer"
+echo "$(os_init_text "快速开始:" "Quick start:")"
+want "ncdu" && echo "  ncdu  -- $(os_init_text "交互式磁盘占用分析" "interactive disk usage analyzer")"

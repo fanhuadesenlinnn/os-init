@@ -36,13 +36,16 @@ func (m confirmModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  确认执行") + "\n\n")
+	b.WriteString(titleStyle.Render(text("  确认执行", "  Confirm Run")) + "\n\n")
 
 	warnStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorWarn)
-	msg := fmt.Sprintf("  将以%s模式执行 %d 个脚本，是否继续？", m.mode.String(), m.count)
+	msg := fmt.Sprintf("  将以%s模式执行 %d 个模块，是否继续？", m.mode.String(), m.count)
+	if langIsEnglish() {
+		msg = fmt.Sprintf("  Run %d modules in %s mode?", m.count, m.mode.String())
+	}
 	b.WriteString(warnStyle.Render(msg) + "\n\n")
 
-	b.WriteString(MutedStyle.Render("  y/enter 确认 • n/esc 取消"))
+	b.WriteString(MutedStyle.Render(text("  y/enter 确认 • n/esc 取消", "  y/enter confirm • n/esc cancel")))
 
 	return b.String()
 }

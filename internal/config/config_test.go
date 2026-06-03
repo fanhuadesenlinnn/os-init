@@ -116,6 +116,32 @@ func TestApplyUsesUserConfigCreatedAfterInitialLoad(t *testing.T) {
 	}
 }
 
+func TestApplyPreservesRuntimeOverride(t *testing.T) {
+	preserveEnv(t, "OS_INIT_LANG")
+	resetOriginalEnvForTest()
+	t.Cleanup(resetOriginalEnvForTest)
+	t.Cleanup(func() {
+		overrideMu.Lock()
+		defer overrideMu.Unlock()
+		runtimeOverride = map[string]string{}
+	})
+
+	files := fstest.MapFS{
+		embeddedDefaults: {Data: []byte("OS_INIT_LANG=zh_CN\n")},
+	}
+
+	Apply(files)
+	if got := os.Getenv("OS_INIT_LANG"); got != "zh_CN" {
+		t.Fatalf("default language = %q, want zh_CN", got)
+	}
+
+	SetRuntimeOverride("OS_INIT_LANG", "en_US")
+	Apply(files)
+	if got := os.Getenv("OS_INIT_LANG"); got != "en_US" {
+		t.Fatalf("runtime language override = %q, want en_US", got)
+	}
+}
+
 func resetOriginalEnvForTest() {
 	originalEnvOnce = sync.Once{}
 	originalEnv = nil

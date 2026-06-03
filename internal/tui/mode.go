@@ -8,14 +8,18 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var modeOptions = []struct {
+type modeOption struct {
 	mode  mode
 	label string
 	desc  string
-}{
-	{modeInstall, "安装", "全新安装选中的模块"},
-	{modeUpdate, "更新", "更新已经安装的模块"},
-	{modeUninstall, "卸载", "移除选中的模块"},
+}
+
+func modeOptions() []modeOption {
+	return []modeOption{
+		{modeInstall, text("安装", "Install"), text("全新安装选中的模块", "Install the selected modules")},
+		{modeUpdate, text("更新", "Update"), text("更新已经安装的模块", "Update already installed modules")},
+		{modeUninstall, text("卸载", "Uninstall"), text("移除选中的模块", "Remove the selected modules")},
+	}
 }
 
 type modeModel struct {
@@ -35,11 +39,11 @@ func (m modeModel) Update(msg tea.Msg) (modeModel, tea.Cmd) {
 				m.cursor--
 			}
 		case "down", "j":
-			if m.cursor < len(modeOptions)-1 {
+			if m.cursor < len(modeOptions())-1 {
 				m.cursor++
 			}
 		case "enter":
-			selected := modeOptions[m.cursor].mode
+			selected := modeOptions()[m.cursor].mode
 			return m, tea.Batch(
 				func() tea.Msg { return selectedModeMsg{mode: selected} },
 				func() tea.Msg {
@@ -60,10 +64,10 @@ func (m modeModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  选择执行模式") + "\n")
-	b.WriteString(MutedStyle.Render("  ↑/↓ 移动 • enter 确认 • esc 返回") + "\n\n")
+	b.WriteString(titleStyle.Render(text("  选择执行模式", "  Select Run Mode")) + "\n")
+	b.WriteString(MutedStyle.Render(text("  ↑/↓ 移动 • enter 确认 • esc 返回", "  ↑/↓ move • enter confirm • esc back")) + "\n\n")
 
-	for i, opt := range modeOptions {
+	for i, opt := range modeOptions() {
 		cursor := "  "
 		if i == m.cursor {
 			cursor = lipgloss.NewStyle().Foreground(ColorAccent).Render("▸ ")

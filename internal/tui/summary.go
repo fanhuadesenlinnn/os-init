@@ -34,7 +34,7 @@ func (m summaryModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  执行结果") + "\n\n")
+	b.WriteString(titleStyle.Render(text("  执行结果", "  Run Results")) + "\n\n")
 
 	succeeded := 0
 	failed := 0
@@ -47,11 +47,11 @@ func (m summaryModel) View() string {
 
 		if r.ExitCode == 0 {
 			icon = OKStyle.Render("  ✓")
-			status = OKStyle.Render("成功")
+			status = OKStyle.Render(text("成功", "succeeded"))
 			succeeded++
 		} else {
 			icon = ErrorStyle.Render("  ✗")
-			status = ErrorStyle.Render(fmt.Sprintf("退出码 %d", r.ExitCode))
+			status = ErrorStyle.Render(fmt.Sprintf(text("退出码 %d", "exit code %d"), r.ExitCode))
 			failed++
 		}
 
@@ -62,15 +62,15 @@ func (m summaryModel) View() string {
 		b.WriteString(line + "\n")
 
 		if r.LogFile != "" {
-			b.WriteString(MutedStyle.Render(fmt.Sprintf("    日志: %s", r.LogFile)) + "\n")
+			b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    日志: %s", "    log: %s"), r.LogFile)) + "\n")
 		}
 	}
 
 	// Summary line
 	b.WriteString("\n")
-	summary := fmt.Sprintf("  %d 个成功", succeeded)
+	summary := fmt.Sprintf(text("  %d 个成功", "  %d succeeded"), succeeded)
 	if failed > 0 {
-		summary += fmt.Sprintf(", %d 个失败", failed)
+		summary += fmt.Sprintf(text(", %d 个失败", ", %d failed"), failed)
 	}
 	if failed > 0 {
 		b.WriteString(ErrorStyle.Render(summary))
@@ -78,7 +78,7 @@ func (m summaryModel) View() string {
 		b.WriteString(OKStyle.Render(summary))
 	}
 
-	b.WriteString("\n\n" + MutedStyle.Render("  q/enter 退出"))
+	b.WriteString("\n\n" + MutedStyle.Render(text("  q/enter 退出", "  q/enter quit")))
 
 	return b.String()
 }

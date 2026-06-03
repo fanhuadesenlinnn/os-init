@@ -81,18 +81,18 @@ func newMenuModel(mods []modules.Module) menuModel {
 		}
 		mod := items[i].module
 		if mod.InstalledCmd != "" && isInstalled(mod.InstalledCmd) {
-			items[i].Status = statusInstalled
+			items[i].Status = statusInstalled()
 		} else if mod.InstalledCheck != "" {
 			path := os.ExpandEnv(mod.InstalledCheck)
 			if _, err := os.Stat(path); err == nil {
-				items[i].Status = statusInstalled
+				items[i].Status = statusInstalled()
 			}
 		} else if mod.InstalledGrepFile != "" {
 			parts := strings.SplitN(mod.InstalledGrepFile, ":", 2)
 			if len(parts) == 2 {
 				data, err := os.ReadFile(parts[0])
 				if err == nil && strings.Contains(string(data), parts[1]) {
-					items[i].Status = statusInstalled
+					items[i].Status = statusInstalled()
 				}
 			}
 		}
@@ -329,7 +329,7 @@ func (m menuModel) View() string {
 
 	// ── Header ──────────────────────────────────────────────────
 	titleText := HeaderTitleStyle.Render("OS Init")
-	byText := HeaderByLineStyle.Render(" 中国大陆优化")
+	byText := HeaderByLineStyle.Render(text(" 中国大陆优化", " China-ready"))
 	headerLeft := lipgloss.JoinHorizontal(lipgloss.Center, titleText, byText)
 
 	// spinner moved to footer
@@ -342,12 +342,12 @@ func (m menuModel) View() string {
 		key  string
 		desc string
 	}{
-		{"↑/↓", "移动"},
-		{"space", "选择"},
-		{"ctrl+a", "全选"},
-		{"/", "过滤"},
-		{"enter", "确认"},
-		{"q", "退出"},
+		{"↑/↓", text("移动", "move")},
+		{"space", text("选择", "select")},
+		{"ctrl+a", text("全选", "select all")},
+		{"/", text("过滤", "filter")},
+		{"enter", text("确认", "confirm")},
+		{"q", text("退出", "quit")},
 	}
 	var helpSegments []string
 	sep := HelpSepStyle.Render(" · ")
@@ -367,8 +367,8 @@ func (m menuModel) View() string {
 		)
 	} else if m.filter != "" {
 		b.WriteString(
-			lipgloss.NewStyle().Foreground(ColorAccent2).Render(" 过滤: "+m.filter) +
-				MutedStyle.Render(" (esc 清空)") + "\n",
+			lipgloss.NewStyle().Foreground(ColorAccent2).Render(text(" 过滤: ", " Filter: ")+m.filter) +
+				MutedStyle.Render(text(" (esc 清空)", " (esc clear)")) + "\n",
 		)
 	}
 
@@ -408,7 +408,7 @@ func (m menuModel) View() string {
 		}
 		// Only show sticky if the separator is ABOVE the viewport (not visible)
 		if sectionIdx >= 0 && sectionIdx < start {
-			b.WriteString(sectionStyle.Render(fmt.Sprintf("  ── %s ──", currentSection)) + "\n")
+			b.WriteString(sectionStyle.Render(fmt.Sprintf("  ── %s ──", moduleSection(currentSection))) + "\n")
 		}
 	}
 
@@ -420,7 +420,7 @@ func (m menuModel) View() string {
 
 	// Show scroll indicator or pad
 	if end < len(lines) {
-		b.WriteString(MutedStyle.Render(fmt.Sprintf("  ▼ 还有 %d 项", len(lines)-end)) + "\n")
+		b.WriteString(MutedStyle.Render(fmt.Sprintf(text("  ▼ 还有 %d 项", "  ▼ %d more items"), len(lines)-end)) + "\n")
 		rendered++
 	}
 
@@ -433,7 +433,7 @@ func (m menuModel) View() string {
 	// ── Footer status bar ───────────────────────────────────────
 	count := len(m.selected)
 	total := m.selectableCount()
-	leftText := FooterCountStyle.Render(fmt.Sprintf(" 已选 %d / %d", count, total))
+	leftText := FooterCountStyle.Render(fmt.Sprintf(text(" 已选 %d / %d", " Selected %d / %d"), count, total))
 
 	updates := 0
 	for _, item := range m.items {
@@ -444,10 +444,10 @@ func (m menuModel) View() string {
 
 	rightText := ""
 	if !m.checksRan {
-		rightText = m.spinner.View() + HeaderSpinnerLabel.Render(" 正在检查更新 ")
+		rightText = m.spinner.View() + HeaderSpinnerLabel.Render(text(" 正在检查更新 ", " Checking updates "))
 	} else if updates > 0 {
 		rightText = FooterUpdateStyle.Render(
-			fmt.Sprintf("%d 项可更新 ", updates),
+			fmt.Sprintf(text("%d 项可更新 ", "%d updates available "), updates),
 		)
 	}
 
@@ -475,9 +475,9 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 			return "" // spacer
 		}
 		if !strings.HasPrefix(label, "  ") {
-			return sectionStyle.Render(fmt.Sprintf("  ── %s ──", label))
+			return sectionStyle.Render(fmt.Sprintf("  ── %s ──", moduleSection(label)))
 		}
-		return subsectionStyle.Render(fmt.Sprintf("    %s", strings.TrimSpace(label)))
+		return subsectionStyle.Render(fmt.Sprintf("    %s", moduleSection(label)))
 	}
 
 	cursor := "  "
@@ -492,7 +492,7 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 		checkbox = lipgloss.NewStyle().Foreground(ColorMuted).Render("[✓]")
 	}
 
-	label := item.module.Label
+	label := moduleLabel(item.module.ID, item.module.Label)
 	if i == m.cursor {
 		label = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255")).Render(label)
 	}
@@ -500,7 +500,7 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 	line := fmt.Sprintf("%s%s %s", cursor, checkbox, label)
 
 	if item.module.Description != "" {
-		line += MutedStyle.Render(" — " + item.module.Description)
+		line += MutedStyle.Render(" — " + moduleDescription(item.module.ID, item.module.Description))
 	}
 
 	if item.Status != "" {

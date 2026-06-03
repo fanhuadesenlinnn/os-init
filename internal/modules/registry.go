@@ -279,11 +279,12 @@ func InstallSubsections() []string {
 
 // ScriptGroup represents a single script invocation with merged components.
 type ScriptGroup struct {
-	Script     string
-	Components []string
-	Label      string
-	NeedsSudo  bool
-	ModuleIDs  []string
+	Script       string
+	Components   []string
+	Label        string
+	NeedsSudo    bool
+	ModuleIDs    []string
+	ModuleLabels []string
 }
 
 // GroupByScript merges selected modules that share the same script path.
@@ -294,18 +295,39 @@ func GroupByScript(selected []Module) []ScriptGroup {
 	for _, m := range selected {
 		key := m.Script
 		if idx, ok := seen[key]; ok && len(m.Components) > 0 {
-			groups[idx].Components = append(groups[idx].Components, m.Components...)
+			groups[idx].Components = appendUnique(groups[idx].Components, m.Components...)
 			groups[idx].ModuleIDs = append(groups[idx].ModuleIDs, m.ID)
+			groups[idx].ModuleLabels = append(groups[idx].ModuleLabels, m.Label)
 		} else {
 			seen[key] = len(groups)
 			groups = append(groups, ScriptGroup{
-				Script:     m.Script,
-				Components: append([]string{}, m.Components...),
-				Label:      m.Label,
-				NeedsSudo:  m.NeedsSudo,
-				ModuleIDs:  []string{m.ID},
+				Script:       m.Script,
+				Components:   appendUnique(nil, m.Components...),
+				Label:        m.Label,
+				NeedsSudo:    m.NeedsSudo,
+				ModuleIDs:    []string{m.ID},
+				ModuleLabels: []string{m.Label},
 			})
 		}
 	}
 	return groups
+}
+
+func appendUnique(values []string, candidates ...string) []string {
+	for _, candidate := range candidates {
+		if candidate == "" || contains(values, candidate) {
+			continue
+		}
+		values = append(values, candidate)
+	}
+	return values
+}
+
+func contains(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }

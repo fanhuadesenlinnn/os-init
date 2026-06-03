@@ -16,13 +16,14 @@ import (
 const maxOutputLines = 5
 
 type executorModel struct {
-	groups   []modules.ScriptGroup
-	results  []runner.Result
-	current  int
-	output   []string // last N lines of current script
-	spinner  spinner.Model
-	progress progress.Model
-	done     bool
+	groups         []modules.ScriptGroup
+	scriptResults  []runner.Result
+	summaryResults []runner.Result
+	current        int
+	output         []string // last N lines of current script
+	spinner        spinner.Model
+	progress       progress.Model
+	done           bool
 
 	// Execution context
 	tmpDir     string
@@ -48,14 +49,15 @@ func newExecutorModel(
 	p := progress.New(progress.WithDefaultGradient())
 
 	return executorModel{
-		groups:     groups,
-		results:    make([]runner.Result, 0, len(groups)),
-		spinner:    s,
-		progress:   p,
-		tmpDir:     tmpDir,
-		mode:       modeFlag,
-		env:        env,
-		webhookURL: webhookURL,
+		groups:         groups,
+		scriptResults:  make([]runner.Result, 0, len(groups)),
+		summaryResults: make([]runner.Result, 0, len(selected)),
+		spinner:        s,
+		progress:       p,
+		tmpDir:         tmpDir,
+		mode:           modeFlag,
+		env:            env,
+		webhookURL:     webhookURL,
 	}
 }
 
@@ -90,7 +92,9 @@ func (m executorModel) Update(msg tea.Msg) (executorModel, tea.Cmd) {
 		return m, nil
 
 	case scriptDoneMsg:
-		m.results = append(m.results, msg.result)
+		group := m.groups[m.current]
+		m.scriptResults = append(m.scriptResults, msg.result)
+		m.summaryResults = append(m.summaryResults, expandGroupResult(group, msg.result)...)
 		m.current++
 		m.output = nil
 
@@ -115,7 +119,7 @@ func (m executorModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render("  正在执行脚本...") + "\n\n")
+	b.WriteString(titleStyle.Render(text("  正在执行模块...", "  Running Modules...")) + "\n\n")
 
 	for i, g := range m.groups {
 		var icon string
@@ -123,7 +127,7 @@ func (m executorModel) View() string {
 
 		switch {
 		case i < m.current:
-			if m.results[i].ExitCode == 0 {
+			if m.scriptResults[i].ExitCode == 0 {
 				icon = OKStyle.Render("  \u2713 ")
 			} else {
 				icon = ErrorStyle.Render("  \u2717 ")
@@ -137,9 +141,9 @@ func (m executorModel) View() string {
 			labelStyle = MutedStyle
 		}
 
-		label := g.Label
+		label := groupDisplayLabel(g)
 		if len(g.Components) > 1 {
-			label = g.Label + " +" + fmt.Sprintf("%d", len(g.Components)-1)
+			label = label + " +" + fmt.Sprintf("%d", len(g.Components)-1)
 		}
 
 		b.WriteString(icon + labelStyle.Render(label) + "\n")
@@ -207,4 +211,29 @@ func (m executorModel) runCurrent() tea.Cmd {
 		}
 		return scriptDoneMsg{result: result}
 	}
+}
+
+func expandGroupResult(group modules.ScriptGroup, result runner.Result) []runner.Result {
+	labels := group.ModuleLabels
+	if len(labels) == 0 {
+		labels = []string{group.Label}
+	}
+
+	results := make([]runner.Result, 0, len(labels))
+	for idx, label := range labels {
+		item := result
+		if idx < len(group.ModuleIDs) {
+			label = moduleLabel(group.ModuleIDs[idx], label)
+		}
+		item.Module = label
+		results = append(results, item)
+	}
+	return results
+}
+
+func groupDisplayLabel(group modules.ScriptGroup) string {
+	if len(group.ModuleIDs) > 0 {
+		return moduleLabel(group.ModuleIDs[0], group.Label)
+	}
+	return group.Label
 }

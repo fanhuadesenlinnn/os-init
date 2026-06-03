@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -28,19 +29,26 @@ func Prime() (cancel func()) {
 		return func() {}
 	}
 
-	fmt.Println("正在缓存 sudo 凭据，避免安装过程中反复输入密码...")
+	fmt.Println(text("正在缓存 sudo 凭据，避免安装过程中反复输入密码...", "Caching sudo credentials so installation will not repeatedly ask for a password..."))
 	cmd := exec.Command("sudo", "-v")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "sudo 刷新失败（%v），后续脚本可能还会再次提示输入密码。\n", err)
+		fmt.Fprintf(os.Stderr, text("sudo 刷新失败（%v），后续脚本可能还会再次提示输入密码。\n", "sudo refresh failed (%v); later scripts may still ask for the password again.\n"), err)
 		return func() {}
 	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	go keepAlive(ctx)
 	return ctxCancel
+}
+
+func text(zh, en string) string {
+	if strings.HasPrefix(strings.ToLower(os.Getenv("OS_INIT_LANG")), "en") {
+		return en
+	}
+	return zh
 }
 
 func keepAlive(ctx context.Context) {

@@ -16,6 +16,8 @@ const embeddedDefaults = "modules/config/defaults.env"
 var (
 	originalEnvOnce sync.Once
 	originalEnv     map[string]string
+	overrideMu      sync.Mutex
+	runtimeOverride = map[string]string{}
 )
 
 // Apply loads os-init env files for Go-side network work, preserving
@@ -36,7 +38,28 @@ func Apply(assets fs.FS) {
 	for key, value := range originalEnv {
 		_ = os.Setenv(key, value)
 	}
+	applyRuntimeOverrides()
 	exportProxyEnv()
+}
+
+// SetRuntimeOverride pins a setting for this process after config files are
+// loaded. It is used for choices made before config startup, such as language.
+func SetRuntimeOverride(key, value string) {
+	if !validKey(key) {
+		return
+	}
+	overrideMu.Lock()
+	defer overrideMu.Unlock()
+	runtimeOverride[key] = value
+	_ = os.Setenv(key, value)
+}
+
+func applyRuntimeOverrides() {
+	overrideMu.Lock()
+	defer overrideMu.Unlock()
+	for key, value := range runtimeOverride {
+		_ = os.Setenv(key, value)
+	}
 }
 
 func snapshotEnv() map[string]string {

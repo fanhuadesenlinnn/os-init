@@ -107,7 +107,7 @@ func runUpdateChecks(mods []modules.Module) tea.Cmd {
 						} else {
 							results[idx] = updateCheckResult{
 								moduleID: m.ID,
-								status:   statusInstalled,
+								status:   statusInstalled(),
 							}
 						}
 					} else {
@@ -143,7 +143,7 @@ func checkVersion(ctx context.Context, c versionChecker) updateCheckResult {
 
 	return updateCheckResult{
 		moduleID: c.moduleID,
-		status:   fmt.Sprintf(statusUpdate, installed, latest),
+		status:   statusUpdate(installed, latest),
 	}
 }
 

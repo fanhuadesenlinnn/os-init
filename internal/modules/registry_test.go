@@ -163,8 +163,29 @@ func TestGroupByScript_MergesComponents(t *testing.T) {
 	if groups[0].Components[0] != "zsh" || groups[0].Components[1] != "starship" {
 		t.Errorf("wrong components: %v", groups[0].Components)
 	}
+	if len(groups[0].ModuleIDs) != 2 || groups[0].ModuleIDs[0] != "shell-zsh" || groups[0].ModuleIDs[1] != "shell-starship" {
+		t.Errorf("wrong module IDs: %v", groups[0].ModuleIDs)
+	}
 	if len(groups[1].Components) != 0 {
 		t.Errorf("docker should have no components, got %v", groups[1].Components)
+	}
+}
+
+func TestGroupByScript_DeduplicatesComponentsButKeepsModuleLabels(t *testing.T) {
+	t.Parallel()
+	selected := []modules.Module{
+		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-autosuggestions"},
+		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-syntax-highlighting"},
+	}
+	groups := modules.GroupByScript(selected)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	if got := groups[0].Components; !reflect.DeepEqual(got, []string{"plugins"}) {
+		t.Fatalf("components should be deduplicated, got %v", got)
+	}
+	if got := groups[0].ModuleLabels; !reflect.DeepEqual(got, []string{"zsh-autosuggestions", "zsh-syntax-highlighting"}) {
+		t.Fatalf("module labels should be preserved, got %v", got)
 	}
 }
 

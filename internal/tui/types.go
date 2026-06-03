@@ -9,7 +9,8 @@ import (
 type screen int
 
 const (
-	screenBanner screen = iota
+	screenLanguage screen = iota
+	screenBanner
 	screenConfig
 	screenMenu
 	screenMode
@@ -31,11 +32,11 @@ const (
 func (m mode) String() string {
 	switch m {
 	case modeInstall:
-		return "安装"
+		return text("安装", "install")
 	case modeUpdate:
-		return "更新"
+		return text("更新", "update")
 	case modeUninstall:
-		return "卸载"
+		return text("卸载", "uninstall")
 	}
 	return ""
 }
@@ -54,6 +55,8 @@ func (m mode) Flag() string {
 // Shared messages between screens.
 
 type switchScreenMsg struct{ to screen }
+
+type languageSelectedMsg struct{ code string }
 
 type configReadyMsg struct{}
 

@@ -49,10 +49,10 @@ count_steps() {
 TOTAL=$(count_steps)
 next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 
-TITLE="Setup"
-[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
-echo "=== Shell Tools $TITLE ==="
-echo "  Components: ${COMPONENTS[*]}"
+TITLE="$(os_init_text "安装" "setup")"
+[[ "$UNINSTALL" == true ]] && TITLE="$(os_init_text "卸载" "uninstall")"
+echo "=== $(os_init_text "Shell 工具" "Shell Tools") $TITLE ==="
+echo "  $(os_init_text "组件" "Components"): ${COMPONENTS[*]}"
 echo ""
 
 # ── Uninstall mode ────────────────────────────────────────────────────────────
@@ -89,10 +89,15 @@ if [[ "$UNINSTALL" == true ]]; then
     fi
 
     if want "starship"; then
-        echo "[REMOVE] starship..."
+        echo "$(os_init_text "[删除]" "[REMOVE]") starship..."
         if command -v starship &>/dev/null; then
-            remove "removing starship binary"
-            sudo rm -f "$(command -v starship)"
+            if is_macos; then
+                remove "通过 Homebrew 卸载 starship"
+                pkg_remove starship
+            else
+                remove "removing starship binary"
+                sudo rm -f "$(command -v starship)"
+            fi
         else
             skip "starship not installed"
         fi
@@ -141,7 +146,7 @@ if [[ "$UNINSTALL" == true ]]; then
     fi
 
     echo ""
-    echo "=== Shell tools uninstall complete ==="
+    echo "=== $(os_init_text "Shell 工具卸载完成" "Shell tools uninstall complete") ==="
     exit 0
 fi
 
@@ -180,7 +185,20 @@ fi
 if want "starship"; then
     next "starship"
 
-    if command -v starship &>/dev/null; then
+    if is_macos; then
+        ensure_brew
+        if command -v starship &>/dev/null; then
+            if [[ "$UPDATE" == true ]]; then
+                update "通过 Homebrew 更新 starship"
+                brew upgrade starship || true
+            else
+                skip "starship $(starship --version | head -1) already installed"
+            fi
+        else
+            install "通过 Homebrew 安装 starship"
+            brew install starship
+        fi
+    elif command -v starship &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
             update "updating starship"
             STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
@@ -202,7 +220,7 @@ if want "starship"; then
     if [[ -f "$HOME/.config/starship.toml" ]]; then
         skip "~/.config/starship.toml already exists (not overwriting)"
     else
-        install "copying starship.toml"
+        install "$(os_init_text "复制 starship.toml" "copying starship.toml")"
         cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
     fi
 fi
@@ -431,9 +449,9 @@ if want "zsh"; then
 fi
 
 echo ""
-echo "=== Shell tools setup complete ==="
-echo "  Installed: ${COMPONENTS[*]}"
+echo "=== $(os_init_text "Shell 工具安装完成" "Shell tools setup complete") ==="
+echo "  $(os_init_text "已处理" "Processed"): ${COMPONENTS[*]}"
 echo ""
-want "byobu" && echo "  byobu  -- launch terminal multiplexer"
+want "byobu" && echo "  byobu  -- $(os_init_text "启动终端复用器" "launch terminal multiplexer")"
 want "fnm" && echo "  fnm   -- fnm install --lts && fnm use lts-latest"
-echo "Start a new terminal or run: exec zsh"
+echo "$(os_init_text "打开新终端或执行: exec zsh" "Start a new terminal or run: exec zsh")"

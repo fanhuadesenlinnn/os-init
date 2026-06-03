@@ -9,6 +9,7 @@ import (
 	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
 )
 
 // Config holds parameters passed from main.go.
@@ -26,6 +27,7 @@ type Model struct {
 	height int
 
 	// Screen models
+	language      languageModel
 	banner        bannerModel
 	configStartup configStartupModel
 	menu          menuModel
@@ -43,6 +45,7 @@ type Model struct {
 	webhookURL      string
 	tmpDir          string
 	cleanupFn       func()
+	sudoCancel      func()
 }
 
 // New creates a new root Model.
@@ -50,13 +53,10 @@ func New(cfg Config) Model {
 	appconfig.Apply(cfg.Assets)
 	model := Model{
 		config:        cfg,
-		screen:        screenConfig,
+		screen:        screenLanguage,
+		language:      newLanguageModel(),
 		configStartup: newConfigStartupModel(cfg.Assets),
 		mode:          newModeModel(),
-	}
-	if os.Getenv("OS_INIT_CONFIG_PROMPT") == "0" {
-		model.screen = screenMenu
-		model.menu = newMenuModel(modules.ForTarget(platform.Detect()))
 	}
 	return model
 }
@@ -110,6 +110,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cleanupFn != nil {
 				m.cleanupFn()
 			}
+			if m.sudoCancel != nil {
+				m.sudoCancel()
+			}
 			return m, tea.Quit
 		}
 	}
@@ -117,6 +120,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Route to active screen
 	var cmd tea.Cmd
 	switch m.screen {
+	case screenLanguage:
+		m.language, cmd = m.language.Update(msg)
 	case screenBanner:
 		m.banner, cmd = m.banner.Update(msg)
 	case screenConfig:
@@ -137,6 +142,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle screen transition messages
 	switch msg := msg.(type) {
+	case languageSelectedMsg:
+		appconfig.SetRuntimeOverride("OS_INIT_LANG", msg.code)
+		appconfig.Apply(m.config.Assets)
+		m.configStartup = newConfigStartupModel(m.config.Assets)
+		if os.Getenv("OS_INIT_CONFIG_PROMPT") == "0" {
+			return m.startMenu()
+		}
+		m.screen = screenConfig
+		return m, m.configStartup.Init()
+
 	case configReadyMsg:
 		return m.startMenu()
 
@@ -171,9 +186,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.webhookURL = msg.webhook
 
 	case confirmMsg:
+		if m.sudoCancel == nil {
+			m.sudoCancel = sudo.Prime()
+		}
+
 		// Extract embedded assets and start execution
 		tmpDir, cleanup, err := kickembed.Extract(m.config.Assets)
 		if err != nil {
+			if m.sudoCancel != nil {
+				m.sudoCancel()
+				m.sudoCancel = nil
+			}
 			// Fall back to summary with error
 			m.screen = screenSummary
 			m.summary = newSummaryModel(nil)
@@ -204,7 +227,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cleanupFn()
 			m.cleanupFn = nil
 		}
-		m.summary = newSummaryModel(m.executor.results)
+		if m.sudoCancel != nil {
+			m.sudoCancel()
+			m.sudoCancel = nil
+		}
+		m.summary = newSummaryModel(m.executor.summaryResults)
 		m.screen = screenSummary
 		return m, m.summary.Init()
 	}
@@ -215,6 +242,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the active screen.
 func (m Model) View() string {
 	switch m.screen {
+	case screenLanguage:
+		return m.language.View()
 	case screenBanner:
 		return m.banner.View()
 	case screenConfig:
@@ -237,6 +266,8 @@ func (m Model) View() string {
 
 func (m Model) initScreen(s screen) tea.Cmd {
 	switch s {
+	case screenLanguage:
+		return m.language.Init()
 	case screenBanner:
 		return m.banner.Init()
 	case screenConfig:

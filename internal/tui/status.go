@@ -2,22 +2,25 @@ package tui
 
 import "strings"
 
-const (
-	statusInstalled = "[已安装]"
-	statusUpdate    = "[可更新 %s → %s]"
-)
-
 func statusInstalledWithVersion(version string) string {
 	if version == "" {
-		return statusInstalled
+		return statusInstalled()
 	}
-	return "[已安装 " + version + "]"
+	return text("[已安装 "+version+"]", "[installed "+version+"]")
+}
+
+func statusInstalled() string {
+	return text("[已安装]", "[installed]")
+}
+
+func statusUpdate(installed, latest string) string {
+	return text("[可更新 "+installed+" → "+latest+"]", "[update "+installed+" -> "+latest+"]")
 }
 
 func isInstalledStatus(status string) bool {
-	return strings.HasPrefix(status, "[已安装")
+	return strings.HasPrefix(status, "[已安装") || strings.HasPrefix(status, "[installed")
 }
 
 func isUpdateStatus(status string) bool {
-	return strings.HasPrefix(status, "[可更新")
+	return strings.HasPrefix(status, "[可更新") || strings.HasPrefix(status, "[update")
 }

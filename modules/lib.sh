@@ -8,12 +8,75 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-skip()    { echo -e "  ${GREEN}[跳过]${NC} $1"; }
-install() { echo -e "  ${YELLOW}[安装]${NC} $1"; }
-update()  { echo -e "  ${CYAN}[更新]${NC} $1"; }
-remove()  { echo -e "  ${RED}[删除]${NC} $1"; }
-warn()    { echo -e "  ${YELLOW}[警告]${NC} $1"; }
-die()     { echo -e "  ${RED}[错误]${NC} $1" >&2; exit 1; }
+os_init_is_en() {
+    case "$(printf '%s' "${OS_INIT_LANG:-}" | tr '[:upper:]' '[:lower:]')" in
+        en*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+os_init_text() {
+    if os_init_is_en; then
+        printf '%s\n' "$2"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+
+log_message() {
+    local msg="$1"
+    if os_init_is_en; then
+        case "$msg" in
+            "通过 Homebrew 安装 "*) printf 'installing %s with Homebrew\n' "${msg#通过 Homebrew 安装 }"; return ;;
+            "通过 Homebrew 更新 "*) printf 'updating %s with Homebrew\n' "${msg#通过 Homebrew 更新 }"; return ;;
+            "通过 Homebrew 卸载 "*) printf 'uninstalling %s with Homebrew\n' "${msg#通过 Homebrew 卸载 }"; return ;;
+            "安装 "*) printf 'installing %s\n' "${msg#安装 }"; return ;;
+            "更新 "*) printf 'updating %s\n' "${msg#更新 }"; return ;;
+            "删除 "*) printf 'removing %s\n' "${msg#删除 }"; return ;;
+            "复制 "*) printf 'copying %s\n' "${msg#复制 }"; return ;;
+            "使用离线文件 "*) printf 'using offline file %s\n' "${msg#使用离线文件 }"; return ;;
+            "离线模式禁止下载: "*) printf 'offline mode blocks download: %s\n' "${msg#离线模式禁止下载: }"; return ;;
+            "需要 curl 或 wget 才能下载文件") printf 'curl or wget is required to download files\n'; return ;;
+            "需要 curl 或 wget 才能查询 GitHub 最新版本") printf 'curl or wget is required to query the latest GitHub version\n'; return ;;
+            "无法创建临时配置快照") printf 'failed to create temporary config snapshot\n'; return ;;
+            "该模块只支持 Linux") printf 'this module only supports Linux\n'; return ;;
+            "该模块只支持 macOS") printf 'this module only supports macOS\n'; return ;;
+            "该模块需要 systemd，当前 init="*) printf 'this module requires systemd; current init=%s\n' "${msg#该模块需要 systemd，当前 init=}"; return ;;
+            "不支持的包管理器家族: "*) printf 'unsupported package manager family: %s\n' "${msg#不支持的包管理器家族: }"; return ;;
+            "RedHat 系统未找到 dnf/yum") printf 'dnf/yum was not found on this RedHat-family system\n'; return ;;
+            "未知 macOS 应用组件: "*) printf 'unknown macOS app component: %s\n' "${msg#未知 macOS 应用组件: }"; return ;;
+            "未知 macOS 命令行组件: "*) printf 'unknown macOS CLI component: %s\n' "${msg#未知 macOS 命令行组件: }"; return ;;
+        esac
+        printf '%s\n' "$msg"
+        return
+    fi
+
+    case "$msg" in
+        "installing "*) printf '安装 %s\n' "${msg#installing }"; return ;;
+        "updating "*) printf '更新 %s\n' "${msg#updating }"; return ;;
+        "removing "*) printf '删除 %s\n' "${msg#removing }"; return ;;
+        "cloning "*) printf '克隆 %s\n' "${msg#cloning }"; return ;;
+        "copying "*) printf '复制 %s\n' "${msg#copying }"; return ;;
+        "setting "*) printf '设置 %s\n' "${msg#setting }"; return ;;
+    esac
+    msg="${msg/already installed/已安装}"
+    msg="${msg/not installed/未安装}"
+    msg="${msg/not found/未找到}"
+    msg="${msg/not overwriting/不会覆盖}"
+    printf '%s\n' "$msg"
+}
+
+log_line() {
+    local color="$1" zh_tag="$2" en_tag="$3" msg="$4"
+    echo -e "  ${color}[$(os_init_text "$zh_tag" "$en_tag")]${NC} $(log_message "$msg")"
+}
+
+skip()    { log_line "$GREEN" "跳过" "Skip" "$1"; }
+install() { log_line "$YELLOW" "安装" "Install" "$1"; }
+update()  { log_line "$CYAN" "更新" "Update" "$1"; }
+remove()  { log_line "$RED" "删除" "Remove" "$1"; }
+warn()    { log_line "$YELLOW" "警告" "Warning" "$1"; }
+die()     { log_line "$RED" "错误" "Error" "$1" >&2; exit 1; }
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"

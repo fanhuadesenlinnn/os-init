@@ -40,7 +40,7 @@ cask_label() {
     case "$1" in
         google-chrome) echo "Google Chrome" ;;
         codex) echo "Codex" ;;
-        wechat) echo "微信" ;;
+        wechat) os_init_text "微信" "WeChat" ;;
         royal-tsx) echo "Royal TSX" ;;
         orbstack) echo "OrbStack" ;;
         clash-verge-rev) echo "Clash Verge Rev" ;;
@@ -68,12 +68,12 @@ cask_label() {
         motrix) echo "Motrix" ;;
         spotify) echo "Spotify" ;;
         steam) echo "Steam" ;;
-        qqlive) echo "腾讯视频" ;;
+        qqlive) os_init_text "腾讯视频" "Tencent Video" ;;
         chatgpt) echo "ChatGPT" ;;
         cherry-studio) echo "Cherry Studio" ;;
         siyuan) echo "SiYuan" ;;
         telegram) echo "Telegram" ;;
-        tencent-meeting) echo "腾讯会议" ;;
+        tencent-meeting) os_init_text "腾讯会议" "Tencent Meeting" ;;
         wpsoffice) echo "WPS Office" ;;
         bitwarden) echo "Bitwarden" ;;
         cleanmymac) echo "CleanMyMac X" ;;
@@ -172,11 +172,11 @@ for c in "${COMPONENTS[@]}"; do
     known_component "$c" || die "未知 macOS 应用组件: $c"
 done
 
-TITLE="安装"
-[[ "$UPDATE" == true ]] && TITLE="更新"
-[[ "$UNINSTALL" == true ]] && TITLE="卸载"
-echo "=== macOS 应用 $TITLE ==="
-echo "  Components: ${COMPONENTS[*]}"
+TITLE="$(os_init_text "安装" "install")"
+[[ "$UPDATE" == true ]] && TITLE="$(os_init_text "更新" "update")"
+[[ "$UNINSTALL" == true ]] && TITLE="$(os_init_text "卸载" "uninstall")"
+echo "=== $(os_init_text "macOS 应用" "macOS Apps") $TITLE ==="
+echo "  $(os_init_text "组件" "Components"): ${COMPONENTS[*]}"
 echo ""
 
 STEP=0
@@ -198,8 +198,8 @@ done
 
 if want "orbstack" && [[ "$UNINSTALL" != true ]]; then
     echo ""
-    echo "  提示: OrbStack 安装后需要打开应用完成首次初始化。"
+    echo "  $(os_init_text "提示" "Note"): $(os_init_text "OrbStack 安装后需要打开应用完成首次初始化。" "Open OrbStack after installation to finish first-time initialization.")"
 fi
 
 echo ""
-echo "=== macOS 应用 $TITLE 完成 ==="
+echo "=== $(os_init_text "macOS 应用" "macOS Apps") $TITLE $(os_init_text "完成" "complete") ==="

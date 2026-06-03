@@ -1,0 +1,191 @@
+package tui
+
+import (
+	"os"
+	"strings"
+)
+
+func langIsEnglish() bool {
+	return strings.HasPrefix(strings.ToLower(os.Getenv("OS_INIT_LANG")), "en")
+}
+
+func text(zh, en string) string {
+	if langIsEnglish() {
+		return en
+	}
+	return zh
+}
+
+func moduleSection(label string) string {
+	if !langIsEnglish() {
+		return label
+	}
+	switch strings.TrimSpace(label) {
+	case "系统优化":
+		return "System Optimization"
+	case "软件安装":
+		return "Software Installation"
+	case "Shell 工具":
+		return "Shell Tools"
+	case "终端工具":
+		return "Terminal Tools"
+	case "macOS 开发应用":
+		return "macOS Development Apps"
+	case "macOS 代理网络":
+		return "macOS Proxy & Network"
+	case "macOS 效率工具":
+		return "macOS Productivity"
+	case "macOS 输入增强":
+		return "macOS Input Enhancements"
+	case "macOS 媒体下载":
+		return "macOS Media & Download"
+	case "macOS AI 笔记":
+		return "macOS AI & Notes"
+	case "macOS 通讯办公":
+		return "macOS Communication & Office"
+	case "macOS 字体":
+		return "macOS Fonts"
+	case "macOS 命令行":
+		return "macOS CLI Tools"
+	case "网络代理":
+		return "Network Proxy"
+	case "开发工具":
+		return "Development Tools"
+	default:
+		return label
+	}
+}
+
+func moduleLabel(id, fallback string) string {
+	if !langIsEnglish() {
+		return fallback
+	}
+	if value, ok := moduleLabelEN[id]; ok {
+		return value
+	}
+	return fallback
+}
+
+func moduleDescription(id, fallback string) string {
+	if !langIsEnglish() {
+		return fallback
+	}
+	if value, ok := moduleDescriptionEN[id]; ok {
+		return value
+	}
+	return fallback
+}
+
+var moduleLabelEN = map[string]string{
+	"kernel-sysctl":         "Kernel - sysctl.d",
+	"kernel-limits":         "Kernel - limits.d",
+	"kernel-scheduler":      "Kernel - I/O scheduler",
+	"kernel-autotune":       "Kernel - auto tuning",
+	"network-ipv4":          "Network - prefer IPv4",
+	"network-tune":          "Network - queues and MSS",
+	"shell-starship":        "starship prompt",
+	"shell-git":             "Git configuration",
+	"terminal-ncdu":         "ncdu",
+	"mihomo":                "Mihomo",
+	"docker":                "Docker",
+	"go":                    "Go",
+	"neovim":                "Neovim + LazyVim",
+	"macos-wechat":          "WeChat",
+	"macos-tencent-meeting": "Tencent Meeting",
+	"macos-qqlive":          "Tencent Video",
+}
+
+var moduleDescriptionEN = map[string]string{
+	"kernel-sysctl":                       "BBR/FQ, TCP/UDP, conntrack, and memory tuning",
+	"kernel-limits":                       "File descriptors, process limits, and systemd defaults",
+	"kernel-scheduler":                    "Use none for SSD/NVMe I/O scheduling",
+	"kernel-autotune":                     "Tune conntrack, buffers, and file-max based on memory",
+	"network-ipv4":                        "Prefer IPv4 resolver results through gai.conf",
+	"network-tune":                        "RPS/RSS distribution, ring buffers, and MSS clamp",
+	"shell-zsh":                           "Interactive shell environment",
+	"shell-starship":                      "Cross-shell prompt using the bundled template",
+	"shell-direnv":                        "Per-directory environment variables",
+	"shell-autosuggestions":               "Command history suggestions",
+	"shell-syntax-hl":                     "Command syntax highlighting",
+	"shell-nvm":                           "Node version manager",
+	"shell-fnm":                           "Fast Node version manager",
+	"shell-git":                           "LFS, SSH-over-HTTPS, and template config",
+	"shell-byobu":                         "Terminal multiplexer",
+	"terminal-ncdu":                       "Disk usage analyzer",
+	"yazi":                                "Terminal file manager",
+	"macos-google-chrome":                 "Browser",
+	"macos-codex":                         "OpenAI Codex desktop app",
+	"macos-orbstack":                      "Docker Desktop alternative for containers and Linux machines",
+	"macos-visual-studio-code":            "Code editor",
+	"macos-iterm2":                        "macOS terminal emulator",
+	"macos-ghostty":                       "GPU-accelerated terminal emulator",
+	"macos-sublime-text":                  "Lightweight code editor",
+	"macos-neovide-app":                   "Graphical Neovim client",
+	"macos-clash-verge-rev":               "Mihomo/Clash Meta proxy GUI",
+	"macos-clash-party":                   "Mihomo/Clash proxy GUI",
+	"macos-royal-tsx":                     "Remote connection manager",
+	"macos-seafile-client":                "File sync client",
+	"macos-pixpin":                        "Screenshot and annotation tool",
+	"macos-bob":                           "Translation and OCR tool",
+	"macos-loop":                          "Window manager",
+	"macos-jordanbaird-ice":               "Menu bar manager",
+	"macos-stats":                         "Menu bar system monitor",
+	"macos-monitorcontrol":                "External display brightness and volume control",
+	"macos-mos":                           "Mouse scrolling optimizer",
+	"macos-input-source-pro":              "Automatic input source switching",
+	"macos-menubarx":                      "Menu bar browser",
+	"macos-karabiner-elements":            "Keyboard remapping tool",
+	"macos-aldente":                       "Battery charging manager",
+	"macos-keka":                          "Archive utility",
+	"macos-iina":                          "Video player",
+	"macos-downie":                        "Video downloader",
+	"macos-motrix":                        "Download manager",
+	"macos-spotify":                       "Music client",
+	"macos-steam":                         "Game platform",
+	"macos-qqlive":                        "Video client",
+	"macos-chatgpt":                       "ChatGPT desktop app",
+	"macos-cherry-studio":                 "AI client",
+	"macos-siyuan":                        "Local-first notes app",
+	"macos-wechat":                        "Instant messaging",
+	"macos-telegram":                      "Instant messaging",
+	"macos-tencent-meeting":               "Meeting client",
+	"macos-wpsoffice":                     "Office suite",
+	"macos-bitwarden":                     "Password manager",
+	"macos-cleanmymac":                    "System cleanup tool",
+	"macos-cc-switch":                     "Menu bar switch tool",
+	"macos-font-hack-nerd-font":           "Nerd Font family",
+	"macos-font-jetbrains-mono-nerd-font": "Nerd Font family",
+	"macos-font-maple-mono-nf":            "Nerd Font family",
+	"macos-cli-bat":                       "cat replacement",
+	"macos-cli-eza":                       "ls replacement",
+	"macos-cli-ripgrep":                   "Fast text search",
+	"macos-cli-fd":                        "find replacement",
+	"macos-cli-fzf":                       "Command-line fuzzy finder",
+	"macos-cli-gh":                        "GitHub command-line tool",
+	"macos-cli-htop":                      "Process monitor",
+	"macos-cli-iftop":                     "Network bandwidth monitor",
+	"macos-cli-jq":                        "JSON processor",
+	"macos-cli-mise":                      "Multi-language runtime manager",
+	"macos-cli-nmap":                      "Network scanner",
+	"macos-cli-nushell":                   "Structured shell",
+	"macos-cli-rsync":                     "File synchronization tool",
+	"macos-cli-shellcheck":                "Shell static analyzer",
+	"macos-cli-tmux":                      "Terminal multiplexer",
+	"macos-cli-uv":                        "Python package and project manager",
+	"macos-cli-wget":                      "Command-line downloader",
+	"macos-cli-zoxide":                    "Smart directory jumper",
+	"macos-cli-ffmpeg":                    "Audio/video processing",
+	"macos-cli-imagemagick":               "Image processing",
+	"macos-cli-gallery-dl":                "Gallery downloader",
+	"macos-cli-yt-dlp":                    "Video downloader",
+	"macos-cli-stylua":                    "Lua formatter",
+	"macos-cli-tree-sitter-cli":           "tree-sitter command-line tool",
+	"macos-cli-nload":                     "Network bandwidth monitor",
+	"macos-cli-bind":                      "DNS tools",
+	"macos-cli-herdr":                     "Command-line tool",
+	"macos-cli-llmfit":                    "Command-line tool",
+	"mihomo":                              "Proxy core, config validation, and MetaCubeXD dashboard",
+	"docker":                              "Static binary, Compose plugin, and daemon config",
+	"go":                                  "Go toolchain",
+	"neovim":                              "Editor with IDE-like features",
+}

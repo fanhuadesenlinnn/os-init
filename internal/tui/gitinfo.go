@@ -22,7 +22,7 @@ func newGitInfoModel(showIdentity, showWebhook bool) gitInfoModel {
 
 	if showIdentity {
 		nameInput := textinput.New()
-		nameInput.Placeholder = "姓名"
+		nameInput.Placeholder = text("姓名", "Name")
 		nameInput.Focus()
 		nameInput.CharLimit = 100
 		nameInput.Width = 40
@@ -45,7 +45,7 @@ func newGitInfoModel(showIdentity, showWebhook bool) gitInfoModel {
 
 	if showWebhook {
 		webhookInput := textinput.New()
-		webhookInput.Placeholder = "企业微信/飞书/DingTalk Webhook URL"
+		webhookInput.Placeholder = text("企业微信/飞书/DingTalk Webhook URL", "WeCom/Feishu/DingTalk Webhook URL")
 		webhookInput.CharLimit = 200
 		webhookInput.Width = 60
 		if !showIdentity {
@@ -92,7 +92,7 @@ func (m gitInfoModel) Update(msg tea.Msg) (gitInfoModel, tea.Cmd) {
 				name = strings.TrimSpace(m.inputs[idx].Value())
 				email = strings.TrimSpace(m.inputs[idx+1].Value())
 				if name == "" || email == "" {
-					m.err = "姓名和邮箱不能为空"
+					m.err = text("姓名和邮箱不能为空", "Name and email cannot be empty")
 					return m, nil
 				}
 				idx += 2
@@ -100,7 +100,7 @@ func (m gitInfoModel) Update(msg tea.Msg) (gitInfoModel, tea.Cmd) {
 			if m.showWebhook {
 				webhook = strings.TrimSpace(m.inputs[idx].Value())
 				if webhook == "" {
-					m.err = "Webhook URL 不能为空"
+					m.err = text("Webhook URL 不能为空", "Webhook URL cannot be empty")
 					return m, nil
 				}
 			}
@@ -136,21 +136,21 @@ func (m gitInfoModel) View() string {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(ColorAccent)
-	title := "  配置"
+	title := text("  配置", "  Configuration")
 	switch {
 	case m.showIdentity && m.showWebhook:
-		title = "  Git 与 Webhook 配置"
+		title = text("  Git 与 Webhook 配置", "  Git and Webhook Configuration")
 	case m.showIdentity:
-		title = "  Git 配置"
+		title = text("  Git 配置", "  Git Configuration")
 	case m.showWebhook:
-		title = "  Webhook 配置"
+		title = text("  Webhook 配置", "  Webhook Configuration")
 	}
 	b.WriteString(titleStyle.Render(title) + "\n")
-	b.WriteString(MutedStyle.Render("  tab 切换 • enter 确认 • esc 返回") + "\n\n")
+	b.WriteString(MutedStyle.Render(text("  tab 切换 • enter 确认 • esc 返回", "  tab switch • enter confirm • esc back")) + "\n\n")
 
 	var labels []string
 	if m.showIdentity {
-		labels = append(labels, "  姓名:    ", "  邮箱:    ")
+		labels = append(labels, text("  姓名:    ", "  Name:    "), text("  邮箱:    ", "  Email:   "))
 	}
 	if m.showWebhook {
 		labels = append(labels, "  Webhook: ")

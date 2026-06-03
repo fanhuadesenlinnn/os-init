@@ -102,11 +102,11 @@ for c in "${COMPONENTS[@]}"; do
     known_component "$c" || die "未知 macOS 命令行组件: $c"
 done
 
-TITLE="安装"
-[[ "$UPDATE" == true ]] && TITLE="更新"
-[[ "$UNINSTALL" == true ]] && TITLE="卸载"
-echo "=== macOS 命令行工具 $TITLE ==="
-echo "  Components: ${COMPONENTS[*]}"
+TITLE="$(os_init_text "安装" "install")"
+[[ "$UPDATE" == true ]] && TITLE="$(os_init_text "更新" "update")"
+[[ "$UNINSTALL" == true ]] && TITLE="$(os_init_text "卸载" "uninstall")"
+echo "=== $(os_init_text "macOS 命令行工具" "macOS CLI Tools") $TITLE ==="
+echo "  $(os_init_text "组件" "Components"): ${COMPONENTS[*]}"
 echo ""
 
 STEP=0
@@ -127,4 +127,4 @@ for formula in "${ALL_COMPONENTS[@]}"; do
 done
 
 echo ""
-echo "=== macOS 命令行工具 $TITLE 完成 ==="
+echo "=== $(os_init_text "macOS 命令行工具" "macOS CLI Tools") $TITLE $(os_init_text "完成" "complete") ==="
