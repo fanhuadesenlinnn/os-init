@@ -36,7 +36,7 @@
   - Arch 系：Arch、Manjaro、EndeavourOS 等。
   - Debian 系：Debian、Ubuntu、Linux Mint、Kali 等。
   - RedHat 系：RHEL、CentOS、Rocky、AlmaLinux、Fedora、Oracle Linux 等。
-- macOS 支持
+- macOS 按 OS 自动过滤模块，显示适配 Homebrew 或通用二进制安装的 Shell、终端、开发工具和指定 macOS 应用模块。
 - Docker 和 Docker Compose 使用官方二进制/插件安装方式，不再通过 apt/yum/dnf/pacman 安装 Docker Engine。
 - 支持安装和配置 Mihomo，配置渲染、systemd 服务检测、配置测试、MetaCubeXD 面板逻辑尽量对齐 `ArchDevKit`。
 - 下载源、代理、Docker registry mirror、离线包路径都可配置。
@@ -87,6 +87,7 @@
 | USB Monitor | `modules/usb/` | `usb-monitor` | 属于专门安全告警能力，不进入通用初始化主线 |
 | Browsers & Apps | `modules/browsers/` | `browser-chrome`、`browser-brave`、`app-signal` | 桌面应用，apt/deb/mac 偏向，国内网络不稳定 |
 | PeaZip | `modules/peazip/` | `peazip` | `.deb`/mac 偏向，不适合 Arch/RedHat 主线 |
+| 未纳入清单的 macOS GUI 应用 | 无固定目录 | 无固定 ID | 不默认添加；只保留用户明确列出的 Homebrew cask/formula 模块 |
 
 删除时同步清理：
 
@@ -110,9 +111,10 @@
 | Kernel limits | 改为 `/etc/security/limits.d/99-os-init.conf`，并按发行版检测 PAM/systemd 路径 |
 | Kernel scheduler | 保留 udev 规则，但增加 systemd/udev/设备兼容检测 |
 | Kernel autotune | 保留 systemd oneshot，增加依赖检测和缺失命令提示 |
-| SSH hardening | 优先使用 `/etc/ssh/sshd_config.d/99-os-init.conf`，不支持时才备份并渲染完整配置 |
-| Shell tools | zsh、fzf、starship、direnv、zsh plugins、nvm、fnm、byobu/tmux、git-lfs 进入跨发行版适配 |
+| Shell tools | zsh、starship、direnv、zsh plugins、nvm、fnm、byobu/tmux、git-lfs 进入跨发行版适配 |
 | Terminal tools | ncdu 进入跨发行版适配 |
+| macOS apps | 新增用户列出的常用 App、代理网络、效率工具、输入增强、媒体下载、AI/笔记、通讯办公和字体模块，仅在 macOS 目标显示并通过 Homebrew cask 安装 |
+| macOS CLI | 新增用户列出的 Homebrew 顶层命令工具模块，仅在 macOS 目标显示并通过 Homebrew formula 安装 |
 | Go | 改为可配置下载源、架构映射、离线包 |
 | Yazi | 改为可配置下载源、架构映射、离线包 |
 | Neovim + LazyVim | 暂时保留，改为可配置下载源、架构映射、离线包 |
@@ -122,7 +124,7 @@
 
 AI 实施阶段顺序和用户实际选择模块后的执行顺序不是一回事。实现时必须显式处理“运行时模块执行顺序”，不要只依赖 TUI 菜单顺序。
 
-当前项目的 `GroupByScript` 会按菜单选中顺序生成脚本组；如果菜单仍把系统优化放在前面，用户全选时可能先改内核/SSH，再安装代理、Docker、开发工具。新方案需要调整为按优先级执行。
+当前项目的 `GroupByScript` 会按菜单选中顺序生成脚本组；如果菜单仍把系统优化放在前面，用户全选时可能先改内核，再安装代理、Docker、开发工具。新方案需要调整为按优先级执行。
 
 ### 执行顺序原则
 
@@ -133,10 +135,9 @@ AI 实施阶段顺序和用户实际选择模块后的执行顺序不是一回�
 | 10 | 预检和公共配置 | 加载配置、识别平台、检查 systemd/root/包管理器、检查离线包是否齐全 |
 | 20 | 网络和代理 | Mihomo 优先执行，便于后续 Docker/Go/Neovim/Yazi/GitHub 下载使用代理；未选择 Mihomo 时使用已有 `HTTP_PROXY/HTTPS_PROXY` |
 | 30 | 容器运行时 | Docker 二进制安装、daemon 配置、Compose plugin |
-| 40 | 基础终端和 Shell | zsh、fzf、starship、direnv、git-lfs、byobu/tmux、ncdu |
+| 40 | 基础终端和 Shell | zsh、starship、direnv、git-lfs、byobu/tmux、ncdu |
 | 50 | 语言和开发工具 | Go、Yazi、Neovim + LazyVim、lazygit、ripgrep/fd |
 | 80 | 内核和系统参数 | sysctl、limits、scheduler、autotune；尽量使用 drop-in，放到软件安装后 |
-| 90 | SSH hardening | 最后执行；写入前校验配置，避免安装中途影响远程连接 |
 
 注意：Mihomo 是优先网络模块，不是 Docker 的硬依赖。未选择 Mihomo 时，Docker 和其他下载模块必须仍可通过已有 `HTTP_PROXY/HTTPS_PROXY`、镜像源或离线包执行。
 
@@ -148,7 +149,6 @@ AI 实施阶段顺序和用户实际选择模块后的执行顺序不是一回�
 | 30 | Docker | 停止服务但默认保留数据 |
 | 40 | Mihomo | 停止服务但默认保留配置和 state dir |
 | 80 | 内核和系统参数 revert | 最后恢复系统配置 |
-| 90 | SSH hardening revert | 最后恢复 SSH 配置，并且重启前必须 `sshd -t` |
 
 ### 代码要求
 
@@ -171,7 +171,7 @@ UninstallPriority int
 执行器改造要求：
 
 - `modules.GroupByScript` 或 `newExecutorModel` 必须稳定排序脚本组。
-- 同一个脚本的多个组件仍要合并，例如 `shell/install.sh zsh fzf git`。
+- 同一个脚本的多个组件仍要合并，例如 `shell/install.sh zsh starship git`。
 - 同一优先级内保持菜单顺序，便于用户理解。
 - `scriptGroup` 上要保留参与合并模块的最高/最低优先级，避免 shell 组件被拆散。
 - README 中说明“选择多个模块时会按安全顺序执行，不完全等同菜单顺序”。
@@ -188,15 +188,14 @@ UninstallPriority int
 | `yazi` | 50 | 20 |
 | `neovim` | 50 | 20 |
 | `kernel-*` | 80 | 80 |
-| `sshd` | 90 | 90 |
 
 ### 验收
 
 新增或更新测试：
 
-- 选择 `sshd`、`docker`、`mihomo`、`go` 时，执行顺序必须是 `mihomo -> docker -> go -> sshd`。
+- 选择 `docker`、`mihomo`、`go` 时，执行顺序必须是 `mihomo -> docker -> go`。
 - 选择多个 `shell-*` 组件时，仍合并为一次 `shell/install.sh` 调用。
-- 卸载全选时，Docker/Mihomo 不删除数据目录，系统配置和 SSH 恢复排在最后。
+- 卸载全选时，Docker/Mihomo 不删除数据目录，系统配置恢复排在最后。
 
 
 ## 阶段 1：删除已确认模块
@@ -943,7 +942,7 @@ rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*
 
 - 使用 `pkg_install/pkg_remove/pkg_is_installed`。
 - 通过 logical package name 映射不同发行版包名。
-- 保持组件参数机制：`zsh`、`fzf`、`starship`、`direnv`、`plugins`、`nvm`、`fnm`、`byobu`、`git`。
+- 保持组件参数机制：`zsh`、`starship`、`direnv`、`plugins`、`nvm`、`fnm`、`byobu`、`git`。
 - GitHub 下载走 `download_file` 或 git proxy 配置。
 - 不覆盖用户现有 `.zshrc`、`.gitconfig`。
 
@@ -963,13 +962,12 @@ rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*
 - 缺少版本或不支持架构时明确报错。
 - 不再固定 Linux x86_64。
 
-### 6.3 Kernel 和 SSH
+### 6.3 Kernel
 
 改造：
 
 - `modules/kernel/optimize.sh`
 - `modules/kernel/autotune.sh`
-- `modules/sshd/setup.sh`
 
 要求：
 
@@ -982,21 +980,12 @@ rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*
 /etc/systemd/user.conf.d/99-os-init.conf
 ```
 
-- SSH 优先写：
-
-```text
-/etc/ssh/sshd_config.d/99-os-init.conf
-```
-
 - 写入前备份已有 os-init 管理文件。
 - reload/restart 前先校验：
 
 ```bash
-sshd -t
 sysctl --system
 ```
-
-不要在测试阶段真实重启 SSH。
 
 ## 阶段 7：中文化 TUI 和文档
 
@@ -1099,8 +1088,8 @@ GitHub 验证：
 - 不要用包管理器安装 Docker Engine 或 Compose。
 - 不要默认清空 `/var/lib/docker` 或 `/var/lib/containerd`。
 - 不要硬编码公共镜像站作为唯一来源。
-- 不要覆盖 `/etc/sysctl.conf`、`/etc/security/limits.conf`、`/etc/ssh/sshd_config`，除非目标系统没有 drop-in 支持且已备份。
-- 不要在测试中执行真实 `systemctl restart docker/ssh/sshd/mihomo`。
+- 不要覆盖 `/etc/sysctl.conf`、`/etc/security/limits.conf`。
+- 不要在测试中执行真实 `systemctl restart docker/mihomo`。
 - 不要删除 Neovim、nvm/fnm、macOS 支持，除非用户再次确认。
 
 危险操作必须有保护：

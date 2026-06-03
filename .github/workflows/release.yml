@@ -39,6 +39,10 @@ jobs:
             goarch: amd64
           - goos: linux
             goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -100,12 +104,14 @@ jobs:
           cat > release-notes.md <<'NOTES'
           ## OS Init
 
-          面向 Arch 系、Debian 系、RedHat 系 Linux 的系统初始化发布包。
+          面向中国大陆网络环境的系统初始化发布包。Linux 支持 Arch 系、Debian 系、RedHat 系；macOS 显示适配 Homebrew 或通用二进制安装的模块。
 
           ### 发布包
 
           - `os-init_linux_amd64.tar.gz`
           - `os-init_linux_arm64.tar.gz`
+          - `os-init_darwin_amd64.tar.gz`
+          - `os-init_darwin_arm64.tar.gz`
           - `checksums.txt`
 
           ### 主要能力
@@ -115,6 +121,7 @@ jobs:
           - Mihomo 安装与 systemd 配置
           - Docker Engine 静态二进制安装
           - Docker Compose CLI 插件安装
+          - macOS/Linux 按 OS 自动过滤模块
           NOTES
 
       - name: Publish GitHub Release

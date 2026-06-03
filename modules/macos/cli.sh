@@ -1,0 +1,130 @@
+#!/bin/bash
+set -euo pipefail
+
+# Install macOS command-line tools via Homebrew formulae.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$REPO_DIR/lib.sh"
+
+ALL_COMPONENTS=(
+    bat eza ripgrep fd fzf gh htop iftop jq mise nmap nushell
+    rsync shellcheck tmux uv wget zoxide ffmpeg imagemagick
+    gallery-dl yt-dlp stylua tree-sitter-cli nload bind herdr llmfit
+)
+parse_update_flag "$@"
+COMPONENTS=("${_CLEAN_ARGS[@]}")
+if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
+    COMPONENTS=("${ALL_COMPONENTS[@]}")
+fi
+
+want() {
+    local c
+    for c in "${COMPONENTS[@]}"; do [[ "$c" == "$1" ]] && return 0; done
+    return 1
+}
+
+known_component() {
+    local c
+    for c in "${ALL_COMPONENTS[@]}"; do [[ "$c" == "$1" ]] && return 0; done
+    return 1
+}
+
+formula_label() {
+    case "$1" in
+        bat) echo "bat" ;;
+        eza) echo "eza" ;;
+        ripgrep) echo "ripgrep" ;;
+        fd) echo "fd" ;;
+        fzf) echo "fzf" ;;
+        gh) echo "GitHub CLI" ;;
+        htop) echo "htop" ;;
+        iftop) echo "iftop" ;;
+        jq) echo "jq" ;;
+        mise) echo "mise" ;;
+        nmap) echo "nmap" ;;
+        nushell) echo "Nushell" ;;
+        rsync) echo "rsync" ;;
+        shellcheck) echo "ShellCheck" ;;
+        tmux) echo "tmux" ;;
+        uv) echo "uv" ;;
+        wget) echo "wget" ;;
+        zoxide) echo "zoxide" ;;
+        ffmpeg) echo "FFmpeg" ;;
+        imagemagick) echo "ImageMagick" ;;
+        gallery-dl) echo "gallery-dl" ;;
+        yt-dlp) echo "yt-dlp" ;;
+        stylua) echo "StyLua" ;;
+        tree-sitter-cli) echo "tree-sitter CLI" ;;
+        nload) echo "nload" ;;
+        bind) echo "BIND DNS tools" ;;
+        herdr) echo "herdr" ;;
+        llmfit) echo "llmfit" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+formula_installed() {
+    brew list --formula "$1" &>/dev/null
+}
+
+install_formula() {
+    local formula="$1" label
+    label="$(formula_label "$formula")"
+    if formula_installed "$formula"; then
+        if [[ "$UPDATE" == true ]]; then
+            update "更新 $label"
+            brew upgrade "$formula" 2>/dev/null || skip "$label 已是最新"
+        else
+            skip "$label 已安装"
+        fi
+    else
+        install "安装 $label"
+        brew install "$formula"
+    fi
+}
+
+uninstall_formula() {
+    local formula="$1" label
+    label="$(formula_label "$formula")"
+    if formula_installed "$formula"; then
+        remove "卸载 $label"
+        brew uninstall "$formula" 2>/dev/null || true
+    else
+        skip "$label 未安装"
+    fi
+}
+
+require_macos
+ensure_brew
+
+for c in "${COMPONENTS[@]}"; do
+    known_component "$c" || die "未知 macOS 命令行组件: $c"
+done
+
+TITLE="安装"
+[[ "$UPDATE" == true ]] && TITLE="更新"
+[[ "$UNINSTALL" == true ]] && TITLE="卸载"
+echo "=== macOS 命令行工具 $TITLE ==="
+echo "  Components: ${COMPONENTS[*]}"
+echo ""
+
+STEP=0
+TOTAL=0
+for c in "${ALL_COMPONENTS[@]}"; do
+    want "$c" && TOTAL=$((TOTAL + 1))
+done
+next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
+
+for formula in "${ALL_COMPONENTS[@]}"; do
+    want "$formula" || continue
+    next "$(formula_label "$formula")"
+    if [[ "$UNINSTALL" == true ]]; then
+        uninstall_formula "$formula"
+    else
+        install_formula "$formula"
+    fi
+done
+
+echo ""
+echo "=== macOS 命令行工具 $TITLE 完成 ==="

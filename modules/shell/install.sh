@@ -1,21 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install shell tooling: zsh, oh-my-zsh, fzf, starship, direnv, plugins, nvm, fnm, byobu, git
+# Install shell tooling: zsh, oh-my-zsh, starship, direnv, plugins, nvm, fnm, byobu, git
 # Author: Dusan Panic <dpanic@gmail.com>
 # Replicates a full zsh dev environment from scratch
 # Safe to re-run -- idempotent (skips already-installed components)
 #
 # Usage:
 #   ./install-shell-tools.sh              # install everything
-#   ./install-shell-tools.sh fzf byobu    # install only listed components
+#   ./install-shell-tools.sh zsh byobu    # install only listed components
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$REPO_DIR/lib.sh"
 
-ALL_COMPONENTS=(zsh fzf starship direnv plugins nvm fnm byobu git)
+ALL_COMPONENTS=(zsh starship direnv plugins nvm fnm git)
+is_linux && ALL_COMPONENTS+=(byobu)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
@@ -53,7 +54,6 @@ TITLE="Setup"
 echo "=== Shell Tools $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
-require_linux
 
 # ── Uninstall mode ────────────────────────────────────────────────────────────
 if [[ "$UNINSTALL" == true ]]; then
@@ -85,17 +85,6 @@ if [[ "$UNINSTALL" == true ]]; then
             rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
         else
             skip "fnm not installed"
-        fi
-    fi
-
-    if want "fzf"; then
-        echo "[REMOVE] fzf..."
-        if [[ -d "$HOME/.fzf" ]]; then
-            remove "uninstalling fzf"
-            "$HOME/.fzf/uninstall" --all 2>/dev/null || true
-            rm -rf "$HOME/.fzf"
-        else
-            skip "fzf not installed"
         fi
     fi
 
@@ -184,25 +173,6 @@ if want "zsh"; then
     else
         install "cloning oh-my-zsh"
         git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
-    fi
-fi
-
-# ── fzf ───────────────────────────────────────────────────────────────────────
-if want "fzf"; then
-    next "fzf"
-
-    if [[ -d "$HOME/.fzf" ]]; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating fzf"
-            git_update_shallow "$HOME/.fzf"
-            "$HOME/.fzf/install" --all --no-bash --no-fish
-        else
-            skip "fzf already installed at ~/.fzf"
-        fi
-    else
-        install "cloning fzf from git"
-        git_clone_depth 1 "$(repo_url FZF_REPO "https://github.com/junegunn/fzf.git")" "$HOME/.fzf"
-        "$HOME/.fzf/install" --all --no-bash --no-fish
     fi
 fi
 
@@ -340,6 +310,7 @@ fi
 # ── byobu + tmux ──────────────────────────────────────────────────────────────
 if want "byobu"; then
     next "byobu + tmux"
+    require_linux
 
     PKGS=()
     if command -v byobu &>/dev/null; then
@@ -450,10 +421,9 @@ if want "zsh"; then
         echo "    diff ~/.zshrc $SCRIPT_DIR/zshrc.template"
         echo ""
         echo "  Key lines to ensure are in your .zshrc:"
-        echo "    plugins=(fzf git zsh-autosuggestions zsh-syntax-highlighting)"
+        echo "    plugins=(git zsh-autosuggestions zsh-syntax-highlighting)"
         echo '    eval "$(starship init zsh)"'
         echo '    eval "$(direnv hook zsh)"'
-        echo '    [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
     else
         install "copying zshrc.template -> ~/.zshrc"
         cp "$SCRIPT_DIR/zshrc.template" "$HOME/.zshrc"

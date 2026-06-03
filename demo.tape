@@ -153,7 +153,7 @@ Sleep 200ms
 Down
 Sleep 200ms
 
-# 选择 fzf
+# 选择 Shell 工具项
 Space
 Sleep 300ms
 

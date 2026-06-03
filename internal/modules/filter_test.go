@@ -10,7 +10,7 @@ func TestModuleMatchesTarget_UsesOSFallback(t *testing.T) {
 	t.Parallel()
 
 	linux := platform.Target{GOOS: "linux", Family: platform.FamilyDebian}
-	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyUnknown}
+	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}
 
 	if !moduleMatchesTarget(Module{OS: "linux"}, linux) {
 		t.Fatal("linux module should match linux target")
@@ -18,8 +18,14 @@ func TestModuleMatchesTarget_UsesOSFallback(t *testing.T) {
 	if moduleMatchesTarget(Module{OS: "linux"}, darwin) {
 		t.Fatal("linux module should not match darwin target")
 	}
-	if moduleMatchesTarget(Module{OS: "all"}, darwin) {
-		t.Fatal("all module should not match non-Linux targets")
+	if !moduleMatchesTarget(Module{OS: "all"}, darwin) {
+		t.Fatal("all module should match darwin targets")
+	}
+	if !moduleMatchesTarget(Module{OS: "darwin"}, darwin) {
+		t.Fatal("darwin module should match darwin target")
+	}
+	if moduleMatchesTarget(Module{OS: "darwin"}, linux) {
+		t.Fatal("darwin module should not match linux target")
 	}
 }
 
@@ -65,9 +71,42 @@ func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 		t.Fatal("mihomo should be hidden on non-systemd targets")
 	}
 
-	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyUnknown, Init: "unknown"})
-	if len(darwin) != 0 {
-		t.Fatal("non-Linux targets should not receive any modules")
+	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
+	if !hasModule(darwin, "shell-zsh") {
+		t.Fatal("darwin targets should receive macOS-compatible shell modules")
+	}
+	if !hasModule(darwin, "neovim") {
+		t.Fatal("darwin targets should receive macOS-compatible development modules")
+	}
+	if !hasModule(darwin, "macos-orbstack") {
+		t.Fatal("darwin targets should receive OrbStack module")
+	}
+	if !hasModule(darwin, "macos-clash-verge-rev") {
+		t.Fatal("darwin targets should receive Clash Verge Rev module")
+	}
+	if !hasModule(darwin, "macos-iterm2") {
+		t.Fatal("darwin targets should receive iTerm2 module")
+	}
+	if !hasModule(darwin, "macos-google-chrome") {
+		t.Fatal("darwin targets should receive Google Chrome module")
+	}
+	if !hasModule(darwin, "macos-clash-party") {
+		t.Fatal("darwin targets should receive Clash Party module")
+	}
+	if !hasModule(darwin, "macos-cli-bat") {
+		t.Fatal("darwin targets should receive macOS CLI modules")
+	}
+	if hasModule(darwin, "mihomo") {
+		t.Fatal("mihomo should be hidden on darwin targets")
+	}
+	if hasModule(darwin, "docker") {
+		t.Fatal("docker should be hidden on darwin targets")
+	}
+	if hasModule(darwin, "network-tune") {
+		t.Fatal("network-tune should be hidden on darwin targets")
+	}
+	if hasModule(darwin, "shell-fzf") {
+		t.Fatal("fzf should not be registered on darwin targets")
 	}
 }
 

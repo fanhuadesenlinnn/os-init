@@ -14,10 +14,9 @@ DISABLE_MAGIC_FUNCTIONS=true
 # Let starship/tmux handle the terminal title
 DISABLE_AUTO_TITLE="true"
 
-# Plugins: git and fzf are built-in oh-my-zsh plugins,
-# zsh-autosuggestions and zsh-syntax-highlighting are git-cloned custom plugins
+# Plugins: git is built into oh-my-zsh; zsh-autosuggestions and
+# zsh-syntax-highlighting are git-cloned custom plugins.
 plugins=(
-	fzf
 	git
 	zsh-autosuggestions
 	zsh-syntax-highlighting
@@ -29,8 +28,6 @@ source $ZSH/oh-my-zsh.sh
 
 eval "$(starship init zsh)"
 eval "$(direnv hook zsh)"
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # nvm (Node Version Manager)
 if [ -s "$HOME/.nvm/nvm.sh" ]; then

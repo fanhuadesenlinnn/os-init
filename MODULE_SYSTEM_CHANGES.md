@@ -1,6 +1,6 @@
 # 模块系统配置变更说明
 
-本文档说明 os-init 各模块会修改哪些系统配置、用户配置和运行时参数。当前项目只支持 Linux，目标发行版为 Arch 系、Debian 系、RedHat 系；macOS 支持和 SSH 加固模块已移除。
+本文档说明 os-init 各模块会修改哪些系统配置、用户配置和运行时参数。当前项目会按 OS 自动过滤模块：Linux 目标发行版为 Arch 系、Debian 系、RedHat 系；macOS 只显示适配 Homebrew 或通用二进制安装的 Shell、终端和开发工具模块。SSH 加固模块已移除。
 
 ## 系统优化
 
@@ -99,17 +99,11 @@
 
 ### zsh + oh-my-zsh
 
-- 通过发行版包管理器安装 `zsh`。
+- Linux 通过发行版包管理器安装 `zsh`；macOS 缺少 `zsh` 时通过 Homebrew 安装。
 - 使用 `chsh` 将当前用户默认 shell 改为 `zsh`。
 - 克隆或更新 `~/.oh-my-zsh`。
 - 如果 `~/.zshrc` 不存在，复制 `modules/shell/zshrc.template` 到 `~/.zshrc`。
 - 卸载时删除 `~/.oh-my-zsh`；不删除 zsh 包，不恢复默认 shell。
-
-### fzf
-
-- 克隆或更新 `~/.fzf`。
-- 执行 `~/.fzf/install --all --no-bash --no-fish`。
-- 卸载时执行 fzf 自带卸载脚本并删除 `~/.fzf`。
 
 ### starship
 
@@ -119,7 +113,7 @@
 
 ### direnv
 
-- 通过发行版包管理器安装 `direnv`。
+- Linux 通过发行版包管理器安装 `direnv`；macOS 通过 Homebrew 安装。
 - 卸载时通过包管理器移除 `direnv`。
 
 ### zsh 插件
@@ -138,18 +132,19 @@
 ### fnm
 
 - 下载并执行 fnm 安装脚本。
-- 必要时通过包管理器安装 `unzip`。
+- 必要时通过包管理器安装 `unzip`；macOS 使用 Homebrew。
 - 卸载时删除当前 `fnm` 二进制以及 `~/.local/share/fnm`、`~/.fnm`。
 
 ### Git 配置
 
 - 如果 `~/.gitconfig` 不存在，复制 `modules/shell/gitconfig.template`。
 - 按 TUI 输入写入全局 `user.name` 和 `user.email`。
-- 通过包管理器安装 `git-lfs` 并执行 `git lfs install`。
+- Linux 通过发行版包管理器安装 `git-lfs`，macOS 通过 Homebrew 安装，并执行 `git lfs install`。
 - 卸载时只移除 `git-lfs` 包，不删除用户 `~/.gitconfig`。
 
 ### byobu + tmux
 
+- 仅 Linux 显示该模块。
 - 通过包管理器安装 `byobu` 和 `tmux`。
 - 写入或更新 `~/.byobu` 下的 byobu/tmux 配置文件。
 - 设置 `~/.byobu/backend` 为 `BYOBU_BACKEND=tmux`。
@@ -157,21 +152,89 @@
 
 ### ncdu
 
-- 通过发行版包管理器安装 `ncdu`。
+- Linux 通过发行版包管理器安装 `ncdu`；macOS 通过 Homebrew 安装。
 - 卸载时通过包管理器移除 `ncdu`。
 
 ### Yazi
 
-- 下载 Linux 二进制压缩包。
-- 安装：
+- Linux 下载二进制压缩包并安装：
   - `/usr/local/bin/yazi`
   - `/usr/local/bin/ya`
+- macOS 通过 Homebrew 安装或更新 `yazi`。
 - 创建 `~/.config/yazi`。
 - 写入 `~/.config/yazi/ya.sh`，提供退出后切换目录的 shell wrapper。
-- 卸载时删除二进制和 `~/.config/yazi`。
+- 卸载时移除 `yazi` 包或 Linux 二进制，并删除 `~/.config/yazi`。
+
+### macOS 应用和字体
+
+以下模块仅 macOS 显示，统一通过 Homebrew cask 安装、更新和卸载。卸载时执行 `brew uninstall --cask <cask>`；不主动执行 `zap`，因此默认保留应用配置和用户数据。
+
+- 开发应用：
+  - `google-chrome` -> `/Applications/Google Chrome.app`
+  - `codex` -> `/Applications/Codex.app`
+  - `orbstack` -> `/Applications/OrbStack.app`
+  - `visual-studio-code` -> `/Applications/Visual Studio Code.app`
+  - `iterm2` -> `/Applications/iTerm.app`
+  - `ghostty` -> `/Applications/Ghostty.app`
+  - `sublime-text` -> `/Applications/Sublime Text.app`
+  - `neovide-app` -> `/Applications/Neovide.app`
+- 代理和网络：
+  - `clash-verge-rev` -> `/Applications/Clash Verge.app`
+  - `clash-party` -> `/Applications/Clash Party.app`
+  - `royal-tsx` -> `/Applications/Royal TSX.app`
+  - `seafile-client` -> `/Applications/Seafile Client.app`
+- 效率工具：
+  - `pixpin` -> `/Applications/PixPin.app`
+  - `bob` -> `/Applications/Bob.app`
+  - `loop` -> `/Applications/Loop.app`
+  - `jordanbaird-ice` -> `/Applications/Ice.app`
+  - `stats` -> `/Applications/Stats.app`
+  - `monitorcontrol` -> `/Applications/MonitorControl.app`
+  - `mos` -> `/Applications/Mos.app`
+  - `input-source-pro` -> `/Applications/Input Source Pro.app`
+  - `menubarx` -> `/Applications/MenubarX.app`
+- 输入和系统增强：
+  - `karabiner-elements` -> `/Applications/Karabiner-Elements.app`
+  - `aldente` -> `/Applications/AlDente.app`
+  - `keka` -> `/Applications/Keka.app`
+- 媒体和下载：
+  - `iina` -> `/Applications/IINA.app`
+  - `downie` -> `/Applications/Downie 4.app`
+  - `motrix` -> `/Applications/Motrix.app`
+  - `spotify` -> `/Applications/Spotify.app`
+  - `steam` -> `/Applications/Steam.app`
+  - `qqlive` -> `/Applications/QQLive.app`
+- AI、笔记、通讯和办公：
+  - `chatgpt` -> `/Applications/ChatGPT.app`
+  - `cherry-studio` -> `/Applications/Cherry Studio.app`
+  - `siyuan` -> `/Applications/SiYuan.app`
+  - `wechat` -> `/Applications/WeChat.app`
+  - `telegram` -> `/Applications/Telegram.app`
+  - `tencent-meeting` -> `/Applications/TencentMeeting.app`
+  - `wpsoffice` -> `/Applications/wpsoffice.app`
+  - `bitwarden` -> `/Applications/Bitwarden.app`
+  - `cleanmymac` -> `/Applications/CleanMyMac-X.app`
+  - `cc-switch` -> `/Applications/CC Switch.app`
+- 字体：
+  - `font-hack-nerd-font`
+  - `font-jetbrains-mono-nerd-font`
+  - `font-maple-mono-nf`
+
+OrbStack 安装后需要打开应用完成首次初始化。
+
+### macOS 命令行工具
+
+以下模块仅 macOS 显示，统一通过 Homebrew formula 安装、更新和卸载。卸载时执行 `brew uninstall <formula>`。
+
+- 现代终端工具：`bat`、`eza`、`ripgrep`、`fd`、`fzf`、`zoxide`、`tmux`、`nushell`
+- 开发工具：`gh`、`mise`、`uv`、`shellcheck`、`stylua`、`tree-sitter-cli`
+- 网络和诊断：`htop`、`iftop`、`nload`、`nmap`、`bind`、`rsync`、`wget`
+- 媒体和数据处理：`ffmpeg`、`imagemagick`、`gallery-dl`、`yt-dlp`、`jq`
+- 其他已纳入工具：`herdr`、`llmfit`
 
 ### Mihomo
 
+- 仅 Linux systemd 环境显示该模块。
 - 安装或更新 `/usr/local/bin/mihomo`，也可能优先使用发行版仓库包。
 - 写入配置目录和文件：
   - `/etc/mihomo/config.yaml`
@@ -194,6 +257,7 @@
 
 ### Docker
 
+- 仅 Linux systemd 环境显示该模块。
 - 安装 Docker Engine 静态二进制到 `/usr/local/bin`。
 - 安装 Docker Compose CLI 插件：
   - `/usr/local/lib/docker/cli-plugins/docker-compose`
@@ -217,24 +281,23 @@
 
 ### Go
 
-- 下载 Linux tarball。
+- 下载官方 tarball；Linux 使用 `linux-*` 包，macOS 使用 `darwin-*` 包。
 - 删除并重建 `/usr/local/go`。
 - 不直接修改 shell rc，只提示用户把 `/usr/local/go/bin` 加到 `PATH`。
 - 卸载时删除 `/usr/local/go`。
 
 ### Neovim + LazyVim
 
-- 下载 Linux Neovim tarball。
-- 安装目录：
+- Linux 下载 Neovim tarball 并安装到：
   - `/opt/nvim-linux-x86_64` 或 `/opt/nvim-linux-arm64`
-- 创建 `/usr/local/bin/nvim` 软链接。
-- 通过包管理器安装 `ripgrep` 和 `fd`/`fd-find`。
-- 下载 lazygit 二进制并安装到 `/usr/local/bin/lazygit`。
+- Linux 创建 `/usr/local/bin/nvim` 软链接。
+- macOS 通过 Homebrew 安装或更新 `neovim`。
+- 通过包管理器安装 `ripgrep` 和 `fd`/`fd-find`；macOS 使用 Homebrew 的 `ripgrep`、`fd`。
+- Linux 下载 lazygit 二进制并安装到 `/usr/local/bin/lazygit`；macOS 通过 Homebrew 安装或更新 `lazygit`。
 - 如果 `~/.config/nvim` 不存在，克隆 LazyVim starter。
 - 如果 `~/.config/nvim` 已存在但不是 LazyVim，会备份为 `~/.config/nvim.bak.<timestamp>` 后再写入。
-- 卸载时删除 Neovim 安装目录、`/usr/local/bin/nvim`、`/usr/local/bin/lazygit`、`~/.config/nvim` 和 `~/.local/share/nvim`。
+- 卸载时移除对应包或二进制，并删除 `~/.config/nvim` 和 `~/.local/share/nvim`。
 
 ## 已移除能力
 
-- macOS/Homebrew 安装路径已移除。
 - SSH 加固模块已移除，不再写入 `/etc/ssh/sshd_config` 或 `/etc/ssh/sshd_config.d`。

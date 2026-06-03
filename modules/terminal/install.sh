@@ -40,7 +40,6 @@ TITLE="Setup"
 echo "=== Terminal Tools $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
-require_linux
 
 if [[ "$UNINSTALL" == true ]]; then
     if want "ncdu"; then

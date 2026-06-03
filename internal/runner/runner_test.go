@@ -78,7 +78,7 @@ func TestRun_PassesComponents(t *testing.T) {
 	_, err := runner.Run(context.Background(), runner.Params{
 		TmpDir:     dir,
 		Script:     "test/args.sh",
-		Components: []string{"zsh", "fzf"},
+		Components: []string{"zsh", "starship"},
 		Mode:       "--update",
 		OnLine:     onLine,
 	})
@@ -88,7 +88,7 @@ func TestRun_PassesComponents(t *testing.T) {
 	if len(lines) == 0 {
 		t.Fatal("expected output")
 	}
-	if !strings.Contains(lines[0], "zsh") || !strings.Contains(lines[0], "fzf") || !strings.Contains(lines[0], "--update") {
+	if !strings.Contains(lines[0], "zsh") || !strings.Contains(lines[0], "starship") || !strings.Contains(lines[0], "--update") {
 		t.Errorf("expected args with components and mode, got %q", lines[0])
 	}
 }

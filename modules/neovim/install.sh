@@ -29,7 +29,7 @@ NVIM_INSTALL_DIR="/opt/$NVIM_ARCH_DIR"
 parse_update_flag "$@"
 
 fd_package_name() {
-    if is_arch; then
+    if is_macos || is_arch; then
         echo "fd"
     else
         echo "fd-find"
@@ -40,13 +40,16 @@ TITLE="Setup"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
 echo "=== Neovim + LazyVim $TITLE ==="
 echo ""
-require_linux
 
 if [[ "$UNINSTALL" == true ]]; then
     # neovim
     if command -v nvim &>/dev/null; then
         remove "removing neovim"
-        sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
+        if is_macos; then
+            pkg_remove neovim 2>/dev/null || true
+        else
+            sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
+        fi
     else
         skip "neovim not installed"
     fi
@@ -54,7 +57,11 @@ if [[ "$UNINSTALL" == true ]]; then
     # lazygit
     if command -v lazygit &>/dev/null; then
         remove "removing lazygit"
-        sudo rm -f /usr/local/bin/lazygit
+        if is_macos; then
+            pkg_remove lazygit 2>/dev/null || true
+        else
+            sudo rm -f /usr/local/bin/lazygit
+        fi
     else
         skip "lazygit not installed"
     fi
@@ -100,12 +107,22 @@ install_nvim_linux() {
 
 if command -v nvim &>/dev/null && nvim --version &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
-        install_nvim_linux update
+        if is_macos; then
+            update "updating neovim via Homebrew"
+            ensure_brew
+            brew upgrade neovim 2>/dev/null || skip "neovim already at latest"
+        else
+            install_nvim_linux update
+        fi
     else
         skip "nvim $(nvim --version | head -1) already installed"
     fi
 else
-    install_nvim_linux install
+    if is_macos; then
+        pkg_install neovim
+    else
+        install_nvim_linux install
+    fi
 fi
 
 # [2/4] ripgrep + fd-find
@@ -149,12 +166,22 @@ install_lazygit_linux() {
 
 if command -v lazygit &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
-        install_lazygit_linux update
+        if is_macos; then
+            update "updating lazygit via Homebrew"
+            ensure_brew
+            brew upgrade lazygit 2>/dev/null || skip "lazygit already at latest"
+        else
+            install_lazygit_linux update
+        fi
     else
         skip "lazygit already installed"
     fi
 else
-    install_lazygit_linux install
+    if is_macos; then
+        pkg_install lazygit
+    else
+        install_lazygit_linux install
+    fi
 fi
 
 # [4/4] LazyVim starter config

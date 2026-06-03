@@ -17,7 +17,6 @@ TITLE="Install"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
 echo "=== Go Programming Language ($TITLE) ==="
 echo ""
-require_linux
 
 if [[ "$UNINSTALL" == true ]]; then
     if [[ -d "$GO_INSTALL_DIR" ]]; then
@@ -34,7 +33,7 @@ fi
 
 install_go() {
     local label="$1"
-    local version_file go_arch go_url archive_name
+    local version_file go_os go_arch go_url archive_name
 
     if [[ -z "${GO_VERSION:-}" ]]; then
         if [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
@@ -53,6 +52,14 @@ install_go() {
 
     $label "准备安装 $GO_VERSION"
 
+    if is_linux; then
+        go_os="linux"
+    elif is_macos; then
+        go_os="darwin"
+    else
+        die "Go 安装暂不支持当前系统: $OS"
+    fi
+
     case "$(uname -m)" in
         x86_64|amd64) go_arch="amd64" ;;
         arm64|aarch64) go_arch="arm64" ;;
@@ -60,7 +67,7 @@ install_go() {
     esac
 
     local go_base="${GO_DOWNLOAD_BASE:-https://go.dev/dl}"
-    go_url="$(resource_url GO_DOWNLOAD_URL "${go_base%/}/${GO_VERSION}.linux-${go_arch}.tar.gz")"
+    go_url="$(resource_url GO_DOWNLOAD_URL "${go_base%/}/${GO_VERSION}.${go_os}-${go_arch}.tar.gz")"
     archive_name="$(basename "${go_url%%\?*}")"
     TMP_DIR=$(mktemp -d /tmp/go-XXXXXX)
     echo "  获取: $go_url"

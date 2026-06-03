@@ -1,6 +1,6 @@
 # OS Init
 
-面向中国大陆网络环境的 Linux 系统初始化工具。它保留原有 TUI 的多选、搜索、安装/更新/卸载体验，同时把安装逻辑调整为适配 Arch 系、Debian 系、RedHat 系的脚本体系；不再提供 macOS 支持。
+面向中国大陆网络环境的系统初始化工具。它保留 TUI 多选、搜索、安装/更新/卸载体验，并会根据当前 OS 自动显示可用模块：Linux 适配 Arch 系、Debian 系、RedHat 系；macOS 显示可通过 Homebrew 或通用二进制安装的终端/开发工具。
 
 <p align="center">
   <img src="demo.gif" alt="OS Init TUI 演示" width="720" />
@@ -8,7 +8,7 @@
 
 ## 快速开始
 
-下载发布包：
+下载发布包，下面是 Linux amd64 示例：
 
 ```bash
 curl -sSL https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/os-init_linux_amd64.tar.gz | tar xz
@@ -28,7 +28,8 @@ make build
 
 - 单文件 TUI：Go 二进制内嵌脚本和配置，进入后直接选择模块执行。
 - 三种模式：安装、更新、卸载。
-- 发行版识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro。
+- 系统识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro；macOS 识别为 Darwin 系。
+- 模块过滤：Linux 显示系统优化、Docker、Mihomo 等 Linux 专属模块；macOS 只显示适配 macOS 的 Shell、终端和开发工具模块。
 - 中国大陆网络适配：统一代理变量、GitHub 代理、下载重试、超时、离线包目录。
 - TCP/UDP 优化：吸收 `tcp.vpsing.de` 的有效配置，加入 IPv4 优先、BBR/FQ、ECN、MTU 探测、RPS/RSS、MSS clamp。
 - 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
@@ -52,8 +53,13 @@ make build
 
 | 分组 | 模块 |
 | --- | --- |
-| Shell 工具 | zsh、oh-my-zsh、fzf、starship、direnv、zsh 插件、nvm/fnm、Git 配置、byobu/tmux |
+| Shell 工具 | zsh、oh-my-zsh、starship、direnv、zsh 插件、nvm/fnm、Git 配置、byobu/tmux（Linux） |
 | 终端工具 | ncdu、Yazi |
+| macOS 开发应用 | Chrome、Codex、OrbStack、VS Code、iTerm2、Ghostty、Sublime Text、Neovide |
+| macOS 代理网络 | Clash Verge Rev、Clash Party、Royal TSX、Seafile Client |
+| macOS 效率/输入/媒体 | PixPin、Bob、Loop、Ice、Stats、MonitorControl、Mos、Karabiner、AlDente、Keka、IINA、Downie、Motrix、Spotify、Steam、腾讯视频等 |
+| macOS AI/办公/通讯 | ChatGPT、Cherry Studio、SiYuan、微信、Telegram、腾讯会议、WPS Office、Bitwarden、CleanMyMac X、CC Switch |
+| macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
 | 网络代理 | Mihomo |
 | 开发工具 | Docker、Go、Neovim + LazyVim |
 
@@ -68,7 +74,7 @@ make build
 | AppArmor Setup / Monitor | Debian/Ubuntu 偏向，RedHat 默认 SELinux，Slack 在大陆不稳定 |
 | USB Monitor | Webhook 目标和文案需要另行设计 |
 | Browsers & Apps | 桌面浏览器和 Signal 对服务器初始化价值低，国内网络不稳定 |
-| PeaZip | `.deb`/macOS 偏向，不适合三大发行版统一方案 |
+| PeaZip | 与当前服务器/终端初始化目标不匹配 |
 | SSH 加固 | 远程连接风险较高，移出默认初始化能力 |
 
 各模块会修改哪些系统配置，见 [MODULE_SYSTEM_CHANGES.md](MODULE_SYSTEM_CHANGES.md)。
@@ -124,8 +130,9 @@ OS_INIT_CONFIG_PROMPT=0
 
 - 设置通用代理：`OS_INIT_PROXY`、`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`。
 - 设置 URL 代理：`GITHUB_PROXY` 只改写 GitHub/raw.githubusercontent.com，`DOWNLOAD_URL_PROXY` 可改写所有 `http/https` 下载地址。
-- 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`。
-- 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`FZF_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
+- 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。
+- 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
+- 设置 Homebrew 下载和元数据地址：例如 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_ARTIFACT_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`。
 
 TUI 后台更新检查也会读取同一套配置，所以 Go/GitHub 的版本检查会跟安装脚本使用一致的代理和资源配置。
 
@@ -161,6 +168,8 @@ make run
 
 - `os-init_linux_amd64.tar.gz`
 - `os-init_linux_arm64.tar.gz`
+- `os-init_darwin_amd64.tar.gz`
+- `os-init_darwin_arm64.tar.gz`
 - `checksums.txt`
 
 ## 安全约定
