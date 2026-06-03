@@ -87,6 +87,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
 	cmd.Stderr = pw
+	cmd.Stdin = os.Stdin
 
 	// Log file setup
 	var logFile *os.File

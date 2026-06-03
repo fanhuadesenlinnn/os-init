@@ -9,14 +9,14 @@ import (
 	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
-	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
 )
 
 // Config holds parameters passed from main.go.
 type Config struct {
-	Assets  fs.FS
-	Version string
-	Commit  string
+	Assets     fs.FS
+	Version    string
+	Commit     string
+	SudoCancel func() // stops sudo keep-alive goroutine
 }
 
 // Model is the root Bubble Tea model.
@@ -57,6 +57,7 @@ func New(cfg Config) Model {
 		language:      newLanguageModel(),
 		configStartup: newConfigStartupModel(cfg.Assets),
 		mode:          newModeModel(),
+		sudoCancel:    cfg.SudoCancel,
 	}
 	return model
 }
@@ -186,10 +187,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.webhookURL = msg.webhook
 
 	case confirmMsg:
-		if m.sudoCancel == nil {
-			m.sudoCancel = sudo.Prime()
-		}
-
 		// Extract embedded assets and start execution
 		tmpDir, cleanup, err := kickembed.Extract(m.config.Assets)
 		if err != nil {

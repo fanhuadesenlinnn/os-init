@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
 	"github.com/fanhuadesenlinnn/os-init/internal/tui"
 )
 
@@ -21,10 +22,13 @@ var (
 )
 
 func main() {
+	sudoCancel := sudo.Prime()
+
 	m := tui.New(tui.Config{
-		Assets:  assets,
-		Version: version,
-		Commit:  commit,
+		Assets:     assets,
+		Version:    version,
+		Commit:     commit,
+		SudoCancel: sudoCancel,
 	})
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
