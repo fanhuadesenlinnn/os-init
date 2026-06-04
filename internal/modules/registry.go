@@ -22,26 +22,36 @@ const (
 
 // Module describes a selectable item in the TUI menu.
 type Module struct {
-	ID                string   // unique key, e.g. "kernel-sysctl"
-	Script            string   // relative path, e.g. "kernel/optimize.sh"
-	Components        []string // sub-components or nil for standalone
-	Label             string   // display name in menu
-	Description       string   // short description
-	Category          string   // "optimization" or "installation"
-	Subsection        string   // grouping within category (e.g. "Shell", "Dev Tools")
-	OS                string   // "all", "linux", "darwin"
-	Families          []string // "all", "debian", "redhat", "arch", "darwin"
-	Requires          []string // "linux", "systemd"
-	Tags              []string // "server", "dev", "cn-ready"
-	NeedsSudo         bool     // invoke with sudo bash
-	Kind              ModuleKind
-	DependsOn         []string
-	Activates         []string
-	ManualSteps       []string
-	NeedsRelogin      bool
-	InstalledCmd      string // command to check if installed (empty = no check)
-	InstalledCheck    string // file path to check if exists (empty = no check)
-	InstalledGrepFile string // "filepath:pattern" — check if file contains pattern
+	ID                       string   // unique key, e.g. "kernel-sysctl"
+	Script                   string   // relative path, e.g. "kernel/optimize.sh"
+	Components               []string // sub-components or nil for standalone
+	Label                    string   // display name in menu
+	Description              string   // short description
+	Category                 string   // "optimization" or "installation"
+	Subsection               string   // grouping within category (e.g. "Shell", "Dev Tools")
+	OS                       string   // "all", "linux", "darwin"
+	Families                 []string // "all", "debian", "redhat", "arch", "darwin"
+	Requires                 []string // "linux", "systemd"
+	Tags                     []string // "server", "dev", "cn-ready"
+	NeedsSudo                bool     // invoke with sudo bash
+	Kind                     ModuleKind
+	DependsOn                []string
+	Activates                []string
+	ManualSteps              []string
+	NeedsRelogin             bool
+	InstalledCmd             string // command to check if installed (empty = no check)
+	InstalledCommands        [][]string
+	InstalledAnyCommands     [][]string
+	InstalledCheck           string // file path to check if exists (empty = no check)
+	InstalledAnyChecks       []string
+	InstalledGrepFile        string // "filepath:pattern" — check if file contains pattern
+	InstalledGrepFiles       []string
+	InstalledBrewCask        string
+	InstalledBrewFormula     string
+	InstalledZshBlocks       []string
+	InstalledShellBlocks     []string
+	InstalledSystemdServices []string
+	InstalledUserGroups      []string
 }
 
 // AllModules returns the full registry, unfiltered.
@@ -56,19 +66,19 @@ func AllModules() []Module {
 		{ID: "network-tune", Script: "kernel/optimize.sh", Components: []string{"network"}, Label: "网络 ▸ 队列与 MSS", Description: "RPS/RSS 多核分发、ring buffer、MSS clamp", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, InstalledCheck: "/etc/systemd/system/os-init-network-tune.service"},
 
 		// ── Installations / Shell ──
-		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "zsh"},
-		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCmd: "starship"},
-		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "direnv"},
-		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"},
-		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"},
-		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.nvm/nvm.sh"},
-		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "fnm"},
+		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "zsh", InstalledCheck: "$HOME/.oh-my-zsh", InstalledZshBlocks: []string{"oh-my-zsh"}},
+		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCmd: "starship", InstalledZshBlocks: []string{"starship"}},
+		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "direnv", InstalledZshBlocks: []string{"direnv"}},
+		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-autosuggestions"},
+		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-syntax-highlighting"},
+		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.nvm/nvm.sh", InstalledZshBlocks: []string{"nvm"}},
+		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "fnm", InstalledZshBlocks: []string{"fnm"}},
 		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindInstallOnly, InstalledCmd: "git"},
 		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, InstalledCmd: "byobu"},
 
 		// ── Installations / Terminal ──
 		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindInstallOnly, InstalledCmd: "ncdu"},
-		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "yazi"},
+		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "yazi", InstalledCheck: "$HOME/.config/yazi/ya.sh", InstalledShellBlocks: []string{"yazi"}},
 
 		// ── Installations / macOS Apps ──
 		macOSCask("macOS 开发应用", "google-chrome", "Google Chrome", "浏览器", "/Applications/Google Chrome.app"),
@@ -152,44 +162,58 @@ func AllModules() []Module {
 		macOSFormula("llmfit", "llmfit", "命令行工具", "llmfit"),
 
 		// ── Installations / Network ──
-		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, InstalledCmd: "mihomo"},
+		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, InstalledCmd: "mihomo", InstalledCheck: "/etc/mihomo/config.yaml", InstalledSystemdServices: []string{"mihomo.service"}, InstalledShellBlocks: []string{"proxy-env"}},
 
 		// ── Installations / Dev Tools ──
-		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, InstalledCmd: "docker"},
-		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "go"},
-		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "nvim"},
+		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, InstalledCommands: [][]string{{"docker", "--version"}, {"dockerd", "--version"}, {"docker", "compose", "version"}}, InstalledSystemdServices: []string{"docker.service", "containerd.service"}, InstalledUserGroups: []string{"docker"}},
+		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledAnyCommands: [][]string{{"go", "version"}, {"/usr/local/go/bin/go", "version"}}, InstalledShellBlocks: []string{"go"}},
+		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "nvim", InstalledAnyChecks: []string{"$HOME/.config/nvim/lazyvim.json", "$HOME/.config/nvim/lazy-lock.json"}, InstalledShellBlocks: []string{"neovim"}},
 	}
 }
 
 func macOSCask(subsection, component, label, description, installedCheck string) Module {
 	return Module{
-		ID:             "macos-" + component,
-		Script:         "macos/install.sh",
-		Components:     []string{component},
-		Label:          label,
-		Description:    description,
-		Category:       "installation",
-		Subsection:     subsection,
-		OS:             "darwin",
-		Kind:           KindInstallOnly,
-		Activates:      caskActivations(component),
-		ManualSteps:    caskManualSteps(component),
-		InstalledCheck: installedCheck,
+		ID:                "macos-" + component,
+		Script:            "macos/install.sh",
+		Components:        []string{component},
+		Label:             label,
+		Description:       description,
+		Category:          "installation",
+		Subsection:        subsection,
+		OS:                "darwin",
+		Kind:              KindInstallOnly,
+		Activates:         caskActivations(component),
+		ManualSteps:       caskManualSteps(component),
+		InstalledCheck:    installedCheck,
+		InstalledBrewCask: component,
 	}
 }
 
 func macOSFormula(component, label, description, installedCmd string) Module {
+	kind := KindInstallOnly
+	activates := []string(nil)
+	zshBlocks := []string(nil)
+	switch component {
+	case "mise", "zoxide":
+		kind = KindShellIntegration
+		activates = []string{ActivationZshrc}
+		zshBlocks = []string{component}
+	}
+
 	return Module{
-		ID:           "macos-cli-" + component,
-		Script:       "macos/cli.sh",
-		Components:   []string{component},
-		Label:        label,
-		Description:  description,
-		Category:     "installation",
-		Subsection:   "macOS 命令行",
-		OS:           "darwin",
-		Kind:         KindInstallOnly,
-		InstalledCmd: installedCmd,
+		ID:                   "macos-cli-" + component,
+		Script:               "macos/cli.sh",
+		Components:           []string{component},
+		Label:                label,
+		Description:          description,
+		Category:             "installation",
+		Subsection:           "macOS 命令行",
+		OS:                   "darwin",
+		Kind:                 kind,
+		Activates:            activates,
+		InstalledCmd:         installedCmd,
+		InstalledBrewFormula: component,
+		InstalledZshBlocks:   zshBlocks,
 	}
 }
 

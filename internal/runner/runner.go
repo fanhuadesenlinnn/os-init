@@ -124,12 +124,13 @@ func Run(ctx context.Context, p Params) (Result, error) {
 		for scanner.Scan() {
 			raw := scanner.Text()
 			output.WriteString(raw + "\n")
+			clean := StripANSI(raw)
 
 			if logFile != nil {
-				logFile.WriteString(raw + "\n")
+				logFile.WriteString(clean + "\n")
 			}
 			if p.OnLine != nil {
-				p.OnLine(StripANSI(raw))
+				p.OnLine(clean)
 			}
 		}
 	}()

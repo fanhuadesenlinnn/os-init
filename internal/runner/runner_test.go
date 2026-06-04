@@ -191,3 +191,31 @@ printf '\033[32mgreen\033[0m\n'`)
 		t.Errorf("expected 'green', got %q", lines[0])
 	}
 }
+
+func TestRun_WritesLogFileWithoutANSI(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	logDir := t.TempDir()
+	writeScript(t, dir, "modules/test/color-log.sh", `#!/bin/bash
+printf '\033[0;32m[跳过]\033[0m Hack Nerd Font 已安装\n'`)
+
+	result, err := runner.Run(context.Background(), runner.Params{
+		TmpDir: dir,
+		Script: "test/color-log.sh",
+		LogDir: logDir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(result.LogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(data)
+	if strings.Contains(logText, "\033") || strings.Contains(logText, "0;32m") {
+		t.Fatalf("log file should not contain ANSI color codes, got %q", logText)
+	}
+	if !strings.Contains(logText, "[跳过] Hack Nerd Font 已安装") {
+		t.Fatalf("log file should contain clean message, got %q", logText)
+	}
+}

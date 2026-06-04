@@ -122,6 +122,8 @@ jobs:
           - Docker Engine 静态二进制安装
           - Docker Compose CLI 插件安装
           - macOS/Linux 按 OS 自动过滤模块
+          - Homebrew、Shell 配置块、systemd 服务状态检测
+          - 安装日志自动清理 ANSI 颜色码
           NOTES
 
       - name: Publish GitHub Release

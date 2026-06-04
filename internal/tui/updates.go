@@ -79,6 +79,7 @@ func runUpdateChecks(mods []modules.Module) tea.Cmd {
 			versionMap[versionCheckers[i].moduleID] = &versionCheckers[i]
 		}
 
+		checker := defaultInstallStatusChecker()
 		results := make([]updateCheckResult, len(mods))
 		var wg sync.WaitGroup
 
@@ -87,17 +88,25 @@ func runUpdateChecks(mods []modules.Module) tea.Cmd {
 			go func(idx int, m modules.Module) {
 				defer wg.Done()
 
+				installed := checker.moduleInstalled(ctx, m)
 				// Check if this module has a version checker (GitHub releases)
 				if vc, ok := versionMap[m.ID]; ok {
+					if !installed {
+						results[idx] = updateCheckResult{moduleID: m.ID}
+						return
+					}
 					checkCtx, checkCancel := context.WithTimeout(ctx, 5*time.Second)
 					defer checkCancel()
 					results[idx] = checkVersion(checkCtx, *vc)
+					if results[idx].status == "" {
+						results[idx] = updateCheckResult{moduleID: m.ID, status: statusInstalled()}
+					}
 					return
 				}
 
 				// Otherwise just check if installed + try to get version
-				if m.InstalledCmd != "" {
-					if isInstalled(m.InstalledCmd) {
+				if installed {
+					if m.InstalledCmd != "" {
 						ver := tryGetVersion(ctx, m.InstalledCmd)
 						if ver != "" {
 							results[idx] = updateCheckResult{
@@ -111,7 +120,10 @@ func runUpdateChecks(mods []modules.Module) tea.Cmd {
 							}
 						}
 					} else {
-						results[idx] = updateCheckResult{moduleID: m.ID}
+						results[idx] = updateCheckResult{
+							moduleID: m.ID,
+							status:   statusInstalled(),
+						}
 					}
 					return
 				}

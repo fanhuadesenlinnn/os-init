@@ -161,6 +161,9 @@ func TestServiceAndManualModules_DeclareCompletionSemantics(t *testing.T) {
 	if !docker.NeedsRelogin || !contains(docker.Activates, modules.ActivationRelogin) {
 		t.Fatalf("docker should declare relogin activation, got needsRelogin=%v activates=%v", docker.NeedsRelogin, docker.Activates)
 	}
+	if len(docker.InstalledCommands) == 0 || len(docker.InstalledSystemdServices) == 0 || len(docker.InstalledUserGroups) == 0 {
+		t.Fatalf("docker should declare command, service, and group checks, got commands=%v services=%v groups=%v", docker.InstalledCommands, docker.InstalledSystemdServices, docker.InstalledUserGroups)
+	}
 
 	orbstack := findModule(t, mods, "macos-orbstack")
 	if orbstack.Kind != modules.KindInstallOnly {
@@ -168,6 +171,42 @@ func TestServiceAndManualModules_DeclareCompletionSemantics(t *testing.T) {
 	}
 	if len(orbstack.ManualSteps) == 0 || !contains(orbstack.Activates, modules.ActivationManual) {
 		t.Fatalf("orbstack should declare manual first-run work, got steps=%v activates=%v", orbstack.ManualSteps, orbstack.Activates)
+	}
+}
+
+func TestMacOSModules_DeclareHomebrewStatusChecks(t *testing.T) {
+	t.Parallel()
+	for _, m := range modules.AllModules() {
+		if m.OS != "darwin" {
+			continue
+		}
+		switch m.Script {
+		case "macos/install.sh":
+			if m.InstalledBrewCask == "" {
+				t.Fatalf("macOS cask module %q should declare InstalledBrewCask", m.ID)
+			}
+		case "macos/cli.sh":
+			if m.InstalledBrewFormula == "" {
+				t.Fatalf("macOS formula module %q should declare InstalledBrewFormula", m.ID)
+			}
+		}
+	}
+}
+
+func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
+	t.Parallel()
+	mods := modules.AllModules()
+	for _, id := range []string{"shell-zsh", "shell-starship", "shell-direnv", "shell-nvm", "shell-fnm"} {
+		mod := findModule(t, mods, id)
+		if len(mod.InstalledZshBlocks) == 0 {
+			t.Fatalf("%s should declare zsh block checks", id)
+		}
+	}
+	for _, id := range []string{"go", "yazi", "neovim"} {
+		mod := findModule(t, mods, id)
+		if len(mod.InstalledShellBlocks) == 0 {
+			t.Fatalf("%s should declare shell block checks", id)
+		}
 	}
 }
 

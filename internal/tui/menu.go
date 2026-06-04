@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -74,27 +76,18 @@ func newMenuModel(mods []modules.Module) menuModel {
 		}
 	}
 
-	// Sync installed check — instant, no network
+	// Sync installed check uses local files and commands only; network update
+	// checks still run asynchronously after the menu is visible.
+	checker := defaultInstallStatusChecker()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	for i := range items {
 		if items[i].separator {
 			continue
 		}
 		mod := items[i].module
-		if mod.InstalledCmd != "" && isInstalled(mod.InstalledCmd) {
+		if checker.moduleInstalled(ctx, mod) {
 			items[i].Status = statusInstalled()
-		} else if mod.InstalledCheck != "" {
-			path := os.ExpandEnv(mod.InstalledCheck)
-			if _, err := os.Stat(path); err == nil {
-				items[i].Status = statusInstalled()
-			}
-		} else if mod.InstalledGrepFile != "" {
-			parts := strings.SplitN(mod.InstalledGrepFile, ":", 2)
-			if len(parts) == 2 {
-				data, err := os.ReadFile(parts[0])
-				if err == nil && strings.Contains(string(data), parts[1]) {
-					items[i].Status = statusInstalled()
-				}
-			}
 		}
 	}
 
