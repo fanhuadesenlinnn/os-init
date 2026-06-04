@@ -26,9 +26,11 @@ fi
 
 append_component() {
     local next="$1" c
-    for c in "${COMPONENTS_NORMALIZED[@]}"; do
-        [[ "$c" == "$next" ]] && return 0
-    done
+    if ((${#COMPONENTS_NORMALIZED[@]} > 0)); then
+        for c in "${COMPONENTS_NORMALIZED[@]}"; do
+            [[ "$c" == "$next" ]] && return 0
+        done
+    fi
     COMPONENTS_NORMALIZED+=("$next")
 }
 

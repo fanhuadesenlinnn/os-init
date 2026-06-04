@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.1 - 2026-06-05
+
+### Fixed
+
+- Fix shell module component normalization on macOS `/bin/bash` 3.2 with `set -u`.
+
 ## v0.9.0 - 2026-06-05
 
 ### Added
