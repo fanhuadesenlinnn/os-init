@@ -21,6 +21,27 @@ var (
 )
 
 func main() {
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintf(os.Stderr, text("错误: %v\n", "Error: %v\n"), err)
+		tui.RunCleanup()
+		os.Exit(1)
+	}
+}
+
+func run(args []string) error {
+	if len(args) > 0 {
+		switch args[0] {
+		case "-h", "--help", "help":
+			fmt.Print(usageText())
+			return nil
+		case "-v", "--version", "version":
+			fmt.Printf("os-init %s (%s)\n", version, commit)
+			return nil
+		default:
+			return fmt.Errorf("%s\n\n%s", text("未知参数: ", "unknown argument: ")+args[0], usageText())
+		}
+	}
+
 	m := tui.New(tui.Config{
 		Assets:  assets,
 		Version: version,
@@ -40,10 +61,21 @@ func main() {
 	}()
 
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, text("错误: %v\n", "Error: %v\n"), err)
-		tui.RunCleanup()
-		os.Exit(1)
+		return err
 	}
+	return nil
+}
+
+func usageText() string {
+	return text(`用法:
+  os-init
+  os-init --version
+  os-init --help
+`, `Usage:
+  os-init
+  os-init --version
+  os-init --help
+`)
 }
 
 func text(zh, en string) string {

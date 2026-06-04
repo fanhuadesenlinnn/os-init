@@ -13,6 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(zsh starship direnv autosuggestions syntax-highlighting nvm fnm git)
@@ -248,12 +249,20 @@ if [[ "$UNINSTALL" == true ]]; then
     if want_zsh_plugin; then
         echo "[REMOVE] zsh plugins..."
         if want "autosuggestions"; then
-            [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]] && \
-            { remove "zsh-autosuggestions"; rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"; } || skip "zsh-autosuggestions not found"
+            if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
+                remove "zsh-autosuggestions"
+                rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+            else
+                skip "zsh-autosuggestions not found"
+            fi
         fi
         if want "syntax-highlighting"; then
-            [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]] && \
-            { remove "zsh-syntax-highlighting"; rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"; } || skip "zsh-syntax-highlighting not found"
+            if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+                remove "zsh-syntax-highlighting"
+                rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+            else
+                skip "zsh-syntax-highlighting not found"
+            fi
         fi
         zshrc_file="$(os_init_zshrc || true)"
         if [[ -n "$zshrc_file" && -f "$zshrc_file" ]]; then
@@ -367,13 +376,13 @@ if want "starship"; then
         if command -v starship &>/dev/null; then
             if [[ "$UPDATE" == true ]]; then
                 update "通过 Homebrew 更新 starship"
-                brew upgrade starship || true
+                brew_upgrade starship 2>/dev/null || skip "starship 已是最新"
             else
                 skip "starship $(starship --version | head -1) already installed"
             fi
         else
             install "通过 Homebrew 安装 starship"
-            brew install starship
+            brew_install starship
         fi
     elif command -v starship &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
@@ -395,7 +404,7 @@ if want "starship"; then
 
     mkdir -p "$HOME/.config"
     if [[ -f "$HOME/.config/starship.toml" ]]; then
-        skip "~/.config/starship.toml already exists (not overwriting)"
+        skip "$HOME/.config/starship.toml already exists (not overwriting)"
     else
         install "$(os_init_text "复制 starship.toml" "copying starship.toml")"
         cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
@@ -576,7 +585,7 @@ if want "git"; then
     next "git config"
 
     if [[ -f "$HOME/.gitconfig" ]]; then
-        skip "~/.gitconfig already exists (not overwriting)"
+        skip "$HOME/.gitconfig already exists (not overwriting)"
         echo "  Review template: $SCRIPT_DIR/gitconfig.template"
     else
         install "copying gitconfig.template -> ~/.gitconfig"
@@ -633,4 +642,4 @@ echo "  $(os_init_text "已处理" "Processed"): ${COMPONENTS[*]}"
 echo ""
 want "byobu" && echo "  byobu  -- $(os_init_text "启动终端复用器" "launch terminal multiplexer")"
 want "fnm" && echo "  fnm   -- fnm install --lts && fnm use lts-latest"
-echo "$(os_init_text "打开新终端或执行: exec zsh" "Start a new terminal or run: exec zsh")"
+os_init_text "打开新终端或执行: exec zsh" "Start a new terminal or run: exec zsh"

@@ -31,6 +31,7 @@ make build
 - 系统识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro；macOS 识别为 Darwin 系。
 - 模块过滤：Linux 显示系统优化、Docker、Mihomo 等 Linux 专属模块；macOS 只显示适配 macOS 的 Shell、终端和开发工具模块。
 - 中国大陆网络适配：GitHub 专用代理、下载重试、超时、离线包目录。
+- 执行保护：单模块超时，按所选模块决定是否提前校验 sudo，macOS Homebrew 模块不会无故要求 sudo。
 - TCP/UDP 优化：吸收 `tcp.vpsing.de` 的有效配置，加入 IPv4 优先、BBR/FQ、ECN、MTU 探测、RPS/RSS、MSS clamp。
 - 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
@@ -103,6 +104,7 @@ make build
 export GITHUB_PROXY=https://gh-proxy.com/
 export OS_INIT_OFFLINE=1
 export OS_INIT_FILES_DIR=/opt/os-init/packages
+export OS_INIT_SCRIPT_TIMEOUT=45m
 ```
 
 Docker 和 Mihomo 也可以通过同一套配置调整版本、下载地址、镜像源等参数。
@@ -127,10 +129,27 @@ OS_INIT_CONFIG_PROMPT=0
 - 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。
 - 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
 - 设置 Homebrew 下载和元数据地址：例如 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_ARTIFACT_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`。
+- 设置模块执行超时：`OS_INIT_SCRIPT_TIMEOUT=45m`，也可以用纯秒数；`0` 表示不限制。
+
+Homebrew 镜像示例：
+
+```bash
+export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
+export HOMEBREW_API_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles/api"
+export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles"
+export HOMEBREW_PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
+```
 
 TUI 后台更新检查也会读取同一套配置；GitHub 版本检查会和安装脚本使用一致的 `GITHUB_PROXY`。Go 版本检查默认直连 `go.dev`，如需替换请配置 `GO_VERSION_URL`。
 
 ## TUI 操作
+
+命令行参数：
+
+```bash
+os-init --version
+os-init --help
+```
 
 | 按键 | 动作 |
 | --- | --- |
@@ -153,6 +172,7 @@ TUI 后台更新检查也会读取同一套配置；GitHub 版本检查会和安
 ```bash
 make build
 make test
+make lint
 make run
 ```
 
@@ -170,6 +190,7 @@ make run
 
 - 不直接覆盖用户已有 `~/.zshrc`。
 - 只维护 `# >>> os-init <name> >>>` 到 `# <<< os-init <name> <<<` 之间的管理块。
+- 只有选中会修改系统目录、systemd、内核参数或系统包管理器的模块时，才会提前校验 sudo；普通 Homebrew app/formula 不会被 os-init 包上 sudo。
 - macOS GUI 应用只负责安装；OrbStack、Clash、Royal TSX、Seafile、Bitwarden 等私有配置仍由用户在应用内完成。
 - Neovim 配置安装前会备份已有目录。
 - Docker 卸载时保留 `/var/lib/docker` 数据。

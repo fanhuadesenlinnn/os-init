@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(
@@ -65,7 +66,7 @@ formula_label() {
 }
 
 formula_installed() {
-    brew list --formula "$1" &>/dev/null
+    brew_list --formula "$1" &>/dev/null
 }
 
 install_formula() {
@@ -74,13 +75,13 @@ install_formula() {
     if formula_installed "$formula"; then
         if [[ "$UPDATE" == true ]]; then
             update "更新 $label"
-            brew upgrade "$formula" 2>/dev/null || skip "$label 已是最新"
+            brew_upgrade "$formula" 2>/dev/null || skip "$label 已是最新"
         else
             skip "$label 已安装"
         fi
     else
         install "安装 $label"
-        brew install "$formula"
+        brew_install "$formula"
     fi
 }
 
@@ -89,7 +90,7 @@ uninstall_formula() {
     label="$(formula_label "$formula")"
     if formula_installed "$formula"; then
         remove "卸载 $label"
-        brew uninstall "$formula" 2>/dev/null || true
+        brew_uninstall "$formula" 2>/dev/null || true
     else
         skip "$label 未安装"
     fi

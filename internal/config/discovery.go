@@ -17,6 +17,7 @@ var summaryKeys = []string{
 	"GITHUB_PROXY",
 	"OS_INIT_OFFLINE",
 	"OS_INIT_FILES_DIR",
+	"OS_INIT_SCRIPT_TIMEOUT",
 }
 
 type Discovery struct {

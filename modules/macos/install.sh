@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(
@@ -133,7 +134,7 @@ cask_app_path() {
 
 cask_installed() {
     local cask="$1" app_path
-    brew list --cask "$cask" &>/dev/null && return 0
+    brew_list --cask "$cask" &>/dev/null && return 0
     app_path="$(cask_app_path "$cask")"
     [[ -n "$app_path" && -d "$app_path" ]]
 }
@@ -144,13 +145,13 @@ install_cask() {
     if cask_installed "$cask"; then
         if [[ "$UPDATE" == true ]]; then
             update "更新 $label"
-            brew upgrade --cask "$cask" 2>/dev/null || skip "$label 已是最新或由应用内更新器管理"
+            brew_upgrade --cask "$cask" 2>/dev/null || skip "$label 已是最新或由应用内更新器管理"
         else
             skip "$label 已安装"
         fi
     else
         install "安装 $label"
-        brew install --cask "$cask"
+        brew_install --cask "$cask"
     fi
 }
 
@@ -159,7 +160,7 @@ uninstall_cask() {
     label="$(cask_label "$cask")"
     if cask_installed "$cask"; then
         remove "卸载 $label"
-        brew uninstall --cask "$cask" 2>/dev/null || true
+        brew_uninstall --cask "$cask" 2>/dev/null || true
     else
         skip "$label 未安装"
     fi

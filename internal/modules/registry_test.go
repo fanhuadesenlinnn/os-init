@@ -4,9 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 func TestAllModules_ReturnsNonEmpty(t *testing.T) {
@@ -117,6 +119,34 @@ func TestNeedsSudo_AllowedModulesOnly(t *testing.T) {
 	}
 }
 
+func TestPrivilegeNeeds_ArePlatformAware(t *testing.T) {
+	t.Parallel()
+	mods := modules.AllModules()
+	byID := map[string]modules.Module{}
+	for _, m := range mods {
+		byID[m.ID] = m
+	}
+
+	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}
+	linux := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+
+	if modules.SelectionNeedsPrivilege([]modules.Module{byID["yazi"]}, darwin) {
+		t.Fatal("macOS Yazi uses Homebrew and should not pre-prime sudo")
+	}
+	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["yazi"]}, linux) {
+		t.Fatal("Linux Yazi writes /usr/local/bin and should require privilege")
+	}
+	if modules.SelectionNeedsPrivilege([]modules.Module{byID["macos-cli-bat"]}, darwin) {
+		t.Fatal("Homebrew formula modules should not pre-prime sudo on macOS")
+	}
+	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["docker"]}, linux) {
+		t.Fatal("Docker systemd install should require privilege")
+	}
+	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["go"]}, darwin) {
+		t.Fatal("Go tarball install writes /usr/local/go and should require privilege")
+	}
+}
+
 func TestAllModules_HaveInstallSemantics(t *testing.T) {
 	t.Parallel()
 	for _, m := range modules.AllModules() {
@@ -193,6 +223,19 @@ func TestMacOSModules_DeclareHomebrewStatusChecks(t *testing.T) {
 	}
 }
 
+func TestMacOSScriptComponentsMatchRegistry(t *testing.T) {
+	t.Parallel()
+
+	caskFromScript := shellArray(t, filepath.Join("..", "..", "modules", "macos", "install.sh"), "ALL_COMPONENTS")
+	formulaFromScript := shellArray(t, filepath.Join("..", "..", "modules", "macos", "cli.sh"), "ALL_COMPONENTS")
+
+	caskFromRegistry := componentsForScript("macos/install.sh")
+	formulaFromRegistry := componentsForScript("macos/cli.sh")
+
+	assertSameStringSet(t, caskFromRegistry, caskFromScript, "macOS cask components")
+	assertSameStringSet(t, formulaFromRegistry, formulaFromScript, "macOS formula components")
+}
+
 func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
@@ -208,6 +251,60 @@ func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 			t.Fatalf("%s should declare shell block checks", id)
 		}
 	}
+}
+
+func shellArray(t *testing.T, path, name string) []string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	marker := name + "=("
+	start := strings.Index(string(data), marker)
+	if start < 0 {
+		t.Fatalf("%s does not contain %s", path, marker)
+	}
+	rest := string(data)[start+len(marker):]
+	end := strings.Index(rest, ")")
+	if end < 0 {
+		t.Fatalf("%s has unterminated %s array", path, name)
+	}
+	return strings.Fields(rest[:end])
+}
+
+func componentsForScript(script string) []string {
+	var out []string
+	for _, m := range modules.AllModules() {
+		if m.Script != script || len(m.Components) == 0 {
+			continue
+		}
+		out = append(out, m.Components...)
+	}
+	return out
+}
+
+func assertSameStringSet(t *testing.T, left, right []string, label string) {
+	t.Helper()
+	leftSet := stringSet(left)
+	rightSet := stringSet(right)
+	for item := range leftSet {
+		if !rightSet[item] {
+			t.Fatalf("%s: registry component %q is missing from script list", label, item)
+		}
+	}
+	for item := range rightSet {
+		if !leftSet[item] {
+			t.Fatalf("%s: script component %q is missing from registry", label, item)
+		}
+	}
+}
+
+func stringSet(values []string) map[string]bool {
+	out := make(map[string]bool, len(values))
+	for _, value := range values {
+		out[value] = true
+	}
+	return out
 }
 
 func TestAllModules_RegisteredScriptsExist(t *testing.T) {

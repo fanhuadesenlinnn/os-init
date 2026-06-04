@@ -2,6 +2,14 @@
 
 本文档说明 os-init 各模块会修改哪些系统配置、用户配置和运行时参数。当前项目会按 OS 自动过滤模块：Linux 目标发行版为 Arch 系、Debian 系、RedHat 系；macOS 只显示适配 Homebrew 或通用二进制安装的 Shell、终端和开发工具模块。SSH 加固模块已移除。
 
+## 执行、权限和超时
+
+- TUI 会根据选中的模块判断是否需要系统权限；普通 macOS Homebrew formula/cask 模块不会提前触发 `sudo -v`。
+- Linux 系统优化、Docker、Mihomo、写入 `/usr/local`、`/opt`、`/etc` 或 systemd 的模块会提前校验 sudo，避免脚本中途隐藏式等待密码。
+- 脚本内部使用非交互式 sudo；如果 sudo 缓存失效，会失败并提示，而不是卡在不可见的密码输入处。
+- 单个脚本执行默认最多运行 `45m`，可通过 `OS_INIT_SCRIPT_TIMEOUT` 调整；设置为 `0` 可关闭该限制。
+- Homebrew 命令统一读取 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`、`HOMEBREW_PIP_INDEX_URL` 等环境变量。os-init 不会执行 `sudo brew`。
+
 ## 系统优化
 
 ### 内核 sysctl.d

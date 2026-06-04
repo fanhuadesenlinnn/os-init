@@ -62,7 +62,7 @@ if [ "$FM_CURRENT" -ne "$FILE_MAX_TARGET" ]; then
 fi
 
 # TCP/UDP buffer sizing. Use 5% of RAM with a 16 MiB floor.
-BUFFER_TARGET=$((MEM_KB * 5 / 100 * 1024))
+BUFFER_TARGET=$((MEM_KB * 1024 * 5 / 100))
 [ "$BUFFER_TARGET" -lt 16777216 ] && BUFFER_TARGET=16777216
 
 set_sysctl_if_exists net.core.rmem_max "$BUFFER_TARGET"

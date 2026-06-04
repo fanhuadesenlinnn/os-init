@@ -7,6 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 parse_update_flag "$@"
@@ -70,8 +71,7 @@ if command -v yazi &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
         if is_macos; then
             update "updating yazi via Homebrew"
-            ensure_brew
-            brew upgrade yazi 2>/dev/null || skip "yazi already at latest"
+            brew_upgrade yazi 2>/dev/null || skip "yazi already at latest"
         else
             install_yazi_from_zip update
         fi
@@ -90,7 +90,7 @@ fi
 echo "[2/3] yazi config..."
 YAZI_CONFIG="$HOME/.config/yazi"
 if [[ -d "$YAZI_CONFIG" ]]; then
-    skip "~/.config/yazi/ already exists"
+    skip "$HOME/.config/yazi/ already exists"
 else
     install "creating ~/.config/yazi/"
     mkdir -p "$YAZI_CONFIG"
@@ -132,4 +132,4 @@ os_init_upsert_shell_block "yazi" "$YAZI_SHELL_BLOCK"
 echo ""
 echo "=== Yazi installation complete ==="
 echo ""
-echo "$(os_init_text "打开新终端后可用 yazi，或使用 ya 启用退出后 cd 到目标目录。" "Open a new terminal to use yazi, or use ya for cd-on-exit.")"
+os_init_text "打开新终端后可用 yazi，或使用 ya 启用退出后 cd 到目标目录。" "Open a new terminal to use yazi, or use ya for cd-on-exit."

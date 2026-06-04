@@ -3,6 +3,7 @@ package tui
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/runner"
@@ -33,5 +34,27 @@ func TestExpandGroupResult_ReturnsOneSummaryResultPerModule(t *testing.T) {
 		if item.ExitCode != result.ExitCode || item.LogFile != result.LogFile {
 			t.Fatalf("summary item did not preserve script result: %+v", item)
 		}
+	}
+}
+
+func TestScriptTimeoutFromEnv(t *testing.T) {
+	t.Setenv("OS_INIT_SCRIPT_TIMEOUT", "")
+	if got := scriptTimeoutFromEnv(); got != defaultScriptTimeout {
+		t.Fatalf("empty timeout = %s, want default %s", got, defaultScriptTimeout)
+	}
+
+	t.Setenv("OS_INIT_SCRIPT_TIMEOUT", "0")
+	if got := scriptTimeoutFromEnv(); got != 0 {
+		t.Fatalf("disabled timeout = %s, want 0", got)
+	}
+
+	t.Setenv("OS_INIT_SCRIPT_TIMEOUT", "90")
+	if got := scriptTimeoutFromEnv(); got != 90*time.Second {
+		t.Fatalf("numeric timeout = %s, want 90s", got)
+	}
+
+	t.Setenv("OS_INIT_SCRIPT_TIMEOUT", "2m")
+	if got := scriptTimeoutFromEnv(); got != 2*time.Minute {
+		t.Fatalf("duration timeout = %s, want 2m", got)
 	}
 }

@@ -6,16 +6,27 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 type confirmModel struct {
-	count int
-	mode  mode
-	err   string
+	count          int
+	mode           mode
+	err            string
+	privilegeNeeds []modules.PrivilegeNeed
 }
 
 func newConfirmModel(count int, m mode) confirmModel {
 	return confirmModel{count: count, mode: m}
+}
+
+func newConfirmModelForSelection(selected []modules.Module, m mode, target platform.Target) confirmModel {
+	return confirmModel{
+		count:          len(selected),
+		mode:           m,
+		privilegeNeeds: modules.PrivilegeNeeds(selected, target),
+	}
 }
 
 func (m confirmModel) Init() tea.Cmd { return nil }
@@ -45,6 +56,18 @@ func (m confirmModel) View() string {
 		msg = fmt.Sprintf("  Run %d modules in %s mode?", m.count, m.mode.String())
 	}
 	b.WriteString(warnStyle.Render(msg) + "\n\n")
+
+	if len(m.privilegeNeeds) > 0 {
+		b.WriteString(MutedStyle.Render(fmt.Sprintf(text("  需要 sudo 的模块: %d 个", "  Modules needing sudo: %d"), len(m.privilegeNeeds))) + "\n")
+		for i, need := range m.privilegeNeeds {
+			if i >= 3 {
+				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个模块需要系统权限", "    %d more modules need system privileges"), len(m.privilegeNeeds)-i)) + "\n")
+				break
+			}
+			b.WriteString(MutedStyle.Render(fmt.Sprintf("    - %s: %s", need.Label, need.Reason)) + "\n")
+		}
+		b.WriteString("\n")
+	}
 
 	if m.err != "" {
 		b.WriteString(ErrorStyle.Render("  "+m.err) + "\n\n")

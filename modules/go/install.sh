@@ -7,6 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 parse_update_flag "$@"
@@ -104,4 +105,4 @@ os_init_upsert_shell_block "go" "$GO_PATH_BLOCK"
 echo ""
 echo "=== Go installation complete ==="
 echo ""
-echo "$(os_init_text "打开新终端或执行 exec zsh 后运行 go version 验证。" "Open a new terminal or run exec zsh, then verify with go version.")"
+os_init_text "打开新终端或执行 exec zsh 后运行 go version 验证。" "Open a new terminal or run exec zsh, then verify with go version."

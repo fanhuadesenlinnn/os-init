@@ -99,10 +99,10 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
-    OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_OFFLINE OS_INIT_FILES_DIR
+    OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_OFFLINE OS_INIT_FILES_DIR OS_INIT_SCRIPT_TIMEOUT
     DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
     HOMEBREW_INSTALL_URL HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
-    HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE
+    HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
     OH_MY_ZSH_REPO STARSHIP_INSTALL_URL DIRENV_PACKAGE
     ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
     NVM_VERSION NVM_INSTALL_BASE NVM_INSTALL_URL FNM_INSTALL_URL
@@ -133,8 +133,10 @@ parse_update_flag() {
     _CLEAN_ARGS=()
     for a in "$@"; do
         if [[ "$a" == "--update" ]]; then
+            # shellcheck disable=SC2034
             UPDATE=true
         elif [[ "$a" == "--uninstall" ]]; then
+            # shellcheck disable=SC2034
             UNINSTALL=true
         else
             _CLEAN_ARGS+=("$a")
@@ -287,7 +289,7 @@ load_os_init_config() {
     rm -f "$snapshot"
 
     for key in "${OS_INIT_CONFIG_KEYS[@]}"; do
-        export "$key"
+        export "${key?}"
     done
     export_proxy_env
 }
@@ -313,8 +315,7 @@ require_systemd() {
 
 pkg_update() {
     if is_macos; then
-        ensure_brew
-        brew update
+        run_brew update
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get update -qq
     elif [[ "$OS_FAMILY" == "arch" ]]; then
@@ -333,6 +334,7 @@ pkg_update() {
 }
 
 ensure_brew() {
+    export_homebrew_env
     if command -v brew &>/dev/null; then
         return
     fi
@@ -340,15 +342,15 @@ ensure_brew() {
     local tmp
     tmp="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
     download_file "$(resource_url HOMEBREW_INSTALL_URL "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh")" "$tmp"
-    /bin/bash "$tmp"
+    NONINTERACTIVE=1 /bin/bash "$tmp"
     rm -f "$tmp"
     eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
+    export_homebrew_env
 }
 
 pkg_install() {
     if is_macos; then
-        ensure_brew
-        brew install "$@"
+        brew_install "$@"
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         pkg_update
         sudo_env apt-get install -y "$@"
@@ -369,8 +371,7 @@ pkg_install() {
 
 pkg_remove() {
     if is_macos; then
-        ensure_brew
-        brew uninstall "$@" 2>/dev/null || true
+        brew_uninstall "$@" 2>/dev/null || true
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get remove -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
@@ -391,7 +392,7 @@ pkg_remove() {
 pkg_is_installed() {
     local pkg="$1"
     if is_macos; then
-        brew list "$pkg" &>/dev/null
+        brew_list "$pkg" &>/dev/null
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
@@ -414,8 +415,53 @@ sudo_env() {
     if [[ "$(id -u)" == "0" ]]; then
         "$@"
     else
-        sudo -E "$@"
+        if ! sudo -n -E "$@"; then
+            warn "命令执行失败或 sudo 未授权: $*"
+            return 1
+        fi
     fi
+}
+
+export_homebrew_env() {
+    is_macos || return 0
+    [[ -n "${HOMEBREW_API_DOMAIN:-}" ]] && export HOMEBREW_API_DOMAIN
+    [[ -n "${HOMEBREW_BOTTLE_DOMAIN:-}" ]] && export HOMEBREW_BOTTLE_DOMAIN
+    [[ -n "${HOMEBREW_ARTIFACT_DOMAIN:-}" ]] && export HOMEBREW_ARTIFACT_DOMAIN
+    [[ -n "${HOMEBREW_BREW_GIT_REMOTE:-}" ]] && export HOMEBREW_BREW_GIT_REMOTE
+    [[ -n "${HOMEBREW_CORE_GIT_REMOTE:-}" ]] && export HOMEBREW_CORE_GIT_REMOTE
+    [[ -n "${HOMEBREW_PIP_INDEX_URL:-}" ]] && export HOMEBREW_PIP_INDEX_URL
+    export HOMEBREW_NO_ANALYTICS="${HOMEBREW_NO_ANALYTICS:-1}"
+    export HOMEBREW_NO_ENV_HINTS="${HOMEBREW_NO_ENV_HINTS:-1}"
+}
+
+run_brew() {
+    ensure_brew
+    export_homebrew_env
+    case "${1:-}" in
+        update)
+            command brew "$@"
+            ;;
+        *)
+            HOMEBREW_NO_AUTO_UPDATE="${HOMEBREW_NO_AUTO_UPDATE:-1}" command brew "$@"
+            ;;
+    esac
+}
+
+brew_install() {
+    run_brew install "$@"
+}
+
+brew_upgrade() {
+    run_brew upgrade "$@"
+}
+
+brew_uninstall() {
+    run_brew uninstall "$@"
+}
+
+brew_list() {
+    export_homebrew_env
+    command brew list "$@"
 }
 
 resource_url() {
@@ -463,7 +509,7 @@ rewrite_download_url() {
 }
 
 git_with_proxy() {
-    git "$@"
+    GIT_TERMINAL_PROMPT=0 command git "$@"
 }
 
 github_latest_version() {
@@ -471,9 +517,14 @@ github_latest_version() {
     local url latest
     url="$(rewrite_download_url "https://github.com/${repo}/releases/latest")"
     if command -v curl &>/dev/null; then
-        latest="$(curl -fsSI "$url" 2>/dev/null | grep -i '^location:' | sed "s|.*/${prefix}||" | tr -d '\r\n')"
+        latest="$(curl -fsSI \
+            --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" \
+            --max-time "${DOWNLOAD_TIMEOUT:-30}" \
+            "$url" 2>/dev/null | grep -i '^location:' | sed "s|.*/${prefix}||" | tr -d '\r\n')"
     elif command -v wget &>/dev/null; then
-        latest="$(wget --server-response --spider "$url" 2>&1 | grep -i 'Location:' | tail -1 | sed "s|.*/${prefix}||" | tr -d '\r\n')"
+        latest="$(wget --server-response --spider \
+            --timeout="${DOWNLOAD_TIMEOUT:-30}" \
+            "$url" 2>&1 | grep -i 'Location:' | tail -1 | sed "s|.*/${prefix}||" | tr -d '\r\n')"
     else
         die "需要 curl 或 wget 才能查询 GitHub 最新版本"
     fi
@@ -551,7 +602,8 @@ download_or_offline_file() {
 backup_file() {
     local file="$1"
     if [[ -e "$file" ]]; then
-        local backup="${file}.bak-os-init.$(date +%Y%m%d%H%M%S)"
+        local backup
+        backup="${file}.bak-os-init.$(date +%Y%m%d%H%M%S)"
         sudo cp -a "$file" "$backup"
         echo "$backup"
     fi

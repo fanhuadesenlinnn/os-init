@@ -195,13 +195,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			showWebhook := modules.NeedsWebhook(m.selectedModules)
 			if !showUserInfo && !showWebhook {
 				m.screen = screenConfirm
-				m.confirm = newConfirmModel(len(m.selectedModules), m.selectedMode)
+				m.confirm = newConfirmModelForSelection(m.selectedModules, m.selectedMode, platform.Detect())
 				return m, m.confirm.Init()
 			}
 			m.gitInfo = newGitInfoModel(showUserInfo, showWebhook)
 			return m, m.gitInfo.Init()
 		case screenConfirm:
-			m.confirm = newConfirmModel(len(m.selectedModules), m.selectedMode)
+			m.confirm = newConfirmModelForSelection(m.selectedModules, m.selectedMode, platform.Detect())
 			return m, m.confirm.Init()
 		}
 		return m, m.initScreen(msg.to)
@@ -218,7 +218,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.webhookURL = msg.webhook
 
 	case confirmMsg:
-		if m.sudoCancel == nil {
+		if m.sudoCancel == nil && selectionNeedsSudoPrime(m.selectedModules, platform.Detect()) {
 			if cmd, ok := sudo.PrimeCommand(); ok {
 				return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
 					return sudoDoneMsg{err: err}
@@ -251,6 +251,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func selectionNeedsSudoPrime(selected []modules.Module, target platform.Target) bool {
+	return modules.SelectionNeedsPrivilege(selected, target)
 }
 
 // View renders the active screen.

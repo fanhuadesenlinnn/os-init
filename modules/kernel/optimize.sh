@@ -13,6 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(sysctl limits scheduler autotune ipv4 network)

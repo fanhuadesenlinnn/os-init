@@ -3,7 +3,10 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -14,6 +17,7 @@ import (
 )
 
 const maxOutputLines = 5
+const defaultScriptTimeout = 45 * time.Minute
 
 type executorModel struct {
 	groups         []modules.ScriptGroup
@@ -183,9 +187,17 @@ func (m executorModel) runCurrent() tea.Cmd {
 	env := m.env
 	sudo := g.NeedsSudo
 	prog := m.program
+	timeout := scriptTimeoutFromEnv()
 
 	return func() tea.Msg {
-		result, err := runner.Run(context.Background(), runner.Params{
+		ctx := context.Background()
+		var cancel context.CancelFunc
+		if timeout > 0 {
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+
+		result, err := runner.Run(ctx, runner.Params{
 			TmpDir:     tmpDir,
 			Script:     g.Script,
 			Components: g.Components,
@@ -202,6 +214,16 @@ func (m executorModel) runCurrent() tea.Cmd {
 				}
 			},
 		})
+		if ctx.Err() == context.DeadlineExceeded {
+			note := fmt.Sprintf(text("模块执行超过 %s，已终止。", "module exceeded %s and was stopped."), formatDuration(timeout))
+			result.ExitCode = -1
+			result.Output = appendResultNote(result.Output, note)
+			appendLogNote(result.LogFile, note)
+			if prog != nil {
+				prog.Send(scriptOutputMsg{module: g.Script, line: note})
+			}
+			return scriptDoneMsg{result: result}
+		}
 		if err != nil {
 			return scriptDoneMsg{result: runner.Result{
 				Module:   g.Script,
@@ -211,6 +233,53 @@ func (m executorModel) runCurrent() tea.Cmd {
 		}
 		return scriptDoneMsg{result: result}
 	}
+}
+
+func scriptTimeoutFromEnv() time.Duration {
+	value := strings.TrimSpace(os.Getenv("OS_INIT_SCRIPT_TIMEOUT"))
+	if value == "" {
+		return defaultScriptTimeout
+	}
+	if value == "0" {
+		return 0
+	}
+	if d, err := time.ParseDuration(value); err == nil && d >= 0 {
+		return d
+	}
+	seconds, err := strconv.Atoi(value)
+	if err == nil && seconds >= 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	return defaultScriptTimeout
+}
+
+func formatDuration(d time.Duration) string {
+	if d%time.Second == 0 {
+		return d.String()
+	}
+	return d.Round(time.Second).String()
+}
+
+func appendResultNote(output, note string) string {
+	if output == "" {
+		return note + "\n"
+	}
+	if strings.HasSuffix(output, "\n") {
+		return output + note + "\n"
+	}
+	return output + "\n" + note + "\n"
+}
+
+func appendLogNote(path, note string) {
+	if path == "" {
+		return
+	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = file.WriteString(note + "\n")
 }
 
 func expandGroupResult(group modules.ScriptGroup, result runner.Result) []runner.Result {

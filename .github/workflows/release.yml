@@ -17,16 +17,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Run tests
         run: go test ./...
+
+      - name: Run shell script checks
+        run: |
+          set -euo pipefail
+          bash -n modules/lib.sh modules/*/*.sh
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
+          shellcheck modules/lib.sh modules/*/*.sh
 
   build:
     needs: test
@@ -45,10 +55,10 @@ jobs:
             goarch: arm64
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -76,7 +86,7 @@ jobs:
           tar -C "${package_dir}" -czf "dist/${package_name}.tar.gz" "${BINARY_NAME}" README.md
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: os-init-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*.tar.gz
@@ -88,7 +98,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -124,6 +134,10 @@ jobs:
           - macOS/Linux 按 OS 自动过滤模块
           - Homebrew、Shell 配置块、systemd 服务状态检测
           - 安装日志自动清理 ANSI 颜色码
+          - 模块级执行超时，避免安装器永久卡住
+          - 按模块权限决定是否提前 sudo，Homebrew 模块不包 sudo
+          - Homebrew 镜像变量统一注入
+          - Go、Bash 和 ShellCheck 发布前检查
           NOTES
 
       - name: Publish GitHub Release

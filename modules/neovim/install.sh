@@ -7,6 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 case "$(uname -m)" in
@@ -110,8 +111,7 @@ if command -v nvim &>/dev/null && nvim --version &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
         if is_macos; then
             update "updating neovim via Homebrew"
-            ensure_brew
-            brew upgrade neovim 2>/dev/null || skip "neovim already at latest"
+            brew_upgrade neovim 2>/dev/null || skip "neovim already at latest"
         else
             install_nvim_linux update
         fi
@@ -169,8 +169,7 @@ if command -v lazygit &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
         if is_macos; then
             update "updating lazygit via Homebrew"
-            ensure_brew
-            brew upgrade lazygit 2>/dev/null || skip "lazygit already at latest"
+            brew_upgrade lazygit 2>/dev/null || skip "lazygit already at latest"
         else
             install_lazygit_linux update
         fi

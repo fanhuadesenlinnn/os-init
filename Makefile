@@ -1,4 +1,4 @@
-.PHONY: build run lint test clean
+.PHONY: build run lint test check clean
 
 BINARY ?= os-init
 VERSION ?= dev
@@ -11,10 +11,14 @@ run:
 	go run .
 
 lint:
-	golangci-lint run ./...
+	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './.git/*'))"
+	bash -n modules/lib.sh modules/*/*.sh
+	shellcheck modules/lib.sh modules/*/*.sh
 
 test:
 	go test ./...
+
+check: test lint
 
 clean:
 	rm -rf os-init kickstart dist

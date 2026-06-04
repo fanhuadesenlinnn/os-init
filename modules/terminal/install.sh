@@ -11,6 +11,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(ncdu)
@@ -72,5 +73,5 @@ echo ""
 echo "=== $(os_init_text "终端工具安装完成" "Terminal tools setup complete") ==="
 echo "  $(os_init_text "已处理" "Processed"): ${COMPONENTS[*]}"
 echo ""
-echo "$(os_init_text "快速开始:" "Quick start:")"
+os_init_text "快速开始:" "Quick start:"
 want "ncdu" && echo "  ncdu  -- $(os_init_text "交互式磁盘占用分析" "interactive disk usage analyzer")"
