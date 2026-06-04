@@ -11,6 +11,7 @@ import (
 type confirmModel struct {
 	count int
 	mode  mode
+	err   string
 }
 
 func newConfirmModel(count int, m mode) confirmModel {
@@ -44,6 +45,10 @@ func (m confirmModel) View() string {
 		msg = fmt.Sprintf("  Run %d modules in %s mode?", m.count, m.mode.String())
 	}
 	b.WriteString(warnStyle.Render(msg) + "\n\n")
+
+	if m.err != "" {
+		b.WriteString(ErrorStyle.Render("  "+m.err) + "\n\n")
+	}
 
 	b.WriteString(MutedStyle.Render(text("  y/enter 确认 • n/esc 取消", "  y/enter confirm • n/esc cancel")))
 

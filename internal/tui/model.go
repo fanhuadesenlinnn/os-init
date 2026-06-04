@@ -69,6 +69,38 @@ func (m Model) startMenu() (Model, tea.Cmd) {
 	return m, m.menu.Init()
 }
 
+func (m Model) startExecution() (Model, tea.Cmd) {
+	tmpDir, cleanup, err := kickembed.Extract(m.config.Assets)
+	if err != nil {
+		if m.sudoCancel != nil {
+			m.sudoCancel()
+			m.sudoCancel = nil
+		}
+		m.screen = screenSummary
+		m.summary = newSummaryModel(nil)
+		return m, nil
+	}
+	m.tmpDir = tmpDir
+	m.cleanupFn = cleanup
+	globalCleanup = cleanup
+
+	env := map[string]string{
+		"KICKSTART_USER_NAME":  m.userName,
+		"KICKSTART_USER_EMAIL": m.userEmail,
+	}
+
+	m.executor = newExecutorModel(
+		m.selectedModules,
+		tmpDir,
+		m.selectedMode.Flag(),
+		env,
+		m.webhookURL,
+	)
+	m.executor.program = globalProgram
+	m.screen = screenExecutor
+	return m, m.executor.Init()
+}
+
 var (
 	// globalProgram holds the tea.Program reference for sending messages
 	// from background goroutines (e.g., real-time script output).
@@ -187,40 +219,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case confirmMsg:
 		if m.sudoCancel == nil {
-			m.sudoCancel = sudo.Prime()
-		}
-
-		// Extract embedded assets and start execution
-		tmpDir, cleanup, err := kickembed.Extract(m.config.Assets)
-		if err != nil {
-			if m.sudoCancel != nil {
-				m.sudoCancel()
-				m.sudoCancel = nil
+			if cmd, ok := sudo.PrimeCommand(); ok {
+				return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
+					return sudoDoneMsg{err: err}
+				})
 			}
-			// Fall back to summary with error
-			m.screen = screenSummary
-			m.summary = newSummaryModel(nil)
+		}
+		return m.startExecution()
+
+	case sudoDoneMsg:
+		if msg.err != nil {
+			m.confirm.err = sudo.PrimeError(msg.err)
+			m.screen = screenConfirm
 			return m, nil
 		}
-		m.tmpDir = tmpDir
-		m.cleanupFn = cleanup
-		globalCleanup = cleanup
-
-		env := map[string]string{
-			"KICKSTART_USER_NAME":  m.userName,
-			"KICKSTART_USER_EMAIL": m.userEmail,
-		}
-
-		m.executor = newExecutorModel(
-			m.selectedModules,
-			tmpDir,
-			m.selectedMode.Flag(),
-			env,
-			m.webhookURL,
-		)
-		m.executor.program = globalProgram
-		m.screen = screenExecutor
-		return m, m.executor.Init()
+		m.sudoCancel = sudo.StartKeepAlive()
+		return m.startExecution()
 
 	case allDoneMsg:
 		if m.cleanupFn != nil {

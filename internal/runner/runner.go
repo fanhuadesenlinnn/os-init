@@ -82,6 +82,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 	for k, v := range p.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
+	cmd.Stdin = os.Stdin
 
 	// Pipe stdout+stderr combined
 	pr, pw := io.Pipe()

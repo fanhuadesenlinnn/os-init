@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -63,5 +64,22 @@ func TestText_UsesEnglishWhenSelected(t *testing.T) {
 	}
 	if got := moduleSection("软件安装"); got != "Software Installation" {
 		t.Fatalf("moduleSection() = %q, want Software Installation", got)
+	}
+}
+
+func TestModel_SudoFailureReturnsToConfirm(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "zh_CN")
+
+	model := New(Config{})
+	model.screen = screenConfirm
+	model.confirm = newConfirmModel(2, modeInstall)
+
+	next, _ := model.Update(sudoDoneMsg{err: errors.New("exit status 1")})
+	got := next.(Model)
+	if got.screen != screenConfirm {
+		t.Fatalf("screen = %v, want screenConfirm", got.screen)
+	}
+	if !strings.Contains(got.confirm.err, "sudo 验证失败") {
+		t.Fatalf("confirm error = %q, want sudo failure", got.confirm.err)
 	}
 }

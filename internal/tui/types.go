@@ -72,6 +72,8 @@ type userInfoMsg struct {
 
 type confirmMsg struct{ confirmed bool }
 
+type sudoDoneMsg struct{ err error }
+
 type scriptOutputMsg struct {
 	module string
 	line   string
