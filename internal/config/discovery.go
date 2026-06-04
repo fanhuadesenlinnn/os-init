@@ -14,12 +14,7 @@ const (
 
 var summaryKeys = []string{
 	"OS_INIT_LANG",
-	"OS_INIT_PROXY",
-	"HTTP_PROXY",
-	"HTTPS_PROXY",
-	"ALL_PROXY",
 	"GITHUB_PROXY",
-	"DOWNLOAD_URL_PROXY",
 	"OS_INIT_OFFLINE",
 	"OS_INIT_FILES_DIR",
 }

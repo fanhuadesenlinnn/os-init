@@ -37,7 +37,7 @@ bad-key=value
 func TestCreateUserConfig(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	files := fstest.MapFS{
-		embeddedExample: {Data: []byte("# 中文说明\nOS_INIT_PROXY=\n")},
+		embeddedExample: {Data: []byte("# 中文说明\nGITHUB_PROXY=\n")},
 	}
 
 	path, err := CreateUserConfig(files)
@@ -70,6 +70,61 @@ func TestCreateUserConfig(t *testing.T) {
 	}
 	if string(data) != "CUSTOM=1\n" {
 		t.Fatalf("existing config should not be overwritten: %q", string(data))
+	}
+}
+
+func TestApplyIgnoresGenericProxyConfig(t *testing.T) {
+	preserveEnv(t,
+		"OS_INIT_PROXY",
+		"HTTP_PROXY",
+		"http_proxy",
+		"HTTPS_PROXY",
+		"https_proxy",
+		"ALL_PROXY",
+		"all_proxy",
+		"NO_PROXY",
+		"no_proxy",
+		"DOWNLOAD_URL_PROXY",
+		"GITHUB_PROXY",
+	)
+	resetOriginalEnvForTest()
+	t.Cleanup(resetOriginalEnvForTest)
+
+	for _, key := range []string{
+		"OS_INIT_PROXY",
+		"HTTP_PROXY",
+		"http_proxy",
+		"HTTPS_PROXY",
+		"https_proxy",
+		"ALL_PROXY",
+		"all_proxy",
+		"NO_PROXY",
+		"no_proxy",
+		"DOWNLOAD_URL_PROXY",
+		"GITHUB_PROXY",
+	} {
+		os.Unsetenv(key)
+	}
+	t.Setenv("HOME", t.TempDir())
+
+	files := fstest.MapFS{
+		embeddedDefaults: {Data: []byte(`
+OS_INIT_PROXY=http://127.0.0.1:7890
+HTTP_PROXY=http://127.0.0.1:7890
+DOWNLOAD_URL_PROXY=https://dl.example.com/?url={url}
+GITHUB_PROXY=https://gh.example.com/
+`)},
+	}
+
+	Apply(files)
+	if got := os.Getenv("HTTP_PROXY"); got != "" {
+		t.Fatalf("HTTP_PROXY from config should be ignored, got %q", got)
+	}
+	if got := os.Getenv("DOWNLOAD_URL_PROXY"); got != "" {
+		t.Fatalf("DOWNLOAD_URL_PROXY from config should be ignored, got %q", got)
+	}
+	if got := os.Getenv("GITHUB_PROXY"); got != "https://gh.example.com/" {
+		t.Fatalf("GITHUB_PROXY should be loaded, got %q", got)
 	}
 }
 

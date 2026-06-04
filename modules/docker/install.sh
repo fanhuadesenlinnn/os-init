@@ -155,32 +155,8 @@ daemon_add_entry() {
     printf '  "%s": %s' "$key" "$value" >> "$file"
 }
 
-proxy_json() {
-    local tmp first=true
-    tmp="$(mktemp "${TMPDIR:-/tmp}/docker-proxy.XXXXXX")"
-    printf '{' > "$tmp"
-    if [[ -n "${HTTP_PROXY:-}" ]]; then
-        printf '\n    "http-proxy": %s' "$(json_string "$HTTP_PROXY")" >> "$tmp"
-        first=false
-    fi
-    if [[ -n "${HTTPS_PROXY:-}" ]]; then
-        [[ "$first" == true ]] || printf ',\n' >> "$tmp"
-        printf '    "https-proxy": %s' "$(json_string "$HTTPS_PROXY")" >> "$tmp"
-        first=false
-    fi
-    if [[ -n "${NO_PROXY:-}" ]]; then
-        [[ "$first" == true ]] || printf ',\n' >> "$tmp"
-        printf '    "no-proxy": %s' "$(json_string "$NO_PROXY")" >> "$tmp"
-        first=false
-    fi
-    [[ "$first" == true ]] || printf '\n  ' >> "$tmp"
-    printf '}' >> "$tmp"
-    cat "$tmp"
-    rm -f "$tmp"
-}
-
 write_daemon_config() {
-    local tmp mirrors insecure proxies
+    local tmp mirrors insecure
     tmp="$(mktemp "${TMPDIR:-/tmp}/daemon-json.XXXXXX")"
     printf '{' > "$tmp"
 
@@ -197,11 +173,6 @@ write_daemon_config() {
 
     if [[ -n "${DOCKER_DATA_ROOT:-}" ]]; then
         daemon_add_entry "$tmp" "data-root" "$(json_string "$DOCKER_DATA_ROOT")"
-    fi
-
-    if [[ -n "${HTTP_PROXY:-}${HTTPS_PROXY:-}${NO_PROXY:-}" ]]; then
-        proxies="$(proxy_json)"
-        daemon_add_entry "$tmp" "proxies" "$proxies"
     fi
 
     printf '\n}\n' >> "$tmp"
@@ -290,10 +261,26 @@ enable_docker_service() {
 }
 
 verify_docker() {
+    local user
+    user="$(real_user)"
     echo ""
     echo "=== Docker 信息 ==="
     docker --version || true
     docker compose version || true
+    if systemctl is-active --quiet docker.service; then
+        skip "Docker 服务正在运行"
+    else
+        warn "Docker 服务未运行，请查看: systemctl status docker.service"
+    fi
+    if id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
+        if [[ "$user" == "$(id -un)" ]] && ! id -nG | tr ' ' '\n' | grep -qx docker; then
+            warn "用户 $user 已加入 docker 组，但当前终端会话尚未生效；请重新登录"
+        else
+            skip "用户 $user 可通过 docker 组使用 Docker"
+        fi
+    else
+        warn "用户 $user 尚未加入 docker 组，免 sudo 使用 Docker 不会生效"
+    fi
     sudo systemctl --no-pager --full status docker.service | sed -n '1,8p' || true
 }
 

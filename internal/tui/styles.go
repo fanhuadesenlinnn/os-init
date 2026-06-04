@@ -58,6 +58,18 @@ var (
 			Foreground(ColorAccent2).
 			Bold(true)
 
+	HelpPrimaryKeyStyle = lipgloss.NewStyle().
+				Foreground(ColorOK).
+				Bold(true)
+
+	HelpWarnKeyStyle = lipgloss.NewStyle().
+				Foreground(ColorWarn).
+				Bold(true)
+
+	HelpDangerKeyStyle = lipgloss.NewStyle().
+				Foreground(ColorError).
+				Bold(true)
+
 	HelpDescStyle = lipgloss.NewStyle().
 			Foreground(ColorMuted)
 

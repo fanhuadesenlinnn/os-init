@@ -59,15 +59,22 @@ func (m configStartupModel) View() string {
 
 	if m.info.HasConfig() {
 		b.WriteString(titleStyle.Render(text("  已加载启动配置", "  Startup Configuration Loaded")) + "\n")
-		b.WriteString(MutedStyle.Render(text("  enter 继续 | q 退出", "  enter continue | q quit")) + "\n\n")
+		b.WriteString(renderHelpLine(
+			helpAction{key: "Enter", desc: text("继续", "continue"), tone: helpPrimary},
+			helpAction{key: "Q", desc: text("退出", "quit")},
+		) + "\n\n")
 		b.WriteString(text("  配置文件\n", "  Configuration files\n"))
 		b.WriteString(configPathLine(text("系统配置", "System"), m.info.SystemPath, m.info.SystemExists) + "\n")
 		b.WriteString(configPathLine(text("用户配置", "User"), m.info.UserPath, m.info.UserExists) + "\n")
 	} else {
 		b.WriteString(titleStyle.Render(text("  未发现用户启动配置", "  No Startup Configuration Found")) + "\n")
-		b.WriteString(MutedStyle.Render(text("  enter 创建默认配置并继续 | s 跳过 | q 退出", "  enter create default config | s skip | q quit")) + "\n\n")
+		b.WriteString(renderHelpLine(
+			helpAction{key: "Enter", desc: text("创建默认配置并继续", "create default config"), tone: helpPrimary},
+			helpAction{key: "S", desc: text("跳过", "skip")},
+			helpAction{key: "Q", desc: text("退出", "quit")},
+		) + "\n\n")
 		b.WriteString(text("  当前将使用程序内置默认配置启动。\n", "  The program will start with the built-in defaults.\n"))
-		b.WriteString(text("  建议创建配置文件，用于设置代理、GitHub 代理、下载地址和离线包目录。\n\n", "  Creating a config file is recommended for proxy, GitHub proxy, download URLs, and offline package paths.\n\n"))
+		b.WriteString(text("  建议创建配置文件，用于设置 GitHub 代理、下载地址和离线包目录。\n\n", "  Creating a config file is recommended for GitHub proxy, download URLs, and offline package paths.\n\n"))
 		b.WriteString(text("  创建位置\n", "  Create at\n"))
 		if m.info.UserPath != "" {
 			b.WriteString(HelpKeyStyle.Render("  "+m.info.UserPath) + "\n")

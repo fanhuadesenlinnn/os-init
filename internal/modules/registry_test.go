@@ -117,6 +117,60 @@ func TestNeedsSudo_AllowedModulesOnly(t *testing.T) {
 	}
 }
 
+func TestAllModules_HaveInstallSemantics(t *testing.T) {
+	t.Parallel()
+	for _, m := range modules.AllModules() {
+		if m.Kind == "" {
+			t.Errorf("module %q should declare a kind", m.ID)
+		}
+	}
+}
+
+func TestShellModules_DeclareDependenciesAndActivation(t *testing.T) {
+	t.Parallel()
+	mods := modules.AllModules()
+	starship := findModule(t, mods, "shell-starship")
+	if starship.Kind != modules.KindShellIntegration {
+		t.Fatalf("shell-starship kind = %q, want %q", starship.Kind, modules.KindShellIntegration)
+	}
+	if !contains(starship.DependsOn, "shell-zsh") {
+		t.Fatalf("shell-starship should depend on shell-zsh, got %v", starship.DependsOn)
+	}
+	if !contains(starship.Activates, modules.ActivationZshrc) {
+		t.Fatalf("shell-starship should activate zshrc, got %v", starship.Activates)
+	}
+
+	auto := findModule(t, mods, "shell-autosuggestions")
+	if got := auto.Components; !reflect.DeepEqual(got, []string{"autosuggestions"}) {
+		t.Fatalf("autosuggestions should have its own component, got %v", got)
+	}
+	syntax := findModule(t, mods, "shell-syntax-hl")
+	if got := syntax.Components; !reflect.DeepEqual(got, []string{"syntax-highlighting"}) {
+		t.Fatalf("syntax highlighting should have its own component, got %v", got)
+	}
+}
+
+func TestServiceAndManualModules_DeclareCompletionSemantics(t *testing.T) {
+	t.Parallel()
+	mods := modules.AllModules()
+
+	docker := findModule(t, mods, "docker")
+	if docker.Kind != modules.KindSystemService {
+		t.Fatalf("docker kind = %q, want %q", docker.Kind, modules.KindSystemService)
+	}
+	if !docker.NeedsRelogin || !contains(docker.Activates, modules.ActivationRelogin) {
+		t.Fatalf("docker should declare relogin activation, got needsRelogin=%v activates=%v", docker.NeedsRelogin, docker.Activates)
+	}
+
+	orbstack := findModule(t, mods, "macos-orbstack")
+	if orbstack.Kind != modules.KindInstallOnly {
+		t.Fatalf("orbstack kind = %q, want %q", orbstack.Kind, modules.KindInstallOnly)
+	}
+	if len(orbstack.ManualSteps) == 0 || !contains(orbstack.Activates, modules.ActivationManual) {
+		t.Fatalf("orbstack should declare manual first-run work, got steps=%v activates=%v", orbstack.ManualSteps, orbstack.Activates)
+	}
+}
+
 func TestAllModules_RegisteredScriptsExist(t *testing.T) {
 	t.Parallel()
 
@@ -174,15 +228,15 @@ func TestGroupByScript_MergesComponents(t *testing.T) {
 func TestGroupByScript_DeduplicatesComponentsButKeepsModuleLabels(t *testing.T) {
 	t.Parallel()
 	selected := []modules.Module{
-		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-autosuggestions"},
-		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-syntax-highlighting"},
+		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions"},
+		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting"},
 	}
 	groups := modules.GroupByScript(selected)
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	if got := groups[0].Components; !reflect.DeepEqual(got, []string{"plugins"}) {
-		t.Fatalf("components should be deduplicated, got %v", got)
+	if got := groups[0].Components; !reflect.DeepEqual(got, []string{"autosuggestions", "syntax-highlighting"}) {
+		t.Fatalf("components should stay distinct, got %v", got)
 	}
 	if got := groups[0].ModuleLabels; !reflect.DeepEqual(got, []string{"zsh-autosuggestions", "zsh-syntax-highlighting"}) {
 		t.Fatalf("module labels should be preserved, got %v", got)
@@ -192,6 +246,26 @@ func TestGroupByScript_DeduplicatesComponentsButKeepsModuleLabels(t *testing.T) 
 func hasModuleID(mods []modules.Module, id string) bool {
 	for _, m := range mods {
 		if m.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func findModule(t *testing.T, mods []modules.Module, id string) modules.Module {
+	t.Helper()
+	for _, m := range mods {
+		if m.ID == id {
+			return m
+		}
+	}
+	t.Fatalf("module %q not found", id)
+	return modules.Module{}
+}
+
+func contains[T comparable](values []T, needle T) bool {
+	for _, value := range values {
+		if value == needle {
 			return true
 		}
 	}

@@ -30,10 +30,11 @@ make build
 - 三种模式：安装、更新、卸载。
 - 系统识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro；macOS 识别为 Darwin 系。
 - 模块过滤：Linux 显示系统优化、Docker、Mihomo 等 Linux 专属模块；macOS 只显示适配 macOS 的 Shell、终端和开发工具模块。
-- 中国大陆网络适配：统一代理变量、GitHub 代理、下载重试、超时、离线包目录。
+- 中国大陆网络适配：GitHub 专用代理、下载重试、超时、离线包目录。
 - TCP/UDP 优化：吸收 `tcp.vpsing.de` 的有效配置，加入 IPv4 优先、BBR/FQ、ECN、MTU 探测、RPS/RSS、MSS clamp。
 - 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
+- Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
 - 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
 
 ## 当前模块
@@ -87,7 +88,7 @@ make build
 ~/.config/os-init/config.env
 ```
 
-创建出来的配置文件带中文注释，说明每个代理、资源地址和离线参数的用途。
+创建出来的配置文件带中文注释，说明 GitHub 代理、资源地址和离线参数的用途。
 
 配置加载顺序：
 
@@ -99,18 +100,12 @@ make build
 常用变量：
 
 ```bash
-export OS_INIT_PROXY=http://127.0.0.1:7890
-export HTTP_PROXY=http://127.0.0.1:7890
-export HTTPS_PROXY=http://127.0.0.1:7890
-export ALL_PROXY=socks5://127.0.0.1:7890
-export NO_PROXY=localhost,127.0.0.1,::1
 export GITHUB_PROXY=https://gh-proxy.com/
-export DOWNLOAD_URL_PROXY=
 export OS_INIT_OFFLINE=1
 export OS_INIT_FILES_DIR=/opt/os-init/packages
 ```
 
-Docker 和 Mihomo 也可以通过同一套配置调整版本、下载地址、镜像源、systemd 代理等参数。
+Docker 和 Mihomo 也可以通过同一套配置调整版本、下载地址、镜像源等参数。
 
 也可以提前复制示例配置再修改：
 
@@ -128,13 +123,12 @@ OS_INIT_CONFIG_PROMPT=0
 
 资源下载可以按两种方式覆盖：
 
-- 设置通用代理：`OS_INIT_PROXY`、`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`。
-- 设置 URL 代理：`GITHUB_PROXY` 只改写 GitHub/raw.githubusercontent.com，`DOWNLOAD_URL_PROXY` 可改写所有 `http/https` 下载地址。
+- 设置 GitHub 代理：`GITHUB_PROXY` 只改写 GitHub、raw.githubusercontent.com、objects.githubusercontent.com 和 github-releases.githubusercontent.com。
 - 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。
 - 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
 - 设置 Homebrew 下载和元数据地址：例如 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_ARTIFACT_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`。
 
-TUI 后台更新检查也会读取同一套配置，所以 Go/GitHub 的版本检查会跟安装脚本使用一致的代理和资源配置。
+TUI 后台更新检查也会读取同一套配置；GitHub 版本检查会和安装脚本使用一致的 `GITHUB_PROXY`。Go 版本检查默认直连 `go.dev`，如需替换请配置 `GO_VERSION_URL`。
 
 ## TUI 操作
 
@@ -175,6 +169,8 @@ make run
 ## 安全约定
 
 - 不直接覆盖用户已有 `~/.zshrc`。
+- 只维护 `# >>> os-init <name> >>>` 到 `# <<< os-init <name> <<<` 之间的管理块。
+- macOS GUI 应用只负责安装；OrbStack、Clash、Royal TSX、Seafile、Bitwarden 等私有配置仍由用户在应用内完成。
 - Neovim 配置安装前会备份已有目录。
 - Docker 卸载时保留 `/var/lib/docker` 数据。
 - 系统配置优先写入 drop-in 文件，降低对发行版默认配置的破坏。

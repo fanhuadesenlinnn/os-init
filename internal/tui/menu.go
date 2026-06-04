@@ -338,27 +338,15 @@ func (m menuModel) View() string {
 	b.WriteString(header + "\n")
 
 	// ── Help bar ────────────────────────────────────────────────
-	helpParts := []struct {
-		key  string
-		desc string
-	}{
-		{"↑/↓", text("移动", "move")},
-		{"space", text("选择", "select")},
-		{"ctrl+a", text("全选", "select all")},
-		{"/", text("过滤", "filter")},
-		{"enter", text("确认", "confirm")},
-		{"q", text("退出", "quit")},
+	helpParts := []helpAction{
+		{key: "↑/↓", desc: text("移动", "move")},
+		{key: "Space", desc: text("选择", "select"), tone: helpPrimary},
+		{key: "Ctrl+A", desc: text("全选", "select all")},
+		{key: "/", desc: text("过滤", "filter")},
+		{key: "Enter", desc: text("确认", "confirm"), tone: helpPrimary},
+		{key: "Q", desc: text("退出", "quit")},
 	}
-	var helpSegments []string
-	sep := HelpSepStyle.Render(" · ")
-	for _, h := range helpParts {
-		helpSegments = append(
-			helpSegments,
-			HelpKeyStyle.Render(h.key)+" "+HelpDescStyle.Render(h.desc),
-		)
-	}
-	helpLine := " " + strings.Join(helpSegments, sep)
-	b.WriteString(helpLine + "\n")
+	b.WriteString(renderHelpLine(helpParts...) + "\n")
 
 	// ── Filter bar ──────────────────────────────────────────────
 	if m.filtering {

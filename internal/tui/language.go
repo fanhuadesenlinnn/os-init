@@ -61,7 +61,12 @@ func (m languageModel) View() string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
 
 	b.WriteString(titleStyle.Render("  选择语言 / Choose Language") + "\n")
-	b.WriteString(MutedStyle.Render("  ↑/↓ 或 j/k 移动 | enter 确认 | q 退出") + "\n\n")
+	b.WriteString(renderHelpLine(
+		helpAction{key: "↑/↓", desc: "移动 / move"},
+		helpAction{key: "J/K", desc: "移动 / move"},
+		helpAction{key: "Enter", desc: "确认 / confirm", tone: helpPrimary},
+		helpAction{key: "Q", desc: "退出 / quit"},
+	) + "\n\n")
 
 	for i, option := range m.options {
 		cursor := "  "

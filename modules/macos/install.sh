@@ -196,9 +196,22 @@ for cask in "${ALL_COMPONENTS[@]}"; do
     fi
 done
 
-if want "orbstack" && [[ "$UNINSTALL" != true ]]; then
+if [[ "$UNINSTALL" != true ]]; then
     echo ""
-    echo "  $(os_init_text "提示" "Note"): $(os_init_text "OrbStack 安装后需要打开应用完成首次初始化。" "Open OrbStack after installation to finish first-time initialization.")"
+    MANUAL_NOTES=()
+    want "orbstack" && MANUAL_NOTES+=("$(os_init_text "OrbStack: 打开应用完成首次初始化。" "OrbStack: open the app to finish first-time initialization.")")
+    if want "clash-verge-rev" || want "clash-party"; then
+        MANUAL_NOTES+=("$(os_init_text "Clash: 打开应用后导入自己的代理配置；os-init 不接管订阅和系统代理。" "Clash: import your own proxy profile in the app; os-init does not manage subscriptions or system proxy settings.")")
+    fi
+    want "royal-tsx" && MANUAL_NOTES+=("$(os_init_text "Royal TSX: 打开应用后导入或创建自己的连接配置。" "Royal TSX: import or create your own connection configuration in the app.")")
+    want "seafile-client" && MANUAL_NOTES+=("$(os_init_text "Seafile Client: 登录账号并选择同步目录。" "Seafile Client: sign in and choose sync directories.")")
+    want "bitwarden" && MANUAL_NOTES+=("$(os_init_text "Bitwarden: 登录账号或导入自己的密码库。" "Bitwarden: sign in or import your own vault.")")
+    if [[ ${#MANUAL_NOTES[@]} -gt 0 ]]; then
+        echo "  $(os_init_text "后续手动步骤" "Manual next steps"):"
+        for note in "${MANUAL_NOTES[@]}"; do
+            echo "    - $note"
+        done
+    fi
 fi
 
 echo ""

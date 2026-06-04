@@ -81,6 +81,7 @@ if [[ "$UNINSTALL" == true ]]; then
         remove "removing ~/.local/share/nvim"
         rm -rf "$HOME/.local/share/nvim"
     fi
+    os_init_remove_shell_block "neovim"
 
     echo ""
     echo "=== Neovim uninstall complete ==="
@@ -203,10 +204,16 @@ else
     rm -rf "$NVIM_CONFIG/.git"
 fi
 
+NVIM_SHELL_BLOCK="$(cat <<'EOF'
+if command -v nvim >/dev/null 2>&1; then
+    export EDITOR="${EDITOR:-nvim}"
+    export VISUAL="${VISUAL:-nvim}"
+fi
+EOF
+)"
+os_init_upsert_shell_block "neovim" "$NVIM_SHELL_BLOCK"
+
 echo ""
 echo "=== Neovim + LazyVim setup complete ==="
 echo ""
 echo "Run 'nvim' to launch. LazyVim will auto-install plugins on first start."
-echo ""
-echo "Recommended: add to your .zshrc:"
-echo '  export EDITOR=nvim'

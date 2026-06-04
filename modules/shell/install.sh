@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install shell tooling: zsh, oh-my-zsh, starship, direnv, plugins, nvm, fnm, byobu, git
+# Install shell tooling: zsh, oh-my-zsh, starship, direnv, zsh plugins, nvm, fnm, byobu, git
 # Author: Dusan Panic <dpanic@gmail.com>
 # Replicates a full zsh dev environment from scratch
 # Safe to re-run -- idempotent (skips already-installed components)
@@ -15,7 +15,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$REPO_DIR/lib.sh"
 
-ALL_COMPONENTS=(zsh starship direnv plugins nvm fnm git)
+ALL_COMPONENTS=(zsh starship direnv autosuggestions syntax-highlighting nvm fnm git)
 is_linux && ALL_COMPONENTS+=(byobu)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
@@ -23,10 +23,41 @@ if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     COMPONENTS=("${ALL_COMPONENTS[@]}")
 fi
 
+append_component() {
+    local next="$1" c
+    for c in "${COMPONENTS_NORMALIZED[@]}"; do
+        [[ "$c" == "$next" ]] && return 0
+    done
+    COMPONENTS_NORMALIZED+=("$next")
+}
+
+normalize_components() {
+    local c
+    COMPONENTS_NORMALIZED=()
+    for c in "${COMPONENTS[@]}"; do
+        case "$c" in
+            plugins)
+                append_component autosuggestions
+                append_component syntax-highlighting
+                ;;
+            *)
+                append_component "$c"
+                ;;
+        esac
+    done
+    COMPONENTS=("${COMPONENTS_NORMALIZED[@]}")
+    unset COMPONENTS_NORMALIZED
+}
+normalize_components
+
 want() {
     local c
     for c in "${COMPONENTS[@]}"; do [[ "$c" == "$1" ]] && return 0; done
     return 1
+}
+
+want_zsh_plugin() {
+    want "autosuggestions" || want "syntax-highlighting"
 }
 
 login_shell_for_user() {
@@ -80,6 +111,121 @@ nvm_install_url() {
     resource_url NVM_INSTALL_URL "${NVM_INSTALL_BASE%/}/${version}/install.sh"
 }
 
+ensure_zsh_package() {
+    if command -v zsh &>/dev/null; then
+        skip "zsh $(zsh --version | head -1) already installed"
+    else
+        install "installing zsh"
+        pkg_install zsh
+    fi
+}
+
+ensure_oh_my_zsh() {
+    if [[ -d "$HOME/.oh-my-zsh" ]]; then
+        if [[ "$UPDATE" == true ]]; then
+            update "updating oh-my-zsh"
+            git_update_shallow "$HOME/.oh-my-zsh"
+        else
+            skip "oh-my-zsh already installed at ~/.oh-my-zsh"
+        fi
+    else
+        install "cloning oh-my-zsh"
+        git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
+    fi
+}
+
+has_oh_my_zsh_source_outside_os_init_block() {
+    local file
+    file="$(os_init_zshrc)" || return 1
+    [[ -f "$file" ]] || return 1
+    awk '
+        $0 == "# >>> os-init oh-my-zsh >>>" { in_block = 1; next }
+        $0 == "# <<< os-init oh-my-zsh <<<" { in_block = 0; next }
+        !in_block && $0 ~ /oh-my-zsh\.sh/ { found = 1 }
+        END { exit(found ? 0 : 1) }
+    ' "$file"
+}
+
+configure_oh_my_zsh() {
+    local plugin_lines content before_regex source_line="" zsh_custom
+    zsh_custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+    plugin_lines="    git"
+    if want "autosuggestions" || [[ -d "$zsh_custom/plugins/zsh-autosuggestions" ]]; then
+        plugin_lines+=$'\n    zsh-autosuggestions'
+    fi
+    if want "syntax-highlighting" || [[ -d "$zsh_custom/plugins/zsh-syntax-highlighting" ]]; then
+        plugin_lines+=$'\n    zsh-syntax-highlighting'
+    fi
+
+    before_regex='^[[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh'
+    if ! has_oh_my_zsh_source_outside_os_init_block; then
+        before_regex=""
+        source_line=$'\nsource "$ZSH/oh-my-zsh.sh"'
+    fi
+
+    content="$(cat <<EOF
+export ZSH="\$HOME/.oh-my-zsh"
+ZSH_THEME=""
+export UPDATE_ZSH_DAYS=1
+zstyle ':omz:update' mode auto
+DISABLE_MAGIC_FUNCTIONS=true
+DISABLE_AUTO_TITLE="true"
+plugins=(
+$plugin_lines
+)$source_line
+EOF
+)"
+    os_init_upsert_zsh_block "oh-my-zsh" "$content" "$before_regex"
+}
+
+configure_starship_zsh() {
+    local content
+    content="$(cat <<'EOF'
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init zsh)"
+fi
+EOF
+)"
+    os_init_upsert_zsh_block "starship" "$content"
+}
+
+configure_direnv_zsh() {
+    local content
+    content="$(cat <<'EOF'
+if command -v direnv >/dev/null 2>&1; then
+    eval "$(direnv hook zsh)"
+fi
+EOF
+)"
+    os_init_upsert_zsh_block "direnv" "$content"
+}
+
+configure_nvm_zsh() {
+    local content
+    content="$(cat <<'EOF'
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+fi
+if [ -s "$NVM_DIR/bash_completion" ]; then
+    . "$NVM_DIR/bash_completion"
+fi
+EOF
+)"
+    os_init_upsert_zsh_block "nvm" "$content"
+}
+
+configure_fnm_zsh() {
+    local content
+    content="$(cat <<'EOF'
+if command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env --use-on-cd --shell zsh)"
+fi
+EOF
+)"
+    os_init_upsert_zsh_block "fnm" "$content"
+}
+
 STEP=0
 count_steps() {
     local total=0
@@ -99,12 +245,20 @@ echo ""
 if [[ "$UNINSTALL" == true ]]; then
     ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
-    if want "plugins"; then
+    if want_zsh_plugin; then
         echo "[REMOVE] zsh plugins..."
-        [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]] && \
+        if want "autosuggestions"; then
+            [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]] && \
             { remove "zsh-autosuggestions"; rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"; } || skip "zsh-autosuggestions not found"
-        [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]] && \
+        fi
+        if want "syntax-highlighting"; then
+            [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]] && \
             { remove "zsh-syntax-highlighting"; rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"; } || skip "zsh-syntax-highlighting not found"
+        fi
+        zshrc_file="$(os_init_zshrc || true)"
+        if [[ -n "$zshrc_file" && -f "$zshrc_file" ]]; then
+            configure_oh_my_zsh
+        fi
     fi
 
     if want "nvm"; then
@@ -115,6 +269,7 @@ if [[ "$UNINSTALL" == true ]]; then
         else
             skip "nvm not installed"
         fi
+        os_init_remove_zsh_block "nvm"
     fi
 
     if want "fnm"; then
@@ -126,6 +281,7 @@ if [[ "$UNINSTALL" == true ]]; then
         else
             skip "fnm not installed"
         fi
+        os_init_remove_zsh_block "fnm"
     fi
 
     if want "starship"; then
@@ -141,6 +297,7 @@ if [[ "$UNINSTALL" == true ]]; then
         else
             skip "starship not installed"
         fi
+        os_init_remove_zsh_block "starship"
     fi
 
     if want "direnv"; then
@@ -151,6 +308,7 @@ if [[ "$UNINSTALL" == true ]]; then
         else
             skip "direnv not installed"
         fi
+        os_init_remove_zsh_block "direnv"
     fi
 
     if want "git"; then
@@ -182,6 +340,7 @@ if [[ "$UNINSTALL" == true ]]; then
         else
             skip "oh-my-zsh not installed"
         fi
+        os_init_remove_zsh_block "oh-my-zsh"
         echo "  note: zsh package and default shell left intact"
     fi
 
@@ -194,26 +353,9 @@ fi
 if want "zsh"; then
     next "zsh + oh-my-zsh"
 
-    if command -v zsh &>/dev/null; then
-        skip "zsh $(zsh --version | head -1) already installed"
-    else
-        install "installing zsh"
-        pkg_install zsh
-    fi
-
+    ensure_zsh_package
     set_default_zsh
-
-    if [[ -d "$HOME/.oh-my-zsh" ]]; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating oh-my-zsh"
-            git_update_shallow "$HOME/.oh-my-zsh"
-        else
-            skip "oh-my-zsh already installed at ~/.oh-my-zsh"
-        fi
-    else
-        install "cloning oh-my-zsh"
-        git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
-    fi
+    ensure_oh_my_zsh
 fi
 
 # ── starship ──────────────────────────────────────────────────────────────────
@@ -273,35 +415,42 @@ if want "direnv"; then
 fi
 
 # ── zsh plugins ───────────────────────────────────────────────────────────────
-if want "plugins"; then
+if want_zsh_plugin; then
     next "zsh plugins"
 
+    ensure_zsh_package
+    ensure_oh_my_zsh
     ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+    mkdir -p "$ZSH_CUSTOM/plugins"
 
-    if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating zsh-autosuggestions"
-            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+    if want "autosuggestions"; then
+        if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
+            if [[ "$UPDATE" == true ]]; then
+                update "updating zsh-autosuggestions"
+                git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+            else
+                skip "zsh-autosuggestions already installed"
+            fi
         else
-            skip "zsh-autosuggestions already installed"
+            install "cloning zsh-autosuggestions"
+            git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
+                "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
         fi
-    else
-        install "cloning zsh-autosuggestions"
-        git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
-            "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
     fi
 
-    if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating zsh-syntax-highlighting"
-            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+    if want "syntax-highlighting"; then
+        if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+            if [[ "$UPDATE" == true ]]; then
+                update "updating zsh-syntax-highlighting"
+                git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+            else
+                skip "zsh-syntax-highlighting already installed"
+            fi
         else
-            skip "zsh-syntax-highlighting already installed"
+            install "cloning zsh-syntax-highlighting"
+            git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
+                "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
         fi
-    else
-        install "cloning zsh-syntax-highlighting"
-        git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
-            "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
     fi
 fi
 
@@ -323,11 +472,7 @@ if want "nvm"; then
         LATEST_NVM="$(nvm_version)"
         NVM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/nvm-install.XXXXXX")"
         download_file "$(nvm_install_url "$LATEST_NVM")" "$NVM_INSTALLER"
-        if want "zsh"; then
-            PROFILE=/dev/null bash "$NVM_INSTALLER"
-        else
-            bash "$NVM_INSTALLER"
-        fi
+        PROFILE=/dev/null bash "$NVM_INSTALLER"
         rm -f "$NVM_INSTALLER"
     fi
 fi
@@ -336,7 +481,7 @@ fi
 if want "fnm"; then
     next "fnm"
 
-    FNM_SKIP=(); want "zsh" && FNM_SKIP=(--skip-shell)
+    FNM_SKIP=(--skip-shell)
 
     if command -v fnm &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
@@ -465,22 +610,21 @@ if want "git"; then
     fi
 fi
 
-# ── .zshrc template ──────────────────────────────────────────────────────────
-if want "zsh"; then
-    if [[ -f "$HOME/.zshrc" ]]; then
-        skip "~/.zshrc already exists (not overwriting)"
-        echo ""
-        echo "  To see what the template includes, run:"
-        echo "    diff ~/.zshrc $SCRIPT_DIR/zshrc.template"
-        echo ""
-        echo "  Key lines to ensure are in your .zshrc:"
-        echo "    plugins=(git zsh-autosuggestions zsh-syntax-highlighting)"
-        echo '    eval "$(starship init zsh)"'
-        echo '    eval "$(direnv hook zsh)"'
-    else
-        install "copying zshrc.template -> ~/.zshrc"
-        cp "$SCRIPT_DIR/zshrc.template" "$HOME/.zshrc"
-    fi
+# ── shell integrations ───────────────────────────────────────────────────────
+if want "zsh" || want_zsh_plugin; then
+    configure_oh_my_zsh
+fi
+if want "starship"; then
+    configure_starship_zsh
+fi
+if want "direnv"; then
+    configure_direnv_zsh
+fi
+if want "nvm"; then
+    configure_nvm_zsh
+fi
+if want "fnm"; then
+    configure_fnm_zsh
 fi
 
 echo ""

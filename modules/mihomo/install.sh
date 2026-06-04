@@ -359,6 +359,14 @@ verify_mihomo() {
     if [[ "${ENABLE_METACUBEXD:-1}" == "1" ]]; then
         echo "MetaCubeXD: http://${MIHOMO_CONTROLLER_HOST:-127.0.0.1}:${MIHOMO_CONTROLLER_PORT:-9090}/ui/"
     fi
+    if mihomo_config_has_placeholder_subscription; then
+        warn "Mihomo 配置仍是示例订阅，占位替换前不会自动启动服务"
+    elif systemctl is-active --quiet "$MIHOMO_SERVICE_NAME"; then
+        skip "Mihomo 服务正在运行"
+    else
+        warn "Mihomo 服务未运行，请检查配置测试或运行: systemctl status $MIHOMO_SERVICE_NAME"
+    fi
+    warn "shell 代理环境变量块默认保持注释；需要全局启用时请按配置文件说明调整"
 }
 
 uninstall_mihomo() {

@@ -31,6 +31,7 @@ if [[ "$UNINSTALL" == true ]]; then
         remove "removing ~/.config/yazi"
         rm -rf "$HOME/.config/yazi"
     fi
+    os_init_remove_shell_block "yazi"
     echo ""
     echo "=== Yazi uninstall complete ==="
     exit 0
@@ -118,12 +119,17 @@ function ya() {
     rm -f -- "$tmp"
 }
 WRAPPER
-    echo ""
-    echo "  Add to your .zshrc to enable cd-on-exit:"
-    echo "    source ~/.config/yazi/ya.sh"
 fi
+
+YAZI_SHELL_BLOCK="$(cat <<'EOF'
+if [ -f "$HOME/.config/yazi/ya.sh" ]; then
+    . "$HOME/.config/yazi/ya.sh"
+fi
+EOF
+)"
+os_init_upsert_shell_block "yazi" "$YAZI_SHELL_BLOCK"
 
 echo ""
 echo "=== Yazi installation complete ==="
 echo ""
-echo "Run 'yazi' to launch, or 'ya' (after sourcing wrapper) for cd-on-exit."
+echo "$(os_init_text "打开新终端后可用 yazi，或使用 ya 启用退出后 cd 到目标目录。" "Open a new terminal to use yazi, or use ya for cd-on-exit.")"

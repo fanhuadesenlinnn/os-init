@@ -50,7 +50,18 @@ func (m confirmModel) View() string {
 		b.WriteString(ErrorStyle.Render("  "+m.err) + "\n\n")
 	}
 
-	b.WriteString(MutedStyle.Render(text("  y/enter 确认 • n/esc 取消", "  y/enter confirm • n/esc cancel")))
+	confirmTone := helpPrimary
+	confirmText := text("确认执行", "confirm")
+	if m.mode == modeUninstall {
+		confirmTone = helpWarn
+		confirmText = text("确认卸载", "confirm uninstall")
+	}
+	b.WriteString(renderHelpLine(
+		helpAction{key: "Y", desc: confirmText, tone: confirmTone},
+		helpAction{key: "Enter", desc: confirmText, tone: confirmTone},
+		helpAction{key: "N", desc: text("取消", "cancel")},
+		helpAction{key: "Esc", desc: text("返回", "back")},
+	))
 
 	return b.String()
 }

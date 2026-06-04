@@ -117,7 +117,7 @@ jobs:
           ### 主要能力
 
           - 中文 TUI
-          - 中国大陆代理与下载配置
+          - GitHub 专用代理与资源下载配置
           - Mihomo 安装与 systemd 配置
           - Docker Engine 静态二进制安装
           - Docker Compose CLI 插件安装

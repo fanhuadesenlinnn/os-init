@@ -25,7 +25,7 @@ if [[ "$UNINSTALL" == true ]]; then
     else
         skip "Go not installed at $GO_INSTALL_DIR"
     fi
-    echo "  note: remove 'export PATH=\$PATH:/usr/local/go/bin' from your shell profile"
+    os_init_remove_shell_block "go"
     echo ""
     echo "=== Go uninstall complete ==="
     exit 0
@@ -90,15 +90,18 @@ else
 fi
 
 echo "[2/2] PATH..."
-GO_PATH_LINE='export PATH=$PATH:/usr/local/go/bin'
-if echo "$PATH" | grep -q "/usr/local/go/bin"; then
-    skip "/usr/local/go/bin already in PATH"
-else
-    echo "  Add to your .zshrc or .profile:"
-    echo "    $GO_PATH_LINE"
+GO_PATH_BLOCK="$(cat <<'EOF'
+if [ -d /usr/local/go/bin ]; then
+    case ":$PATH:" in
+        *:/usr/local/go/bin:*) ;;
+        *) export PATH="$PATH:/usr/local/go/bin" ;;
+    esac
 fi
+EOF
+)"
+os_init_upsert_shell_block "go" "$GO_PATH_BLOCK"
 
 echo ""
 echo "=== Go installation complete ==="
 echo ""
-echo "Run 'go version' to verify."
+echo "$(os_init_text "打开新终端或执行 exec zsh 后运行 go version 验证。" "Open a new terminal or run exec zsh, then verify with go version.")"

@@ -97,23 +97,38 @@
 
 ## 软件安装
 
+### Shell rc 管理约定
+
+- 不覆盖用户已有 `~/.zshrc`、`~/.bashrc`。
+- 需要接入 shell 的模块会写入带标记的 os-init 管理块：
+  - `# >>> os-init <name> >>>`
+  - `# <<< os-init <name> <<<`
+- 重复运行会更新同名管理块，不会重复追加。
+- 卸载相关模块时只删除对应 os-init 管理块，不主动清理用户自己的手写配置。
+
 ### zsh + oh-my-zsh
 
 - Linux 通过发行版包管理器安装 `zsh`；macOS 缺少 `zsh` 时通过 Homebrew 安装。
 - 使用 `chsh` 将当前用户默认 shell 改为 `zsh`。
 - 克隆或更新 `~/.oh-my-zsh`。
-- 如果 `~/.zshrc` 不存在，复制 `modules/shell/zshrc.template` 到 `~/.zshrc`。
+- 在 `~/.zshrc` 写入或更新 `os-init oh-my-zsh` 管理块：
+  - `export ZSH="$HOME/.oh-my-zsh"`
+  - `ZSH_THEME=""`
+  - `plugins=(...)`
+  - 必要时 `source "$ZSH/oh-my-zsh.sh"`
 - 卸载时删除 `~/.oh-my-zsh`；不删除 zsh 包，不恢复默认 shell。
 
 ### starship
 
 - 下载并执行 starship 安装脚本。
 - 如果 `~/.config/starship.toml` 不存在，复制 `modules/shell/starship.toml`。
+- 在 `~/.zshrc` 写入或更新 `os-init starship` 管理块，执行 `eval "$(starship init zsh)"`。
 - 卸载时删除 `starship` 二进制。
 
 ### direnv
 
 - Linux 通过发行版包管理器安装 `direnv`；macOS 通过 Homebrew 安装。
+- 在 `~/.zshrc` 写入或更新 `os-init direnv` 管理块，执行 `eval "$(direnv hook zsh)"`。
 - 卸载时通过包管理器移除 `direnv`。
 
 ### zsh 插件
@@ -121,18 +136,23 @@
 - 克隆或更新：
   - `~/.oh-my-zsh/custom/plugins/zsh-autosuggestions`
   - `~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting`
+- 两个插件是独立模块；兼容旧的 `plugins` 参数，但不会再把两个插件强行视为同一个模块。
+- 会确保 zsh 和 oh-my-zsh 已存在，并更新 `os-init oh-my-zsh` 管理块里的 `plugins=(...)`。
 - 卸载时删除上述插件目录。
 
 ### nvm
 
 - 下载并执行 nvm 安装脚本。
 - 安装目录为 `~/.nvm`。
+- 安装器以 `PROFILE=/dev/null` 执行，不让 nvm 自行改写用户 rc 文件。
+- 在 `~/.zshrc` 写入或更新 `os-init nvm` 管理块。
 - 卸载时删除 `~/.nvm`。
 
 ### fnm
 
 - 下载并执行 fnm 安装脚本。
 - 必要时通过包管理器安装 `unzip`；macOS 使用 Homebrew。
+- 安装器使用 `--skip-shell`，由 os-init 写入 `os-init fnm` 管理块。
 - 卸载时删除当前 `fnm` 二进制以及 `~/.local/share/fnm`、`~/.fnm`。
 
 ### Git 配置
@@ -163,6 +183,7 @@
 - macOS 通过 Homebrew 安装或更新 `yazi`。
 - 创建 `~/.config/yazi`。
 - 写入 `~/.config/yazi/ya.sh`，提供退出后切换目录的 shell wrapper。
+- 在 `~/.zshrc` 或 `~/.bashrc` 写入 `os-init yazi` 管理块，自动 source `~/.config/yazi/ya.sh`。
 - 卸载时移除 `yazi` 包或 Linux 二进制，并删除 `~/.config/yazi`。
 
 ### macOS 应用和字体
@@ -220,7 +241,11 @@
   - `font-jetbrains-mono-nerd-font`
   - `font-maple-mono-nf`
 
-OrbStack 安装后需要打开应用完成首次初始化。
+以下 macOS GUI 应用只由 os-init 安装，不接管私有配置、账号、订阅或系统代理：
+
+- OrbStack 安装后需要打开应用完成首次初始化。
+- Clash Verge Rev / Clash Party 安装后需要用户在应用内导入自己的代理配置。
+- Royal TSX、Seafile Client、Bitwarden 安装后需要用户在应用内登录或导入自己的数据。
 
 ### macOS 命令行工具
 
@@ -231,6 +256,8 @@ OrbStack 安装后需要打开应用完成首次初始化。
 - 网络和诊断：`htop`、`iftop`、`nload`、`nmap`、`bind`、`rsync`、`wget`
 - 媒体和数据处理：`ffmpeg`、`imagemagick`、`gallery-dl`、`yt-dlp`、`jq`
 - 其他已纳入工具：`herdr`、`llmfit`
+- `zoxide` 会写入 `os-init zoxide` zsh 管理块。
+- `mise` 会写入 `os-init mise` zsh 管理块。
 
 ### Mihomo
 
@@ -253,6 +280,8 @@ OrbStack 安装后需要打开应用完成首次初始化。
   - `CAP_SYS_ADMIN`
 - 可安装 MetaCubeXD 面板到 Mihomo 状态目录下。
 - 会在用户 `~/.bashrc`、`~/.zshrc` 中追加代理环境变量模板注释块。
+- 代理环境变量模板默认保持注释状态，避免安装后直接改变用户所有终端流量。
+- 安装结束会提示配置是否仍为示例订阅，以及 systemd 服务是否正在运行。
 - 卸载时停止并删除 service 与二进制；默认保留配置和状态目录，设置 `PURGE_DATA=1` 才删除。
 
 ### Docker
@@ -271,11 +300,14 @@ OrbStack 安装后需要打开应用完成首次初始化。
   - `registry-mirrors`
   - `insecure-registries`
   - `data-root`
-  - `proxies`
 - 写入 systemd units：
   - `/etc/systemd/system/containerd.service`
   - `/etc/systemd/system/docker.service`
 - 创建 `docker` 用户组，并把当前真实用户加入该组。
+- 安装结束会区分：
+  - Docker 服务是否正在运行
+  - 当前用户是否已加入 `docker` 组
+  - 当前终端会话是否需要重新登录后才免 sudo 生效
 - 卸载时停止并删除 service、Compose 插件和 Docker 静态二进制。
 - 默认保留 `/var/lib/docker`、`/var/lib/containerd` 和 `/etc/docker`；设置 `PURGE_DATA=1` 或 `PURGE_CONFIG=1` 才清理。
 
@@ -283,7 +315,7 @@ OrbStack 安装后需要打开应用完成首次初始化。
 
 - 下载官方 tarball；Linux 使用 `linux-*` 包，macOS 使用 `darwin-*` 包。
 - 删除并重建 `/usr/local/go`。
-- 不直接修改 shell rc，只提示用户把 `/usr/local/go/bin` 加到 `PATH`。
+- 在 `~/.zshrc` 或 `~/.bashrc` 写入 `os-init go` 管理块，把 `/usr/local/go/bin` 加入 `PATH`。
 - 卸载时删除 `/usr/local/go`。
 
 ### Neovim + LazyVim
@@ -296,6 +328,7 @@ OrbStack 安装后需要打开应用完成首次初始化。
 - Linux 下载 lazygit 二进制并安装到 `/usr/local/bin/lazygit`；macOS 通过 Homebrew 安装或更新 `lazygit`。
 - 如果 `~/.config/nvim` 不存在，克隆 LazyVim starter。
 - 如果 `~/.config/nvim` 已存在但不是 LazyVim，会备份为 `~/.config/nvim.bak.<timestamp>` 后再写入。
+- 在 `~/.zshrc` 或 `~/.bashrc` 写入 `os-init neovim` 管理块，默认设置 `EDITOR` 和 `VISUAL` 为 `nvim`。
 - 卸载时移除对应包或二进制，并删除 `~/.config/nvim` 和 `~/.local/share/nvim`。
 
 ## 已移除能力

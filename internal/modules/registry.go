@@ -2,6 +2,24 @@ package modules
 
 import "github.com/fanhuadesenlinnn/os-init/internal/platform"
 
+// ModuleKind describes what "done" means for a module.
+type ModuleKind string
+
+const (
+	KindInstallOnly      ModuleKind = "install-only"
+	KindShellIntegration ModuleKind = "shell-integration"
+	KindSystemService    ModuleKind = "system-service"
+	KindSystemTuning     ModuleKind = "system-tuning"
+)
+
+const (
+	ActivationZshrc        = "zshrc"
+	ActivationShellProfile = "shell-profile"
+	ActivationSystemd      = "systemd"
+	ActivationManual       = "manual"
+	ActivationRelogin      = "relogin"
+)
+
 // Module describes a selectable item in the TUI menu.
 type Module struct {
 	ID                string   // unique key, e.g. "kernel-sysctl"
@@ -16,36 +34,41 @@ type Module struct {
 	Requires          []string // "linux", "systemd"
 	Tags              []string // "server", "dev", "cn-ready"
 	NeedsSudo         bool     // invoke with sudo bash
-	InstalledCmd      string   // command to check if installed (empty = no check)
-	InstalledCheck    string   // file path to check if exists (empty = no check)
-	InstalledGrepFile string   // "filepath:pattern" — check if file contains pattern
+	Kind              ModuleKind
+	DependsOn         []string
+	Activates         []string
+	ManualSteps       []string
+	NeedsRelogin      bool
+	InstalledCmd      string // command to check if installed (empty = no check)
+	InstalledCheck    string // file path to check if exists (empty = no check)
+	InstalledGrepFile string // "filepath:pattern" — check if file contains pattern
 }
 
 // AllModules returns the full registry, unfiltered.
 func AllModules() []Module {
 	return []Module{
 		// ── Optimizations ──
-		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "内核 ▸ sysctl.d", Description: "BBR/FQ、TCP/UDP、conntrack、内存调优", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/sysctl.d/99-os-init.conf:tcp_mtu_probing"},
-		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "内核 ▸ limits.d", Description: "文件句柄、进程数、systemd 默认限制", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/security/limits.d/99-os-init.conf:1048576"},
-		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "内核 ▸ I/O 调度器", Description: "SSD/NVMe 使用 none", Category: "optimization", OS: "linux", InstalledCheck: "/etc/udev/rules.d/60-scheduler.rules"},
-		{ID: "kernel-autotune", Script: "kernel/optimize.sh", Components: []string{"autotune"}, Label: "内核 ▸ 自动调优", Description: "按内存动态调整 conntrack、缓冲区、file-max", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, InstalledCheck: "/etc/systemd/system/autotune.service"},
-		{ID: "network-ipv4", Script: "kernel/optimize.sh", Components: []string{"ipv4"}, Label: "网络 ▸ IPv4 优先", Description: "gai.conf 优先使用 IPv4 解析结果", Category: "optimization", OS: "linux", InstalledGrepFile: "/etc/gai.conf:os-init -- prefer IPv4"},
-		{ID: "network-tune", Script: "kernel/optimize.sh", Components: []string{"network"}, Label: "网络 ▸ 队列与 MSS", Description: "RPS/RSS 多核分发、ring buffer、MSS clamp", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, InstalledCheck: "/etc/systemd/system/os-init-network-tune.service"},
+		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "内核 ▸ sysctl.d", Description: "BBR/FQ、TCP/UDP、conntrack、内存调优", Category: "optimization", OS: "linux", Kind: KindSystemTuning, InstalledGrepFile: "/etc/sysctl.d/99-os-init.conf:tcp_mtu_probing"},
+		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "内核 ▸ limits.d", Description: "文件句柄、进程数、systemd 默认限制", Category: "optimization", OS: "linux", Kind: KindSystemTuning, InstalledGrepFile: "/etc/security/limits.d/99-os-init.conf:1048576"},
+		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "内核 ▸ I/O 调度器", Description: "SSD/NVMe 使用 none", Category: "optimization", OS: "linux", Kind: KindSystemTuning, InstalledCheck: "/etc/udev/rules.d/60-scheduler.rules"},
+		{ID: "kernel-autotune", Script: "kernel/optimize.sh", Components: []string{"autotune"}, Label: "内核 ▸ 自动调优", Description: "按内存动态调整 conntrack、缓冲区、file-max", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, InstalledCheck: "/etc/systemd/system/autotune.service"},
+		{ID: "network-ipv4", Script: "kernel/optimize.sh", Components: []string{"ipv4"}, Label: "网络 ▸ IPv4 优先", Description: "gai.conf 优先使用 IPv4 解析结果", Category: "optimization", OS: "linux", Kind: KindSystemTuning, InstalledGrepFile: "/etc/gai.conf:os-init -- prefer IPv4"},
+		{ID: "network-tune", Script: "kernel/optimize.sh", Components: []string{"network"}, Label: "网络 ▸ 队列与 MSS", Description: "RPS/RSS 多核分发、ring buffer、MSS clamp", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, InstalledCheck: "/etc/systemd/system/os-init-network-tune.service"},
 
 		// ── Installations / Shell ──
-		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "zsh"},
-		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "starship"},
-		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "direnv"},
-		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"},
-		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"plugins"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"},
-		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCheck: "$HOME/.nvm/nvm.sh"},
-		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "fnm"},
-		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", InstalledCmd: "git"},
-		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", InstalledCmd: "byobu"},
+		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "zsh"},
+		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCmd: "starship"},
+		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "direnv"},
+		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"},
+		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"},
+		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.nvm/nvm.sh"},
+		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCmd: "fnm"},
+		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindInstallOnly, InstalledCmd: "git"},
+		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, InstalledCmd: "byobu"},
 
 		// ── Installations / Terminal ──
-		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", InstalledCmd: "ncdu"},
-		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", InstalledCmd: "yazi"},
+		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindInstallOnly, InstalledCmd: "ncdu"},
+		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "yazi"},
 
 		// ── Installations / macOS Apps ──
 		macOSCask("macOS 开发应用", "google-chrome", "Google Chrome", "浏览器", "/Applications/Google Chrome.app"),
@@ -129,12 +152,12 @@ func AllModules() []Module {
 		macOSFormula("llmfit", "llmfit", "命令行工具", "llmfit"),
 
 		// ── Installations / Network ──
-		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "mihomo"},
+		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, InstalledCmd: "mihomo"},
 
 		// ── Installations / Dev Tools ──
-		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, InstalledCmd: "docker"},
-		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", InstalledCmd: "go"},
-		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", InstalledCmd: "nvim"},
+		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, InstalledCmd: "docker"},
+		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "go"},
+		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, InstalledCmd: "nvim"},
 	}
 }
 
@@ -148,6 +171,9 @@ func macOSCask(subsection, component, label, description, installedCheck string)
 		Category:       "installation",
 		Subsection:     subsection,
 		OS:             "darwin",
+		Kind:           KindInstallOnly,
+		Activates:      caskActivations(component),
+		ManualSteps:    caskManualSteps(component),
 		InstalledCheck: installedCheck,
 	}
 }
@@ -162,7 +188,34 @@ func macOSFormula(component, label, description, installedCmd string) Module {
 		Category:     "installation",
 		Subsection:   "macOS 命令行",
 		OS:           "darwin",
+		Kind:         KindInstallOnly,
 		InstalledCmd: installedCmd,
+	}
+}
+
+func caskActivations(component string) []string {
+	switch component {
+	case "orbstack", "clash-verge-rev", "clash-party", "royal-tsx", "seafile-client", "bitwarden":
+		return []string{ActivationManual}
+	default:
+		return nil
+	}
+}
+
+func caskManualSteps(component string) []string {
+	switch component {
+	case "orbstack":
+		return []string{"打开 OrbStack 完成首次初始化"}
+	case "clash-verge-rev", "clash-party":
+		return []string{"打开应用后导入自己的代理配置，不由 os-init 接管订阅和系统代理"}
+	case "royal-tsx":
+		return []string{"打开 Royal TSX 后导入或创建自己的连接配置"}
+	case "seafile-client":
+		return []string{"打开 Seafile Client 后登录账号并选择同步目录"}
+	case "bitwarden":
+		return []string{"打开 Bitwarden 后登录账号或导入自己的密码库"}
+	default:
+		return nil
 	}
 }
 

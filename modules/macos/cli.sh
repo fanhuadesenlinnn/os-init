@@ -95,6 +95,28 @@ uninstall_formula() {
     fi
 }
 
+configure_zoxide_zsh() {
+    local content
+    content="$(cat <<'EOF'
+if command -v zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init zsh)"
+fi
+EOF
+)"
+    os_init_upsert_zsh_block "zoxide" "$content"
+}
+
+configure_mise_zsh() {
+    local content
+    content="$(cat <<'EOF'
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate zsh)"
+fi
+EOF
+)"
+    os_init_upsert_zsh_block "mise" "$content"
+}
+
 require_macos
 ensure_brew
 
@@ -125,6 +147,22 @@ for formula in "${ALL_COMPONENTS[@]}"; do
         install_formula "$formula"
     fi
 done
+
+if want "zoxide"; then
+    if [[ "$UNINSTALL" == true ]]; then
+        os_init_remove_zsh_block "zoxide"
+    else
+        configure_zoxide_zsh
+    fi
+fi
+
+if want "mise"; then
+    if [[ "$UNINSTALL" == true ]]; then
+        os_init_remove_zsh_block "mise"
+    else
+        configure_mise_zsh
+    fi
+fi
 
 echo ""
 echo "=== $(os_init_text "macOS 命令行工具" "macOS CLI Tools") $TITLE $(os_init_text "完成" "complete") ==="

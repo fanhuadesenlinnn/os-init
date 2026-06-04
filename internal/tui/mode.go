@@ -65,7 +65,12 @@ func (m modeModel) View() string {
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
 	b.WriteString(titleStyle.Render(text("  选择执行模式", "  Select Run Mode")) + "\n")
-	b.WriteString(MutedStyle.Render(text("  ↑/↓ 移动 • enter 确认 • esc 返回", "  ↑/↓ move • enter confirm • esc back")) + "\n\n")
+	b.WriteString(renderHelpLine(
+		helpAction{key: "↑/↓", desc: text("移动", "move")},
+		helpAction{key: "J/K", desc: text("移动", "move")},
+		helpAction{key: "Enter", desc: text("确认", "confirm"), tone: helpPrimary},
+		helpAction{key: "Esc", desc: text("返回", "back")},
+	) + "\n\n")
 
 	for i, opt := range modeOptions() {
 		cursor := "  "

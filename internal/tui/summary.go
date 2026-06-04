@@ -78,7 +78,10 @@ func (m summaryModel) View() string {
 		b.WriteString(OKStyle.Render(summary))
 	}
 
-	b.WriteString("\n\n" + MutedStyle.Render(text("  q/enter 退出", "  q/enter quit")))
+	b.WriteString("\n\n" + renderHelpLine(
+		helpAction{key: "Enter", desc: text("退出", "quit"), tone: helpPrimary},
+		helpAction{key: "Q", desc: text("退出", "quit")},
+	))
 
 	return b.String()
 }

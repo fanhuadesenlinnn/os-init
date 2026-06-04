@@ -264,14 +264,7 @@ func configuredURL(envKey, fallback string) string {
 }
 
 func rewriteDownloadURL(rawURL string) string {
-	rewritten := rewriteGitHubURL(rawURL)
-	if rewritten != rawURL {
-		return rewritten
-	}
-	if proxy := os.Getenv("DOWNLOAD_URL_PROXY"); proxy != "" && isHTTPURL(rawURL) {
-		return renderURLProxy(proxy, rawURL)
-	}
-	return rawURL
+	return rewriteGitHubURL(rawURL)
 }
 
 func rewriteGitHubURL(rawURL string) string {
@@ -279,11 +272,17 @@ func rewriteGitHubURL(rawURL string) string {
 	if proxy == "" {
 		return rawURL
 	}
-	if strings.HasPrefix(rawURL, "https://github.com/") ||
-		strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") {
+	if isGitHubURL(rawURL) {
 		return renderURLProxy(proxy, rawURL)
 	}
 	return rawURL
+}
+
+func isGitHubURL(rawURL string) bool {
+	return strings.HasPrefix(rawURL, "https://github.com/") ||
+		strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") ||
+		strings.HasPrefix(rawURL, "https://objects.githubusercontent.com/") ||
+		strings.HasPrefix(rawURL, "https://github-releases.githubusercontent.com/")
 }
 
 func renderURLProxy(proxy, rawURL string) string {
@@ -291,8 +290,4 @@ func renderURLProxy(proxy, rawURL string) string {
 		return strings.ReplaceAll(proxy, "{url}", rawURL)
 	}
 	return strings.TrimRight(proxy, "/") + "/" + rawURL
-}
-
-func isHTTPURL(rawURL string) bool {
-	return strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://")
 }

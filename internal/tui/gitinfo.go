@@ -146,7 +146,11 @@ func (m gitInfoModel) View() string {
 		title = text("  Webhook 配置", "  Webhook Configuration")
 	}
 	b.WriteString(titleStyle.Render(title) + "\n")
-	b.WriteString(MutedStyle.Render(text("  tab 切换 • enter 确认 • esc 返回", "  tab switch • enter confirm • esc back")) + "\n\n")
+	b.WriteString(renderHelpLine(
+		helpAction{key: "Tab", desc: text("切换", "switch")},
+		helpAction{key: "Enter", desc: text("确认", "confirm"), tone: helpPrimary},
+		helpAction{key: "Esc", desc: text("返回", "back")},
+	) + "\n\n")
 
 	var labels []string
 	if m.showIdentity {

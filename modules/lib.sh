@@ -100,8 +100,7 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_OFFLINE OS_INIT_FILES_DIR
-    OS_INIT_PROXY HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
-    DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY DOWNLOAD_URL_PROXY
+    DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
     HOMEBREW_INSTALL_URL HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE
     OH_MY_ZSH_REPO STARSHIP_INSTALL_URL DIRENV_PACKAGE
@@ -224,31 +223,42 @@ OS_FAMILY="$(detect_linux_family)"
 INIT_SYSTEM="$(detect_init)"
 
 source_config_file() {
-    local file="$1"
+    local file="$1" filtered
     if [[ -r "$file" ]]; then
+        filtered="$(mktemp "${TMPDIR:-/tmp}/os-init-config.XXXXXX")" || die "无法创建临时配置快照"
+        awk '
+            BEGIN {
+                ignored["OS_INIT_PROXY"] = 1
+                ignored["os_init_proxy"] = 1
+                ignored["HTTP_PROXY"] = 1
+                ignored["http_proxy"] = 1
+                ignored["HTTPS_PROXY"] = 1
+                ignored["https_proxy"] = 1
+                ignored["ALL_PROXY"] = 1
+                ignored["all_proxy"] = 1
+                ignored["NO_PROXY"] = 1
+                ignored["no_proxy"] = 1
+                ignored["DOWNLOAD_URL_PROXY"] = 1
+            }
+            /^[[:space:]]*($|#)/ { print; next }
+            {
+                line = $0
+                sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+                split(line, parts, "=")
+                key = parts[1]
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+                if (ignored[key]) next
+                print
+            }
+        ' "$file" > "$filtered"
         # shellcheck disable=SC1090
-        source "$file"
+        source "$filtered"
+        rm -f "$filtered"
     fi
 }
 
 export_proxy_env() {
-    OS_INIT_PROXY="${OS_INIT_PROXY:-${os_init_proxy:-}}"
-    HTTP_PROXY="${HTTP_PROXY:-${http_proxy:-}}"
-    HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
-    ALL_PROXY="${ALL_PROXY:-${all_proxy:-}}"
-    NO_PROXY="${NO_PROXY:-${no_proxy:-}}"
-
-    if [[ -n "${OS_INIT_PROXY:-}" ]]; then
-        HTTP_PROXY="${HTTP_PROXY:-$OS_INIT_PROXY}"
-        HTTPS_PROXY="${HTTPS_PROXY:-$OS_INIT_PROXY}"
-        ALL_PROXY="${ALL_PROXY:-$OS_INIT_PROXY}"
-    fi
-
-    export OS_INIT_PROXY HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
-    export http_proxy="$HTTP_PROXY"
-    export https_proxy="$HTTPS_PROXY"
-    export all_proxy="$ALL_PROXY"
-    export no_proxy="$NO_PROXY"
+    export GITHUB_PROXY
 }
 
 load_os_init_config() {
@@ -439,7 +449,7 @@ rewrite_github_url() {
     fi
 
     case "$url" in
-        https://github.com/*|https://raw.githubusercontent.com/*)
+        https://github.com/*|https://raw.githubusercontent.com/*|https://objects.githubusercontent.com/*|https://github-releases.githubusercontent.com/*)
             render_url_proxy "$GITHUB_PROXY" "$url"
             ;;
         *)
@@ -449,36 +459,11 @@ rewrite_github_url() {
 }
 
 rewrite_download_url() {
-    local url="$1" rewritten
-    rewritten="$(rewrite_github_url "$url")"
-    if [[ "$rewritten" != "$url" ]]; then
-        echo "$rewritten"
-        return
-    fi
-
-    case "$url" in
-        http://*|https://*)
-            if [[ -n "${DOWNLOAD_URL_PROXY:-}" ]]; then
-                render_url_proxy "$DOWNLOAD_URL_PROXY" "$url"
-            else
-                echo "$url"
-            fi
-            ;;
-        *)
-            echo "$url"
-            ;;
-    esac
+    rewrite_github_url "$1"
 }
 
 git_with_proxy() {
-    local -a git_args=()
-    if [[ -n "${HTTP_PROXY:-}" ]]; then
-        git_args+=(-c "http.proxy=${HTTP_PROXY}")
-    fi
-    if [[ -n "${HTTPS_PROXY:-}" ]]; then
-        git_args+=(-c "https.proxy=${HTTPS_PROXY}")
-    fi
-    git "${git_args[@]}" "$@"
+    git "$@"
 }
 
 github_latest_version() {
@@ -570,6 +555,174 @@ backup_file() {
         sudo cp -a "$file" "$backup"
         echo "$backup"
     fi
+}
+
+os_init_reown_user_file() {
+    local file="$1" user
+    if [[ "$(id -u)" != "0" || -z "${SUDO_USER:-}" || "${SUDO_USER:-}" == "root" ]]; then
+        return 0
+    fi
+    user="$(real_user)"
+    chown "$user" "$file" 2>/dev/null || true
+}
+
+os_init_prepare_user_file() {
+    local file="$1"
+    mkdir -p "$(dirname "$file")"
+    touch "$file"
+    os_init_reown_user_file "$file"
+}
+
+os_init_upsert_block() {
+    local file="$1" name="$2" content="$3" before_regex="${4:-}"
+    local begin end tmp repl
+    begin="# >>> os-init ${name} >>>"
+    end="# <<< os-init ${name} <<<"
+
+    os_init_prepare_user_file "$file"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-block.XXXXXX")"
+    repl="$(mktemp "${TMPDIR:-/tmp}/os-init-block-repl.XXXXXX")"
+
+    {
+        printf '%s\n' "$begin"
+        printf '%s\n' "$content"
+        printf '%s\n' "$end"
+    } > "$repl"
+
+    if grep -Fq "$begin" "$file"; then
+        awk -v begin="$begin" -v end="$end" -v repl="$repl" '
+            function print_repl(  line) {
+                while ((getline line < repl) > 0) print line
+                close(repl)
+            }
+            $0 == begin {
+                if (!printed) {
+                    print_repl()
+                    printed = 1
+                }
+                in_block = 1
+                next
+            }
+            in_block && $0 == end {
+                in_block = 0
+                next
+            }
+            !in_block { print }
+            END {
+                if (!printed) print_repl()
+            }
+        ' "$file" > "$tmp"
+    elif [[ -n "$before_regex" ]]; then
+        awk -v pattern="$before_regex" -v repl="$repl" '
+            function print_repl(  line) {
+                while ((getline line < repl) > 0) print line
+                close(repl)
+            }
+            $0 ~ pattern && !printed {
+                print_repl()
+                printed = 1
+            }
+            { print }
+            END {
+                if (!printed) {
+                    if (NR > 0) print ""
+                    print_repl()
+                }
+            }
+        ' "$file" > "$tmp"
+    else
+        awk -v repl="$repl" '
+            function print_repl(  line) {
+                while ((getline line < repl) > 0) print line
+                close(repl)
+            }
+            { print }
+            END {
+                if (NR > 0) print ""
+                print_repl()
+            }
+        ' "$file" > "$tmp"
+    fi
+
+    if cmp -s "$file" "$tmp"; then
+        skip "$(basename "$file") 已包含 ${name} 配置"
+    else
+        install "写入 $(basename "$file") 的 ${name} 配置"
+        mv "$tmp" "$file"
+        os_init_reown_user_file "$file"
+    fi
+    rm -f "$tmp" "$repl"
+}
+
+os_init_remove_block() {
+    local file="$1" name="$2" begin end tmp
+    [[ -f "$file" ]] || return 0
+    begin="# >>> os-init ${name} >>>"
+    end="# <<< os-init ${name} <<<"
+    grep -Fq "$begin" "$file" || {
+        skip "$(basename "$file") 未包含 ${name} 配置"
+        return 0
+    }
+
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-block-remove.XXXXXX")"
+    awk -v begin="$begin" -v end="$end" '
+        $0 == begin { in_block = 1; next }
+        in_block && $0 == end { in_block = 0; next }
+        !in_block { print }
+    ' "$file" > "$tmp"
+    install "删除 $(basename "$file") 的 ${name} 配置"
+    mv "$tmp" "$file"
+    os_init_reown_user_file "$file"
+}
+
+os_init_zshrc() {
+    local home
+    home="$(real_home)"
+    [[ -n "$home" ]] || return 1
+    printf '%s\n' "$home/.zshrc"
+}
+
+os_init_shell_rc_files() {
+    local home file any=false
+    home="$(real_home)"
+    [[ -n "$home" ]] || return 1
+    for file in "$home/.zshrc" "$home/.bashrc"; do
+        if [[ -e "$file" ]]; then
+            printf '%s\n' "$file"
+            any=true
+        fi
+    done
+    if [[ "$any" == false ]]; then
+        printf '%s\n' "$home/.zshrc"
+    fi
+}
+
+os_init_upsert_zsh_block() {
+    local name="$1" content="$2" before_regex="${3:-}" file
+    file="$(os_init_zshrc)" || return 0
+    os_init_upsert_block "$file" "$name" "$content" "$before_regex"
+}
+
+os_init_upsert_shell_block() {
+    local name="$1" content="$2" file
+    while IFS= read -r file; do
+        [[ -n "$file" ]] || continue
+        os_init_upsert_block "$file" "$name" "$content"
+    done < <(os_init_shell_rc_files)
+}
+
+os_init_remove_zsh_block() {
+    local name="$1" file
+    file="$(os_init_zshrc)" || return 0
+    os_init_remove_block "$file" "$name"
+}
+
+os_init_remove_shell_block() {
+    local name="$1" file
+    while IFS= read -r file; do
+        [[ -n "$file" ]] || continue
+        os_init_remove_block "$file" "$name"
+    done < <(os_init_shell_rc_files)
 }
 
 json_escape() {

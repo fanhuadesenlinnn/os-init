@@ -13,12 +13,23 @@ func TestRewriteDownloadURL_GitHubProxyWins(t *testing.T) {
 	}
 }
 
-func TestRewriteDownloadURL_GenericProxy(t *testing.T) {
+func TestRewriteDownloadURL_IgnoresGenericProxy(t *testing.T) {
 	t.Setenv("GITHUB_PROXY", "")
 	t.Setenv("DOWNLOAD_URL_PROXY", "https://dl.example.com/?url={url}")
 
 	got := rewriteDownloadURL("https://go.dev/VERSION?m=text")
-	want := "https://dl.example.com/?url=https://go.dev/VERSION?m=text"
+	want := "https://go.dev/VERSION?m=text"
+	if got != want {
+		t.Fatalf("unexpected url: got %q, want %q", got, want)
+	}
+}
+
+func TestRewriteDownloadURL_GitHubAssetHosts(t *testing.T) {
+	t.Setenv("GITHUB_PROXY", "https://gh.example.com/?url={url}")
+	t.Setenv("DOWNLOAD_URL_PROXY", "https://dl.example.com/?url={url}")
+
+	got := rewriteDownloadURL("https://github-releases.githubusercontent.com/123/asset.tar.gz")
+	want := "https://gh.example.com/?url=https://github-releases.githubusercontent.com/123/asset.tar.gz"
 	if got != want {
 		t.Fatalf("unexpected url: got %q, want %q", got, want)
 	}

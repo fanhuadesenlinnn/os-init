@@ -39,7 +39,6 @@ func Apply(assets fs.FS) {
 		_ = os.Setenv(key, value)
 	}
 	applyRuntimeOverrides()
-	exportProxyEnv()
 }
 
 // SetRuntimeOverride pins a setting for this process after config files are
@@ -93,7 +92,24 @@ func loadLocalFile(path string) {
 
 func loadEnv(r io.Reader) {
 	for key, value := range ParseEnv(r) {
+		if ignoredProxyConfigKey(key) {
+			continue
+		}
 		_ = os.Setenv(key, value)
+	}
+}
+
+func ignoredProxyConfigKey(key string) bool {
+	switch key {
+	case "OS_INIT_PROXY", "os_init_proxy",
+		"HTTP_PROXY", "http_proxy",
+		"HTTPS_PROXY", "https_proxy",
+		"ALL_PROXY", "all_proxy",
+		"NO_PROXY", "no_proxy",
+		"DOWNLOAD_URL_PROXY":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -152,37 +168,4 @@ func unquoteValue(value string) string {
 	value = strings.ReplaceAll(value, `\"`, `"`)
 	value = strings.ReplaceAll(value, `\\`, `\`)
 	return value
-}
-
-func exportProxyEnv() {
-	osInitProxy := firstNonempty(os.Getenv("OS_INIT_PROXY"), os.Getenv("os_init_proxy"))
-	httpProxy := firstNonempty(os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"))
-	httpsProxy := firstNonempty(os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"))
-	allProxy := firstNonempty(os.Getenv("ALL_PROXY"), os.Getenv("all_proxy"))
-	noProxy := firstNonempty(os.Getenv("NO_PROXY"), os.Getenv("no_proxy"))
-
-	if osInitProxy != "" {
-		httpProxy = firstNonempty(httpProxy, osInitProxy)
-		httpsProxy = firstNonempty(httpsProxy, osInitProxy)
-		allProxy = firstNonempty(allProxy, osInitProxy)
-	}
-
-	setProxyPair("HTTP_PROXY", "http_proxy", httpProxy)
-	setProxyPair("HTTPS_PROXY", "https_proxy", httpsProxy)
-	setProxyPair("ALL_PROXY", "all_proxy", allProxy)
-	setProxyPair("NO_PROXY", "no_proxy", noProxy)
-}
-
-func firstNonempty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
-}
-
-func setProxyPair(upper, lower, value string) {
-	_ = os.Setenv(upper, value)
-	_ = os.Setenv(lower, value)
 }
