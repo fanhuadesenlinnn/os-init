@@ -33,7 +33,9 @@ TARGET_MAX=$((RAM_GB * PER_GB))
 
 # conntrack_max
 if ! lsmod | grep -q "^nf_conntrack "; then
-    modprobe nf_conntrack 2>/dev/null && sleep 1 || true
+    if modprobe nf_conntrack 2>/dev/null; then
+        sleep 1
+    fi
 fi
 if [ -f "/proc/sys/net/netfilter/nf_conntrack_max" ]; then
     CURRENT=$(sysctl -n net.netfilter.nf_conntrack_max 2>/dev/null || echo 0)
