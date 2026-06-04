@@ -29,6 +29,46 @@ want() {
     return 1
 }
 
+login_shell_for_user() {
+    local user="$1" shell=""
+    if is_macos && command -v dscl &>/dev/null; then
+        shell="$(dscl . -read "/Users/$user" UserShell 2>/dev/null | awk '{print $2}' || true)"
+    elif command -v getent &>/dev/null; then
+        shell="$(getent passwd "$user" | cut -d: -f7)"
+    elif [[ -r /etc/passwd ]]; then
+        shell="$(awk -F: -v user="$user" '$1 == user {print $7}' /etc/passwd)"
+    fi
+    echo "${shell:-${SHELL:-}}"
+}
+
+ensure_login_shell_allowed() {
+    local shell_path="$1"
+    [[ -f /etc/shells ]] || return 0
+    if grep -qxF "$shell_path" /etc/shells; then
+        return 0
+    fi
+    install "adding $shell_path to /etc/shells"
+    printf '%s\n' "$shell_path" | sudo tee -a /etc/shells >/dev/null
+}
+
+set_default_zsh() {
+    local shell_path user current_shell
+    shell_path="$(command -v zsh)"
+    user="$(real_user)"
+    current_shell="$(login_shell_for_user "$user")"
+
+    if [[ "$(basename "${current_shell:-}")" == "zsh" ]]; then
+        skip "zsh is already the default shell"
+        return
+    fi
+
+    ensure_login_shell_allowed "$shell_path"
+    install "setting zsh as default shell for $user"
+    if ! sudo chsh -s "$shell_path" "$user"; then
+        die "无法非交互式切换默认 shell，请确认 sudo 验证成功且 $shell_path 已写入 /etc/shells"
+    fi
+}
+
 nvm_version() {
     local version="${NVM_VERSION:-}"
     [[ -n "$version" ]] || version="$(github_latest_version "nvm-sh/nvm" "")"
@@ -161,12 +201,7 @@ if want "zsh"; then
         pkg_install zsh
     fi
 
-    if [[ "$(basename "$SHELL")" != "zsh" ]]; then
-        install "setting zsh as default shell (requires password)"
-        chsh -s "$(command -v zsh)"
-    else
-        skip "zsh is already the default shell"
-    fi
+    set_default_zsh
 
     if [[ -d "$HOME/.oh-my-zsh" ]]; then
         if [[ "$UPDATE" == true ]]; then

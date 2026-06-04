@@ -78,6 +78,23 @@ remove()  { log_line "$RED" "删除" "Remove" "$1"; }
 warn()    { log_line "$YELLOW" "警告" "Warning" "$1"; }
 die()     { log_line "$RED" "错误" "Error" "$1" >&2; exit 1; }
 
+sudo() {
+    if [[ "$(id -u)" == "0" ]] && ! type -P sudo &>/dev/null; then
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                -n|-E|-H|-S) shift ;;
+                -p) shift 2 ;;
+                --) shift; break ;;
+                -*) shift ;;
+                *) break ;;
+            esac
+        done
+        "$@"
+        return
+    fi
+    command sudo -n "$@"
+}
+
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
