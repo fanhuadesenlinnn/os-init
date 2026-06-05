@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10.0 - 2026-06-05
+
+### Added
+
+- Embed ArchDevKit as an independent Arch Linux-only subsystem with its original modules, config, status, doctor, and profiles.
+- Add an ArchDevKit top-level TUI menu that appears only on Arch-family Linux targets.
+- Run embedded ArchDevKit self-checks in local `make check` and GitHub release workflow.
+
 ## v0.9.2 - 2026-06-05
 
 ### Changed

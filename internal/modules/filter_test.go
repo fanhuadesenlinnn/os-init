@@ -110,6 +110,30 @@ func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	}
 }
 
+func TestForTarget_ShowsArchDevKitOnlyOnArchLinux(t *testing.T) {
+	t.Parallel()
+
+	arch := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
+	if !hasModule(arch, "archdevkit-workstation") {
+		t.Fatal("ArchDevKit modules should appear on Arch Linux")
+	}
+
+	debian := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"})
+	if hasModule(debian, "archdevkit-workstation") {
+		t.Fatal("ArchDevKit modules should be hidden on Debian-family Linux")
+	}
+
+	redhat := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyRedHat, Init: "systemd"})
+	if hasModule(redhat, "archdevkit-workstation") {
+		t.Fatal("ArchDevKit modules should be hidden on RedHat-family Linux")
+	}
+
+	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
+	if hasModule(darwin, "archdevkit-workstation") {
+		t.Fatal("ArchDevKit modules should be hidden on macOS")
+	}
+}
+
 func hasModule(mods []Module, id string) bool {
 	for _, m := range mods {
 		if m.ID == id {

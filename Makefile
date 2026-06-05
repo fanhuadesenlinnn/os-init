@@ -1,4 +1,4 @@
-.PHONY: build run lint test check clean
+.PHONY: build run lint test archdevkit-test check clean
 
 BINARY ?= os-init
 VERSION ?= dev
@@ -18,7 +18,10 @@ lint:
 test:
 	go test ./...
 
-check: test lint
+archdevkit-test:
+	bash modules/archdevkit/vendor/scripts/test.sh
+
+check: test lint archdevkit-test
 
 clean:
 	rm -rf os-init kickstart dist

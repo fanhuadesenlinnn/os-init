@@ -1,0 +1,105 @@
+/*****----- Configuration -----*****/
+configuration {
+    show-icons:                 false;
+}
+
+/*****----- Global Properties -----*****/
+* {
+    font: "JetBrainsMono Nerd Font 11";
+    background:                  #232634;
+    selected:                    #8aadf4;
+    active:                      #a6d189;
+    urgent:                      #ef9f76;
+}
+
+/*
+USE_BUTTONS=YES
+*/
+
+/*****----- Main Window -----*****/
+window {
+    transparency:                "real";
+    location:                    center;
+    anchor:                      center;
+    fullscreen:                  false;
+    width:                       350px;
+    x-offset:                    0px;
+    y-offset:                    0px;
+
+    padding:                     0px;
+    border:                      0px solid;
+    border-radius:               8px;
+    border-color:                @selected;
+    cursor:                      "default";
+    background-color:            @background;
+}
+
+/*****----- Main Box -----*****/
+mainbox {
+    enabled:                     true;
+    spacing:                     0px;
+    margin:                      0px;
+    padding:                     0px;
+    border:                      0px solid;
+    border-radius:               0px;
+    border-color:                @selected;
+    background-color:            transparent;
+    children:                    [ "message", "listview" ];
+}
+
+/*****----- Listview -----*****/
+listview {
+    enabled:                     true;
+    columns:                     2;
+    lines:                       1;
+    cycle:                       true;
+    dynamic:                     true;
+    scrollbar:                   false;
+    layout:                      vertical;
+    reverse:                     false;
+    fixed-height:                true;
+    fixed-columns:               true;
+
+    spacing:                     16px;
+    padding:                     32px;
+    margin:                      0px;
+    background-color:            transparent;
+    cursor:                      "default";
+}
+
+/*****----- Elements -----*****/
+element {
+    enabled:                     true;
+    padding:                     17px;
+    border-radius:               16px;
+    background-color:            #596079;
+    text-color:                  #f0f3ff;
+    cursor:                      pointer;
+}
+element-text {
+    font:                        "Font Awesome 5 Free Bold 24";
+    background-color:            transparent;
+    text-color:                  inherit;
+    cursor:                      inherit;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+}
+element selected.normal {
+    background-color:            #8aadf4;
+}
+
+/*****----- Message -----*****/
+message {
+    enabled:                     true;
+    margin:      		 0px 25px;
+    padding:                     10px 20px;
+    border-radius: 		 0% 0% 100% 100%;
+    background-color: 		 #ca9ee6;
+}
+textbox {
+    background-color:            transparent;
+    text-color:                  #34384a;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+}
+/***** Rofi 剪贴板确认框样式：用于清空或删除剪贴板条目前的确认。 *****/

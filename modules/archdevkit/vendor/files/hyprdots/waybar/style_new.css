@@ -1,0 +1,197 @@
+/* Waybar 新版样式：i3 Clear 风格，黑底、清晰文字、蓝色焦点、状态色只表达状态。 */
+@import 'mocha.css';
+
+* {
+  background-color: @base;
+  color: @text;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  font-family: "Monaco", "Noto Sans CJK SC", "Noto Color Emoji", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+
+.modules-left {}
+
+.modules-right {}
+
+#workspaces {
+  /* 工作区区域：当前工作区通过低饱和蓝下划线高亮。 */
+  border-radius: 0px;
+  margin-right: 10px;
+  background: @base;
+}
+
+#workspaces button {
+  all: initial;
+  padding: 0 9px;
+  margin: 0 2px;
+}
+
+#workspaces button label {
+  color: @overlay2;
+}
+
+#workspaces button.active label {
+  color: @text;
+  border-bottom: 3px solid @blue;
+  padding: 0 5px;
+}
+
+#workspaces button.empty label {
+  color: @overlay0;
+}
+
+#tray {
+  min-width: 0px;
+  transition: min-width 0.2s ease, opacity 0.2s ease;
+  opacity: 0;
+}
+
+#tray:hover {
+  min-width: 150px;
+  opacity: 1;
+}
+
+#tray,
+#cpu,
+#network,
+#pulseaudio {
+  min-width: 12px;
+  margin: 0 7.5px;
+}
+
+
+#clock {
+  color: @text;
+  padding: 0 10px;
+}
+
+#custom-arch {
+  min-width: 20px;
+  margin: 0px 10px 0px 6px;
+  font-size: 18px;
+  color: @blue;
+}
+
+#custom-expand-icon {
+  margin-right: 7px;
+}
+
+tooltip {
+  color: @text;
+  background: @surface0;
+  border: 1px solid @surface2;
+  font-family: "Monaco", "Noto Sans CJK SC", "Noto Color Emoji", sans-serif;
+  font-size: 13px;
+  padding: 6px;
+}
+
+
+.hidden {
+  opacity: 0;
+}
+
+#custom-seperator {
+  color: @overlay1;
+}
+
+#cpu {
+  color: @green;
+  margin-right: 10px;
+}
+
+#custom-transparency {
+  font-size: 15px;
+  margin-right: 8;
+  margin-left: 8;
+  color: @green;
+}
+
+#custom-wallpaper {
+  font-size: 15px;
+  margin-right: 10px;
+  margin-left: 8px;
+  color: @blue;
+}
+
+
+#custom-gh {
+  margin-right: 10px;
+  margin-left: 10px;
+  font-size: 10px;
+}
+
+#memory {
+  color: @peach;
+  margin-right: 10px;
+}
+
+
+#temperature.gpu {
+  color: @yellow;
+  margin-left: 6px;
+}
+
+#backlight {
+  color: @lavender;
+  margin-right: 10px;
+}
+
+#wireplumber {
+  color: @lavender;
+}
+
+#network {
+  color: @sky;
+  margin-right: 10px;
+}
+
+#network.speed {
+  color: @text;
+}
+
+#battery {
+  padding: 0 8px;
+  margin-left: 2px;
+}
+
+#battery.charging {
+  color: @base;
+  background: @green;
+}
+
+#battery.good:not(.charging) {
+  background: @sky;
+  color: @base;
+}
+
+#battery.warning:not(.charging) {
+  background: @peach;
+  color: @base;
+}
+
+#battery.low:not(.charging) {
+  background: @red;
+  color: @text;
+}
+
+#battery.critical:not(.charging) {
+  background: @red;
+  color: @text;
+  animation-name: blink;
+  animation-duration: 0.75s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  border-radius: 6px;
+}
+
+@keyframes blink {
+  to {
+    color: @red;
+    background: @text;
+  }
+}

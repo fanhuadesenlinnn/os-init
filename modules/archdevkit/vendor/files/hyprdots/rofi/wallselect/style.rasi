@@ -1,0 +1,78 @@
+/*****----- Configuration -----*****/
+configuration {
+    show-icons:                 true;
+    drun-display-format:        "{name}";
+}
+
+/*****----- Global Properties -----*****/
+* {
+    font:                        "JetBrainsMono Nerd Font 10";
+    background:                  #232634;
+    background-alt:              #34384a;
+    foreground:                  #f0f3ff;
+    selected:                    #8aadf4;
+}
+
+/*****----- Main Window -----*****/
+window {
+    fullscreen:                  false;
+    location:                    center;
+    width:                       80%;
+    border-radius:               6px;
+    padding:                     10px;
+    background-color:            transparent;
+}
+
+/*****----- Main Layout -----*****/
+mainbox {
+    border-radius:               6px;
+
+    spacing:                     0px;
+    orientation:                 vertical;
+    children:                    [ "listbox" ];
+}
+
+listbox {
+    spacing:                     0px;
+    orientation:                 vertical;
+    children:                    [ "listview" ];
+}
+
+/*****----- Listview: Icon Grid -----*****/
+listview {
+    columns:                     5;
+    lines:                       1;
+    layout:                      vertical;
+    fixed-columns:               true;
+    fixed-height:                true;
+    dynamic:                     false;
+    spacing:                     10px;
+    padding:                     8px;
+    border-radius:               6px;
+    background-color:            #292c3c;
+}
+
+/*****----- Element Styling -----*****/
+element {
+    padding:                     0px 10px 0px 10px;
+    border-radius:               6px;
+    background-color:            transparent;
+    horizontal-align:            0.5;
+}
+element selected.normal {
+    background-color:            @selected;
+}
+element-icon {
+    size:                        159px;
+    border-radius:               6px;
+    background-color:            transparent;
+    vertical-align:              0.5;
+    padding:                     2px;
+}
+element-text {
+    text-color:                  transparent;
+    background-color:            transparent;
+    padding:                     0px;
+    font:                        "JetBrains Mono Nerd Font 0";
+}
+/***** Rofi 壁纸选择器样式：控制壁纸缩略图列表和选中态。 *****/

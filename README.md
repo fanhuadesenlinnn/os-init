@@ -35,6 +35,7 @@ make build
 - TCP/UDP 优化：吸收 `tcp.vpsing.de` 的有效配置，加入 IPv4 优先、BBR/FQ、ECN、MTU 探测、RPS/RSS、MSS clamp。
 - 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
+- ArchDevKit：在 Arch Linux 上显示独立菜单，完整嵌入 ArchDevKit 的 base、archlinuxcn、dns、runtime、desktop、doctor、config 等能力。
 - Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
 - 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
 
@@ -64,6 +65,31 @@ make build
 | macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
 | 网络代理 | Mihomo |
 | 开发工具 | Docker、Go、Neovim + LazyVim |
+
+### ArchDevKit
+
+该菜单仅在 Arch Linux 系统显示。ArchDevKit 作为独立子系统嵌入在 `modules/archdevkit/vendor`，保留自己的配置、状态和模块逻辑。
+
+| 模块 | 功能 |
+| --- | --- |
+| 基础环境 | 基础工具、排障工具、现代 CLI、tmux、AUR helper |
+| archlinuxcn 软件源 | archlinuxcn 源、keyring、mirrorlist |
+| 系统 DNS | systemd-resolved、NetworkManager DNS 后端、国内 DNS 基线 |
+| Git / Ops Toolkit | GitHub CLI、OpenSSH、ops-toolkit 命令入口 |
+| Runtime / mise | Node/npm/Python/Go、mise、国内镜像环境 |
+| Neovim / Docker / 字体 | ArchDevKit 原有开发环境模块 |
+| Zsh / Proxy / Hyprland | Oh My Zsh、Powerlevel10k、Mihomo/sing-box、Hyprland 桌面 |
+| dev / workstation | ArchDevKit 原有组合套餐 |
+| status / doctor / config | ArchDevKit 原有状态、诊断和配置命令 |
+
+ArchDevKit 使用自己的配置文件和状态目录：
+
+```bash
+~/.config/archdevkit/config.env
+~/.local/state/archdevkit
+```
+
+注意：ArchDevKit 的 `shell` 和 `desktop` 模块会按原项目逻辑生成或覆盖部分用户配置，例如 `~/.zshrc`、Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等配置。需要更温和的 Shell 接入时，优先使用 os-init 自带 Shell 模块。
 
 ## 已移除模块
 
@@ -172,6 +198,7 @@ os-init --help
 ```bash
 make build
 make test
+make archdevkit-test
 make lint
 make run
 ```

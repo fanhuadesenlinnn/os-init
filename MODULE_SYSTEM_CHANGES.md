@@ -105,6 +105,35 @@
 
 ## 软件安装
 
+### ArchDevKit 独立子系统
+
+该菜单仅在 Arch Linux 显示。os-init 将 ArchDevKit 作为独立子系统嵌入到 `modules/archdevkit/vendor`，外层通过 `modules/archdevkit/run.sh` 调用原始入口。
+
+- ArchDevKit 保留自己的配置文件：`~/.config/archdevkit/config.env`。
+- ArchDevKit 保留自己的状态目录：`~/.local/state/archdevkit`。
+- os-init 不会把 ArchDevKit 配置强行并入 `~/.config/os-init/config.env`。
+- 安装类菜单会调用 `bash install.sh install <target> --yes`；更新模式会追加 `--force`。
+- ArchDevKit 原项目不提供系统卸载流程，因此 os-init 的卸载模式不会伪装成卸载；需要重跑时使用更新模式或 ArchDevKit 的 `reset-state`。
+
+ArchDevKit 菜单项覆盖原项目能力：
+
+- `base`：通过 pacman 安装基础工具、排障工具、现代 CLI、tmux、AUR helper。
+- `archlinuxcn`：备份并修改 `/etc/pacman.conf`，安装 `archlinuxcn-keyring` 和可选 mirrorlist。
+- `dns`：写入 `/etc/systemd/resolved.conf.d/90-archdevkit-dns.conf`、`/etc/NetworkManager/conf.d/90-archdevkit-dns.conf`，可修改 `/etc/resolv.conf` 指向 systemd-resolved。
+- `runtime`：通过 pacman 安装 Node.js、npm、Python、Go、mise、corepack，并写入 `~/.config/archdevkit/mise-china.env`。
+- `git`：安装 git、GitHub CLI、OpenSSH，并写入全局 Git 配置。
+- `ops-toolkit`：克隆仓库到 `~/.local/share/ops-toolkit`，在 `~/.local/bin` 生成命令入口。
+- `nvim`：安装 Neovim 并写入 ArchDevKit 的 Neovim 配置。
+- `docker`：通过 pacman 安装 Docker/Compose，写入 `/etc/docker/daemon.json`，启用 `docker.service`，可把用户加入 `docker` 组。
+- `fonts`：安装中文字体、Emoji、Nerd Font、Monaco，并调整 fontconfig/GTK 字体。
+- `shell`：按 ArchDevKit 原逻辑安装 Zsh、Oh My Zsh、Powerlevel10k 和插件，会生成或覆盖 `~/.zshrc` 与 `~/.p10k.zsh`。
+- `proxy`：安装 Mihomo 或 sing-box，写入代理配置、systemd 服务和 shell 代理模板。
+- `desktop`：安装 Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots，会写入 Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等用户配置。
+- `dev` / `workstation`：保留 ArchDevKit 原有组合套餐。
+- `status` / `doctor` / `config` / `reset-state`：保留 ArchDevKit 原有状态、诊断、配置和状态重置能力。
+
+如果希望 Shell 配置保持 os-init 的温和管理块方式，不要使用 ArchDevKit 的 `shell` 模块，改用 os-init 自带 Shell 工具模块。
+
 ### Shell rc 管理约定
 
 - 不覆盖用户已有 `~/.zshrc`、`~/.bashrc`。

@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# VMware + Hyprland dynamic resize helper.
+# VMware Tools can expose a new preferred mode after the host window changes,
+# but wlroots/Hyprland may not always re-apply it automatically. This helper
+# periodically re-applies the preferred monitor rule in VMware guests only.
+set -u
+
+log_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/archdevkit"
+log_file="${log_dir}/vmware-resize.log"
+mkdir -p "${log_dir}"
+
+log() {
+  printf '[%s] %s\n' "$(date '+%F %T')" "$*" >>"${log_file}"
+}
+
+is_vmware_guest() {
+  local virt_type=""
+  if command -v systemd-detect-virt >/dev/null 2>&1; then
+    virt_type="$(systemd-detect-virt 2>/dev/null || true)"
+    [[ "${virt_type}" == "vmware" ]] && return 0
+  fi
+
+  command -v lspci >/dev/null 2>&1 && lspci 2>/dev/null | grep -qi 'vmware'
+}
+
+is_vmware_guest || {
+  log "not a VMware guest, exiting"
+  exit 0
+}
+
+if ! command -v hyprctl >/dev/null 2>&1; then
+  log "hyprctl not found, exiting"
+  exit 0
+fi
+
+interval="${ARCHDEVKIT_VMWARE_RESIZE_INTERVAL:-1}"
+case "${interval}" in
+  ''|*[!0-9.]* ) interval=1 ;;
+esac
+
+monitor_rule="${ARCHDEVKIT_VMWARE_MONITOR_RULE:-,preferred,auto,1}"
+log "starting VMware dynamic resize helper: interval=${interval}s, monitor=${monitor_rule}"
+
+# Wait until Hyprland is ready. exec-once usually runs after the compositor starts,
+# but this avoids noisy failures on slow virtual machines.
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if hyprctl monitors >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.2
+done
+
+while true; do
+  if hyprctl monitors >/dev/null 2>&1; then
+    hyprctl keyword monitor "${monitor_rule}" >/dev/null 2>&1 || \
+      log "failed to apply monitor rule: ${monitor_rule}"
+  fi
+  sleep "${interval}"
+done

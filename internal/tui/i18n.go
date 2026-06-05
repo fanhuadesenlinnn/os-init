@@ -25,6 +25,8 @@ func moduleSection(label string) string {
 		return "System Optimization"
 	case "软件安装":
 		return "Software Installation"
+	case "ArchDevKit":
+		return "ArchDevKit"
 	case "Shell 工具":
 		return "Shell Tools"
 	case "终端工具":
@@ -77,22 +79,42 @@ func moduleDescription(id, fallback string) string {
 }
 
 var moduleLabelEN = map[string]string{
-	"kernel-sysctl":         "Kernel - sysctl.d",
-	"kernel-limits":         "Kernel - limits.d",
-	"kernel-scheduler":      "Kernel - I/O scheduler",
-	"kernel-autotune":       "Kernel - auto tuning",
-	"network-ipv4":          "Network - prefer IPv4",
-	"network-tune":          "Network - queues and MSS",
-	"shell-starship":        "starship prompt",
-	"shell-git":             "Git configuration",
-	"terminal-ncdu":         "ncdu",
-	"mihomo":                "Mihomo",
-	"docker":                "Docker",
-	"go":                    "Go",
-	"neovim":                "Neovim + LazyVim",
-	"macos-wechat":          "WeChat",
-	"macos-tencent-meeting": "Tencent Meeting",
-	"macos-qqlive":          "Tencent Video",
+	"kernel-sysctl":              "Kernel - sysctl.d",
+	"kernel-limits":              "Kernel - limits.d",
+	"kernel-scheduler":           "Kernel - I/O scheduler",
+	"kernel-autotune":            "Kernel - auto tuning",
+	"network-ipv4":               "Network - prefer IPv4",
+	"network-tune":               "Network - queues and MSS",
+	"shell-starship":             "starship prompt",
+	"shell-git":                  "Git configuration",
+	"terminal-ncdu":              "ncdu",
+	"mihomo":                     "Mihomo",
+	"docker":                     "Docker",
+	"go":                         "Go",
+	"neovim":                     "Neovim + LazyVim",
+	"archdevkit-base":            "Base environment",
+	"archdevkit-archlinuxcn":     "archlinuxcn repository",
+	"archdevkit-dns":             "System DNS",
+	"archdevkit-git":             "Git / GitHub CLI",
+	"archdevkit-ops-toolkit":     "Ops Toolkit",
+	"archdevkit-runtime":         "Runtime / mise",
+	"archdevkit-nvim":            "Neovim",
+	"archdevkit-docker":          "Docker / Compose",
+	"archdevkit-fonts":           "Font environment",
+	"archdevkit-shell":           "Zsh / Oh My Zsh / Powerlevel10k",
+	"archdevkit-proxy":           "Proxy environment",
+	"archdevkit-desktop":         "Hyprland desktop",
+	"archdevkit-dev":             "Development profile",
+	"archdevkit-workstation":     "Workstation profile",
+	"archdevkit-status":          "Status",
+	"archdevkit-doctor":          "Doctor",
+	"archdevkit-config-init":     "Initialize config",
+	"archdevkit-config-show":     "Show config",
+	"archdevkit-config-validate": "Validate config",
+	"archdevkit-reset-state":     "Reset state",
+	"macos-wechat":               "WeChat",
+	"macos-tencent-meeting":      "Tencent Meeting",
+	"macos-qqlive":               "Tencent Video",
 }
 
 var moduleDescriptionEN = map[string]string{
@@ -188,4 +210,24 @@ var moduleDescriptionEN = map[string]string{
 	"docker":                              "Static binary, Compose plugin, and daemon config",
 	"go":                                  "Go toolchain",
 	"neovim":                              "Editor with IDE-like features",
+	"archdevkit-base":                     "Base tools, troubleshooting tools, modern CLI tools, tmux, and AUR helpers",
+	"archdevkit-archlinuxcn":              "Configure archlinuxcn repository, keyring, and mirrorlist",
+	"archdevkit-dns":                      "systemd-resolved, NetworkManager DNS backend, and mainland-friendly DNS baseline",
+	"archdevkit-git":                      "git, gh, OpenSSH, and basic Git configuration",
+	"archdevkit-ops-toolkit":              "Clone the ops-toolkit repository and create stable command entrypoints",
+	"archdevkit-runtime":                  "System Node/npm/Python/Go, mise, and China mirror configuration",
+	"archdevkit-nvim":                     "Neovim and personal configuration",
+	"archdevkit-docker":                   "Install Docker/Compose through pacman, configure mirrors, service, and group",
+	"archdevkit-fonts":                    "Chinese fonts, Emoji, Nerd Font, Monaco, and fontconfig",
+	"archdevkit-shell":                    "Zsh, Oh My Zsh, Powerlevel10k, plugins, and default shell",
+	"archdevkit-proxy":                    "Mihomo or sing-box, MetaCubeXD, and shell proxy template",
+	"archdevkit-desktop":                  "Hyprland, SDDM, Fcitx5/Rime, browser, terminal, and hyprdots",
+	"archdevkit-dev":                      "base + archlinuxcn + dns + git + ops-toolkit + runtime + nvim + docker + fonts + shell + proxy",
+	"archdevkit-workstation":              "dev + Hyprland desktop",
+	"archdevkit-status":                   "Show ArchDevKit module status and suggested actions",
+	"archdevkit-doctor":                   "Run ArchDevKit doctor diagnostics",
+	"archdevkit-config-init":              "Create ~/.config/archdevkit/config.env",
+	"archdevkit-config-show":              "Show the active ArchDevKit configuration",
+	"archdevkit-config-validate":          "Validate the ArchDevKit config file",
+	"archdevkit-reset-state":              "Clear ArchDevKit state records without uninstalling system software",
 }

@@ -96,6 +96,28 @@ func AllModules() []Module {
 		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 ncdu", InstalledCmd: "ncdu"},
 		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /usr/local/bin", InstalledCmd: "yazi", InstalledCheck: "$HOME/.config/yazi/ya.sh", InstalledShellBlocks: []string{"yazi"}},
 
+		// ── ArchDevKit ──
+		archDevKitInstall("base", "基础环境", "基础工具、排障工具、现代 CLI、tmux、AUR helper", KindInstallOnly, "rg"),
+		archDevKitInstall("archlinuxcn", "archlinuxcn 软件源", "配置 archlinuxcn 源、keyring 和 mirrorlist", KindSystemTuning, ""),
+		archDevKitInstall("dns", "系统 DNS", "systemd-resolved、NetworkManager DNS 后端、国内 DNS 基线", KindSystemTuning, ""),
+		archDevKitInstall("git", "Git / GitHub CLI", "git、gh、openssh 和基础 Git 配置", KindInstallOnly, "gh"),
+		archDevKitInstall("ops-toolkit", "Ops Toolkit", "克隆运维脚本仓库并生成稳定命令入口", KindShellIntegration, "ops"),
+		archDevKitInstall("runtime", "Runtime / mise", "系统 Node/npm/Python/Go、mise 和国内镜像配置", KindShellIntegration, "mise"),
+		archDevKitInstall("nvim", "Neovim", "Neovim 和个人配置", KindShellIntegration, "nvim"),
+		archDevKitInstall("docker", "Docker / Compose", "pacman 安装 Docker/Compose、镜像源、服务和用户组", KindSystemService, "docker"),
+		archDevKitInstall("fonts", "字体环境", "中文字体、Emoji、Nerd Font、Monaco 和 fontconfig", KindInstallOnly, "fc-cache"),
+		archDevKitInstall("shell", "Zsh / Oh My Zsh / Powerlevel10k", "Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell", KindShellIntegration, "zsh"),
+		archDevKitInstall("proxy", "Proxy 代理环境", "Mihomo 或 sing-box、MetaCubeXD、shell 代理模板", KindSystemService, ""),
+		archDevKitInstall("desktop", "Hyprland 桌面环境", "Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots", KindSystemService, "Hyprland"),
+		archDevKitInstall("dev", "开发环境套餐", "base + archlinuxcn + dns + git + ops-toolkit + runtime + nvim + docker + fonts + shell + proxy", KindSystemService, ""),
+		archDevKitInstall("workstation", "完整工作站套餐", "dev + Hyprland 桌面", KindSystemService, ""),
+		archDevKitAction("status", "状态检查", "查看 ArchDevKit 模块状态和建议动作"),
+		archDevKitAction("doctor", "诊断", "运行 ArchDevKit doctor 诊断"),
+		archDevKitAction("config-init", "初始化配置", "创建 ~/.config/archdevkit/config.env"),
+		archDevKitAction("config-show", "查看配置", "显示当前 ArchDevKit 配置"),
+		archDevKitAction("config-validate", "校验配置", "校验 ArchDevKit 配置文件"),
+		archDevKitAction("reset-state", "重置状态记录", "清理 ArchDevKit 状态记录，不卸载系统软件"),
+
 		// ── Installations / macOS Apps ──
 		macOSCask("macOS 开发应用", "google-chrome", "Google Chrome", "浏览器", "/Applications/Google Chrome.app"),
 		macOSCask("macOS 开发应用", "codex", "Codex", "OpenAI Codex 桌面端", "/Applications/Codex.app"),
@@ -202,6 +224,74 @@ func macOSCask(subsection, component, label, description, installedCheck string)
 		ManualSteps:       caskManualSteps(component),
 		InstalledCheck:    installedCheck,
 		InstalledBrewCask: component,
+	}
+}
+
+func archDevKitInstall(component, label, description string, kind ModuleKind, installedCmd string) Module {
+	m := Module{
+		ID:              "archdevkit-" + component,
+		Script:          "archdevkit/run.sh",
+		Components:      []string{component},
+		Label:           label,
+		Description:     description,
+		Category:        "archdevkit",
+		OS:              "linux",
+		Families:        []string{"arch"},
+		Kind:            kind,
+		Privilege:       PrivilegeSystem,
+		PrivilegeReason: "ArchDevKit 会通过 pacman、systemd 或用户 shell/桌面配置修改 Arch 系统",
+		ManualSteps:     []string{"ArchDevKit 保留独立配置和状态：~/.config/archdevkit/config.env、~/.local/state/archdevkit"},
+		InstalledCmd:    installedCmd,
+	}
+
+	switch component {
+	case "archlinuxcn":
+		m.InstalledGrepFile = "/etc/pacman.conf:[archlinuxcn]"
+	case "dns":
+		m.InstalledCheck = "/etc/systemd/resolved.conf.d/90-archdevkit-dns.conf"
+		m.InstalledSystemdServices = []string{"systemd-resolved.service"}
+	case "git":
+		m.InstalledCommands = [][]string{{"git", "--version"}, {"gh", "--version"}}
+	case "runtime":
+		m.Activates = []string{ActivationShellProfile}
+		m.InstalledCommands = [][]string{{"mise", "--version"}, {"node", "-v"}, {"npm", "-v"}, {"python", "--version"}, {"go", "version"}}
+		m.InstalledCheck = "$HOME/.config/archdevkit/mise-china.env"
+	case "docker":
+		m.Activates = []string{ActivationSystemd, ActivationRelogin}
+		m.NeedsRelogin = true
+		m.InstalledCommands = [][]string{{"docker", "--version"}, {"docker", "compose", "version"}}
+		m.InstalledSystemdServices = []string{"docker.service"}
+		m.InstalledUserGroups = []string{"docker"}
+	case "shell":
+		m.Activates = []string{ActivationZshrc, ActivationRelogin}
+		m.NeedsRelogin = true
+		m.InstalledCheck = "$HOME/.oh-my-zsh"
+	case "proxy":
+		m.Activates = []string{ActivationSystemd, ActivationShellProfile}
+		m.InstalledAnyCommands = [][]string{{"mihomo", "-v"}, {"sing-box", "version"}}
+		m.InstalledAnyChecks = []string{"/etc/mihomo/config.yaml", "$HOME/.config/sing-box/config.json"}
+	case "desktop":
+		m.Activates = []string{ActivationSystemd, ActivationManual}
+		m.ManualSteps = append(m.ManualSteps, "桌面模块会写入 Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等用户配置")
+	case "dev", "workstation":
+		m.Activates = []string{ActivationSystemd, ActivationShellProfile, ActivationRelogin}
+		m.NeedsRelogin = true
+	}
+
+	return m
+}
+
+func archDevKitAction(component, label, description string) Module {
+	return Module{
+		ID:          "archdevkit-" + component,
+		Script:      "archdevkit/run.sh",
+		Components:  []string{component},
+		Label:       label,
+		Description: description,
+		Category:    "archdevkit",
+		OS:          "linux",
+		Families:    []string{"arch"},
+		Kind:        KindInstallOnly,
 	}
 }
 

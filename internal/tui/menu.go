@@ -68,6 +68,23 @@ func newMenuModel(mods []modules.Module) menuModel {
 		}
 	}
 
+	hasArchDevKit := false
+	for _, m := range mods {
+		if m.Category == "archdevkit" {
+			hasArchDevKit = true
+			break
+		}
+	}
+	if hasArchDevKit {
+		items = append(items, menuItem{separator: true, label: ""}) // spacer
+		items = append(items, menuItem{separator: true, label: "ArchDevKit"})
+		for _, m := range mods {
+			if m.Category == "archdevkit" {
+				items = append(items, menuItem{module: m})
+			}
+		}
+	}
+
 	cursor := 0
 	for i, item := range items {
 		if !item.separator {

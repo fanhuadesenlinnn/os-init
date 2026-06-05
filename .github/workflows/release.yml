@@ -38,6 +38,9 @@ jobs:
           fi
           shellcheck modules/lib.sh modules/*/*.sh
 
+      - name: Run embedded ArchDevKit checks
+        run: bash modules/archdevkit/vendor/scripts/test.sh
+
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -137,6 +140,7 @@ jobs:
           - 模块级执行超时，避免安装器永久卡住
           - 按模块权限决定是否提前 sudo，Homebrew 模块不包 sudo
           - Homebrew 镜像变量统一注入
+          - Arch Linux 下显示独立 ArchDevKit 菜单，完整保留 ArchDevKit 子系统能力
           - Go、Bash 和 ShellCheck 发布前检查
           NOTES
 

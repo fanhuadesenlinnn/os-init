@@ -1,0 +1,113 @@
+/*****----- Configuration -----*****/
+configuration {
+    show-icons: false;
+}
+
+/*****----- Global Properties -----*****/
+* {
+    font:                        "JetBrainsMono Nerd Font 11";
+    background: #232634;
+    foreground: #f0f3ff;
+    selected: #8aadf4;
+    active: #eebebe;
+    urgent: #e78284;
+}
+
+/*****----- Main Window -----*****/
+window {
+    transparency: "real";
+    location: center;
+    anchor: center;
+    fullscreen: false;
+    width: 300px;
+    x-offset: 0px;
+    y-offset: 0px;
+
+    padding: 4px;
+    border-radius: 4px;
+    background-color: @background;
+}
+
+/*****----- Main Box -----*****/
+mainbox {
+    enabled: true;
+    spacing: 2px;
+    margin: 4px;
+    padding: 2px;
+    background-color: @background;
+    children: [ "listview" ];
+}
+
+
+
+/*****----- Inputbar -----*****/
+inputbar {
+    enabled: true;
+    background-color: @background;
+    text-color: @foreground;
+    children: ["dummy", "prompt"];
+}
+
+prompt {
+    enabled: true;
+    padding: 4px;
+    border-radius: 4px;
+    background-color: #a6d189;
+    text-color: #34384a;
+}
+
+/*****----- Listview -----*****/
+listview {
+    enabled: true;
+    columns: 1;
+    lines: 6;
+    cycle: true;
+    dynamic: true;
+    scrollbar: false;
+    layout: vertical;
+    reverse: false;
+    fixed-height: true;
+    fixed-columns: true;
+
+    spacing: 4px;
+    padding: 4px;
+    background-color: @background;
+}
+
+/*****----- Elements (Text Instead of Icons) -----*****/
+element {
+    enabled: true;
+    padding: 10px;
+    border-radius: 2px;
+    background-color: @background;
+    text-color: #f0f3ff;
+    cursor: pointer;
+}
+
+element selected.normal {
+    background-color: #8aadf4;
+    text-color: #292c3c;
+}
+
+element-text {
+    font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
+    text-color: inherit;
+    cursor: inherit;
+}
+
+/*****----- Message Box -----*****/
+message {
+    enabled: true;
+    margin: 2px;
+    padding: 4px;
+    border-radius: 2px;
+    background-color: #eebebe;
+    text-color: #292c3c;
+}
+
+textbox {
+    background-color: transparent;
+    text-color: @foreground;
+}
+/***** Rofi 电源菜单样式：控制关机、重启、锁屏等按钮的布局和配色。 *****/

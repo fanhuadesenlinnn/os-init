@@ -1,0 +1,8 @@
+# Yazi 插件依赖锁定。修改 rev/hash 后需要同步插件缓存。
+[[plugin.deps]]
+use = "yazi-rs/plugins:git"
+rev = "80cd5b5"
+hash = "170317244d60fbe70ad3cc3353358480"
+
+[flavor]
+deps = []

@@ -1,0 +1,29 @@
+* text=auto
+
+# ArchDevKit 在 Arch Linux 上执行，脚本和配置必须保持 LF，避免 shebang 被 CRLF 破坏。
+*.sh text eol=lf
+*.zsh text eol=lf
+install.sh text eol=lf
+install_vars text eol=lf
+switch_waybar text eol=lf
+weekly_commits text eol=lf
+
+# 用户配置模板和桌面配置统一使用 LF，便于 diff、patch 和 Linux 端直接读取。
+*.conf text eol=lf
+*.tpl text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.jsonc text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.rasi text eol=lf
+*.css text eol=lf
+*.lua text eol=lf
+*.ini text eol=lf
+*.desktop text eol=lf
+*.service text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
