@@ -129,6 +129,7 @@ jobs:
 
           ### 主要能力
 
+          - ArchDevKit 安装 Docker 或 Mihomo 时，如果 systemd 暂时无法启动服务，不再中断整个 dev 安装流程
           - 中文 TUI
           - GitHub 专用代理与资源下载配置
           - Mihomo 安装与 systemd 配置
