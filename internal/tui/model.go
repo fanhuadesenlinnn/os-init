@@ -82,7 +82,7 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 			m.sudoCancel = nil
 		}
 		m.screen = screenSummary
-		m.summary = newSummaryModel(nil)
+		m.summary = newSummaryModel(nil, m.selectedModules)
 		return m, nil
 	}
 	m.tmpDir = tmpDir
@@ -343,7 +343,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sudoCancel()
 			m.sudoCancel = nil
 		}
-		m.summary = newSummaryModel(m.executor.summaryResults)
+		m.summary = newSummaryModel(m.executor.summaryResults, m.selectedModules)
 		m.screen = screenSummary
 		return m, m.summary.Init()
 	}
