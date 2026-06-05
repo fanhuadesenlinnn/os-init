@@ -63,6 +63,10 @@ want_zsh_plugin() {
     want "autosuggestions" || want "syntax-highlighting"
 }
 
+tool_prefers_package_manager() {
+    is_macos || is_arch
+}
+
 login_shell_for_user() {
     local user="$1" shell=""
     if is_macos && command -v dscl &>/dev/null; then
@@ -281,8 +285,12 @@ if [[ "$UNINSTALL" == true ]]; then
         echo "[REMOVE] fnm..."
         if command -v fnm &>/dev/null; then
             remove "removing fnm"
-            rm -f "$(command -v fnm)"
-            rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
+            if tool_prefers_package_manager; then
+                pkg_remove fnm 2>/dev/null || true
+            else
+                rm -f "$(command -v fnm)"
+                rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
+            fi
         else
             skip "fnm not installed"
         fi
@@ -292,9 +300,9 @@ if [[ "$UNINSTALL" == true ]]; then
     if want "starship"; then
         echo "$(os_init_text "[删除]" "[REMOVE]") starship..."
         if command -v starship &>/dev/null; then
-            if is_macos; then
-                remove "通过 Homebrew 卸载 starship"
-                pkg_remove starship
+            if tool_prefers_package_manager; then
+                remove "通过包管理器卸载 starship"
+                pkg_remove starship 2>/dev/null || true
             else
                 remove "removing starship binary"
                 sudo rm -f "$(command -v starship)"
@@ -368,18 +376,21 @@ fi
 if want "starship"; then
     next "starship"
 
-    if is_macos; then
-        ensure_brew
+    if tool_prefers_package_manager; then
         if command -v starship &>/dev/null; then
             if [[ "$UPDATE" == true ]]; then
-                update "通过 Homebrew 更新 starship"
-                brew_upgrade starship 2>/dev/null || skip "starship 已是最新"
+                update "$(os_init_text "通过包管理器更新 starship" "updating starship via package manager")"
+                if is_macos; then
+                    brew_upgrade starship 2>/dev/null || skip "starship 已是最新"
+                else
+                    pkg_install starship
+                fi
             else
                 skip "starship $(starship --version | head -1) already installed"
             fi
         else
-            install "通过 Homebrew 安装 starship"
-            brew_install starship
+            install "$(os_init_text "通过包管理器安装 starship" "installing starship via package manager")"
+            pkg_install starship
         fi
     elif command -v starship &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
@@ -493,7 +504,19 @@ if want "fnm"; then
 
     FNM_SKIP=(--skip-shell)
 
-    if command -v fnm &>/dev/null; then
+    if tool_prefers_package_manager; then
+        if command -v fnm &>/dev/null; then
+            if [[ "$UPDATE" == true ]]; then
+                update "$(os_init_text "通过包管理器更新 fnm" "updating fnm via package manager")"
+                pkg_install fnm
+            else
+                skip "fnm $(fnm --version 2>/dev/null) already installed"
+            fi
+        else
+            install "$(os_init_text "通过包管理器安装 fnm" "installing fnm via package manager")"
+            pkg_install fnm
+        fi
+    elif command -v fnm &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
             update "updating fnm"
             FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"

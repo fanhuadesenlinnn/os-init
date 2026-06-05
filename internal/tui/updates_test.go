@@ -1,6 +1,9 @@
 package tui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRewriteDownloadURL_GitHubProxyWins(t *testing.T) {
 	t.Setenv("GITHUB_PROXY", "https://gh.example.com/")
@@ -33,4 +36,21 @@ func TestRewriteDownloadURL_GitHubAssetHosts(t *testing.T) {
 	if got != want {
 		t.Fatalf("unexpected url: got %q, want %q", got, want)
 	}
+}
+
+func TestYaziVersionCheckerDoesNotInvokeYaziBinary(t *testing.T) {
+	for _, checker := range versionCheckers {
+		if checker.moduleID != "yazi" {
+			continue
+		}
+		cmd := strings.Join(checker.versionCmd, " ")
+		if strings.Contains(cmd, "yazi --version") {
+			t.Fatalf("yazi version checker should not invoke yazi itself: %q", cmd)
+		}
+		if !strings.Contains(cmd, "brew list --versions yazi") {
+			t.Fatalf("yazi version checker should use package metadata, got %q", cmd)
+		}
+		return
+	}
+	t.Fatal("yazi version checker not found")
 }

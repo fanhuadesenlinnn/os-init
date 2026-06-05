@@ -31,12 +31,15 @@ jobs:
       - name: Run shell script checks
         run: |
           set -euo pipefail
-          bash -n modules/lib.sh modules/*/*.sh
+          bash -n modules/lib.sh modules/*/*.sh tooling/*.sh
           if ! command -v shellcheck >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y shellcheck
           fi
-          shellcheck modules/lib.sh modules/*/*.sh
+          shellcheck modules/lib.sh modules/*/*.sh tooling/*.sh
+
+      - name: Run os-init package strategy checks
+        run: bash tooling/test-lib-strategy.sh
 
       - name: Run embedded ArchDevKit checks
         run: bash modules/archdevkit/vendor/scripts/test.sh
@@ -117,7 +120,7 @@ jobs:
           cat > release-notes.md <<'NOTES'
           ## OS Init
 
-          面向中国大陆网络环境的系统初始化发布包。Linux 支持 Arch 系、Debian 系、RedHat 系；macOS 显示适配 Homebrew 或通用二进制安装的模块。
+          面向中国大陆网络环境的系统初始化发布包。Linux 支持 Arch 系、Debian 系、RedHat 系；macOS 显示适配 Homebrew 的模块。
 
           ### 发布包
 
@@ -135,8 +138,8 @@ jobs:
           - 终端样式模块：本地图形终端 rich、SSH simple、TTY plain 自动切换
           - Starship 同时支持 bash 和 zsh，不再强制依赖 zsh
           - Mihomo 安装与 systemd 配置
-          - Docker Engine 静态二进制安装
-          - Docker Compose CLI 插件安装
+          - 分平台安装策略：macOS 优先 Homebrew，Arch Linux 优先 pacman/paru/yay，其它 Linux 尽量使用官方二进制
+          - Docker：Arch Linux 通过 pacman/AUR 安装组件，其它 Linux 使用静态二进制和 Compose CLI 插件
           - macOS/Linux 按 OS 自动过滤模块
           - Homebrew、Shell 配置块、systemd 服务状态检测
           - 安装日志自动清理 ANSI 颜色码

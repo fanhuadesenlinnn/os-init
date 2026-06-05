@@ -93,18 +93,6 @@ func commonConfigSection(lang string) configSection {
 				CommentE: "Show startup configuration page: 1 shows it, 0 skips it.",
 			},
 			{
-				Key:      "OS_INIT_OFFLINE",
-				Value:    "0",
-				CommentZ: "离线模式：1 表示不访问网络，只从 OS_INIT_FILES_DIR 查找安装包。",
-				CommentE: "Offline mode: 1 blocks network access and uses OS_INIT_FILES_DIR packages only.",
-			},
-			{
-				Key:      "OS_INIT_FILES_DIR",
-				Value:    "/opt/os-init/packages",
-				CommentZ: "离线包目录，供 Go、Docker、Mihomo、Neovim、Yazi 等模块查找文件。",
-				CommentE: "Offline package directory for Go, Docker, Mihomo, Neovim, Yazi, and similar modules.",
-			},
-			{
 				Key:      "OS_INIT_SCRIPT_TIMEOUT",
 				Value:    "45m",
 				CommentZ: "单个模块最大执行时间。支持 30m、1h 或纯秒数；0 表示不限制。",
@@ -218,19 +206,19 @@ func developmentResourceSection(includeLinuxBinaries bool) configSection {
 	entries := []configEntry{
 		{Key: "GO_VERSION", Value: "", CommentZ: "Go 版本。留空时从 GO_VERSION_URL 查询最新版本。", CommentE: "Go version. Empty means query the latest version from GO_VERSION_URL."},
 		{Key: "GO_VERSION_URL", Value: "https://go.dev/VERSION?m=text", CommentZ: "Go 最新版本查询地址。", CommentE: "URL used to query the latest Go version."},
-		{Key: "GO_DOWNLOAD_BASE", Value: "https://go.dev/dl", CommentZ: "Go 安装包下载基础地址。", CommentE: "Base URL for Go archive downloads."},
-		{Key: "GO_DOWNLOAD_URL", Value: "", CommentZ: "Go 完整安装包地址；设置后优先。", CommentE: "Full Go archive URL; overrides the base URL when set."},
+		{Key: "GO_DOWNLOAD_BASE", Value: "https://go.dev/dl", CommentZ: "Go 安装包下载基础地址。主要用于非 macOS/Arch 的二进制安装路径。", CommentE: "Base URL for Go archive downloads. Mainly used by the non-macOS/non-Arch binary install path."},
+		{Key: "GO_DOWNLOAD_URL", Value: "", CommentZ: "Go 完整安装包地址；设置后优先。macOS/Arch 默认优先包管理器。", CommentE: "Full Go archive URL; overrides the base URL when set. macOS/Arch default to package managers."},
 		{Key: "LAZYVIM_STARTER_REPO", Value: "https://github.com/LazyVim/starter", CommentZ: "LazyVim starter 仓库地址，可替换为镜像或个人模板仓库。", CommentE: "LazyVim starter repository URL; can be replaced with a mirror or personal template repository."},
 	}
 	if includeLinuxBinaries {
 		entries = append(entries,
-			configEntry{Key: "NVIM_DOWNLOAD_BASE", Value: "https://github.com/neovim/neovim/releases/latest/download", CommentZ: "Linux Neovim 二进制下载基础地址。", CommentE: "Base URL for Linux Neovim binary downloads."},
-			configEntry{Key: "NVIM_DOWNLOAD_URL", Value: "", CommentZ: "Neovim 完整下载地址；设置后优先。", CommentE: "Full Neovim download URL; overrides the base URL when set."},
+			configEntry{Key: "NVIM_DOWNLOAD_BASE", Value: "https://github.com/neovim/neovim/releases/latest/download", CommentZ: "Linux Neovim 二进制下载基础地址。Arch 默认优先 pacman/AUR。", CommentE: "Base URL for Linux Neovim binary downloads. Arch defaults to pacman/AUR."},
+			configEntry{Key: "NVIM_DOWNLOAD_URL", Value: "", CommentZ: "Neovim 完整下载地址；设置后优先。Arch 默认优先包管理器。", CommentE: "Full Neovim download URL; overrides the base URL when set. Arch defaults to package managers."},
 			configEntry{Key: "LAZYGIT_VERSION", Value: "", CommentZ: "lazygit 版本。留空时从 GitHub 查询最新版本。", CommentE: "lazygit version. Empty means query the latest version from GitHub."},
-			configEntry{Key: "LAZYGIT_DOWNLOAD_BASE", Value: "https://github.com/jesseduffield/lazygit/releases/download", CommentZ: "lazygit 下载基础地址。", CommentE: "Base URL for lazygit downloads."},
-			configEntry{Key: "LAZYGIT_DOWNLOAD_URL", Value: "", CommentZ: "lazygit 完整下载地址；设置后优先。", CommentE: "Full lazygit download URL; overrides the base URL when set."},
-			configEntry{Key: "YAZI_DOWNLOAD_BASE", Value: "https://github.com/sxyazi/yazi/releases/latest/download", CommentZ: "Linux Yazi 二进制下载基础地址。", CommentE: "Base URL for Linux Yazi binary downloads."},
-			configEntry{Key: "YAZI_DOWNLOAD_URL", Value: "", CommentZ: "Yazi 完整下载地址；设置后优先。", CommentE: "Full Yazi download URL; overrides the base URL when set."},
+			configEntry{Key: "LAZYGIT_DOWNLOAD_BASE", Value: "https://github.com/jesseduffield/lazygit/releases/download", CommentZ: "lazygit Linux 二进制下载基础地址。macOS/Arch 默认优先包管理器。", CommentE: "Base URL for lazygit Linux binary downloads. macOS/Arch default to package managers."},
+			configEntry{Key: "LAZYGIT_DOWNLOAD_URL", Value: "", CommentZ: "lazygit 完整下载地址；设置后优先。macOS/Arch 默认优先包管理器。", CommentE: "Full lazygit download URL; overrides the base URL when set. macOS/Arch default to package managers."},
+			configEntry{Key: "YAZI_DOWNLOAD_BASE", Value: "https://github.com/sxyazi/yazi/releases/latest/download", CommentZ: "Linux Yazi 二进制下载基础地址。Arch 默认优先 pacman/AUR。", CommentE: "Base URL for Linux Yazi binary downloads. Arch defaults to pacman/AUR."},
+			configEntry{Key: "YAZI_DOWNLOAD_URL", Value: "", CommentZ: "Yazi 完整下载地址；设置后优先，并可在 Arch 上覆盖包管理器路径。", CommentE: "Full Yazi download URL; overrides the base URL and can override the Arch package-manager path."},
 		)
 	}
 	return configSection{TitleZ: "开发资源", TitleE: "Development Resources", Entries: entries}
@@ -241,13 +229,13 @@ func dockerConfigSection() configSection {
 		TitleZ: "Docker",
 		TitleE: "Docker",
 		Entries: []configEntry{
-			{Key: "DOCKER_DOWNLOAD_BASE", Value: "https://download.docker.com", CommentZ: "Docker 静态二进制下载基础地址。", CommentE: "Base URL for Docker static binary downloads."},
-			{Key: "DOCKER_CHANNEL", Value: "stable", CommentZ: "Docker 下载通道：stable、test 或 nightly。", CommentE: "Docker download channel: stable, test, or nightly."},
-			{Key: "DOCKER_VERSION", Value: "", CommentZ: "Docker 版本。留空时从 DOCKER_DOWNLOAD_BASE 查询最新版本。", CommentE: "Docker version. Empty means query the latest version from DOCKER_DOWNLOAD_BASE."},
-			{Key: "DOCKER_TGZ_URL", Value: "", CommentZ: "Docker 静态二进制完整下载地址；设置后优先。", CommentE: "Full Docker static archive URL; overrides the base URL when set."},
-			{Key: "DOCKER_COMPOSE_VERSION", Value: "", CommentZ: "Docker Compose 版本。留空时从 GitHub 查询最新版本。", CommentE: "Docker Compose version. Empty means query the latest version from GitHub."},
-			{Key: "DOCKER_COMPOSE_DOWNLOAD_BASE", Value: "https://github.com/docker/compose/releases/download", CommentZ: "Docker Compose 下载基础地址。", CommentE: "Base URL for Docker Compose downloads."},
-			{Key: "DOCKER_COMPOSE_DOWNLOAD_URL", Value: "", CommentZ: "Docker Compose 完整下载地址；设置后优先。", CommentE: "Full Docker Compose download URL; overrides the base URL when set."},
+			{Key: "DOCKER_DOWNLOAD_BASE", Value: "https://download.docker.com", CommentZ: "Docker 静态二进制下载基础地址。主要用于 Debian/RedHat 系；Arch 默认使用 pacman/AUR。", CommentE: "Base URL for Docker static binary downloads. Mainly used on Debian/RedHat; Arch defaults to pacman/AUR."},
+			{Key: "DOCKER_CHANNEL", Value: "stable", CommentZ: "Docker 静态二进制下载通道：stable、test 或 nightly。", CommentE: "Docker static binary download channel: stable, test, or nightly."},
+			{Key: "DOCKER_VERSION", Value: "", CommentZ: "Docker 静态二进制版本。留空时从 DOCKER_DOWNLOAD_BASE 查询最新版本。", CommentE: "Docker static binary version. Empty means query the latest version from DOCKER_DOWNLOAD_BASE."},
+			{Key: "DOCKER_TGZ_URL", Value: "", CommentZ: "Docker 静态二进制完整下载地址；设置后优先。Arch 默认不使用。", CommentE: "Full Docker static archive URL; overrides the base URL when set. Arch does not use this by default."},
+			{Key: "DOCKER_COMPOSE_VERSION", Value: "", CommentZ: "Docker Compose 二进制版本。留空时从 GitHub 查询最新版本。Arch 默认使用包管理器。", CommentE: "Docker Compose binary version. Empty means query the latest version from GitHub. Arch defaults to package managers."},
+			{Key: "DOCKER_COMPOSE_DOWNLOAD_BASE", Value: "https://github.com/docker/compose/releases/download", CommentZ: "Docker Compose 二进制下载基础地址。", CommentE: "Base URL for Docker Compose binary downloads."},
+			{Key: "DOCKER_COMPOSE_DOWNLOAD_URL", Value: "", CommentZ: "Docker Compose 二进制完整下载地址；设置后优先。Arch 默认不使用。", CommentE: "Full Docker Compose binary download URL; overrides the base URL when set. Arch does not use this by default."},
 			{Key: "DOCKER_REGISTRY_MIRRORS", Value: "", CommentZ: "Docker 镜像加速器，多个用英文逗号分隔。", CommentE: "Docker registry mirrors, comma-separated."},
 			{Key: "DOCKER_DATA_ROOT", Value: "", CommentZ: "Docker 数据目录。留空使用 Docker 默认目录。", CommentE: "Docker data root. Empty means use Docker defaults."},
 		},

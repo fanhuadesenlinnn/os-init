@@ -34,8 +34,6 @@ log_message() {
             "更新 "*) printf 'updating %s\n' "${msg#更新 }"; return ;;
             "删除 "*) printf 'removing %s\n' "${msg#删除 }"; return ;;
             "复制 "*) printf 'copying %s\n' "${msg#复制 }"; return ;;
-            "使用离线文件 "*) printf 'using offline file %s\n' "${msg#使用离线文件 }"; return ;;
-            "离线模式禁止下载: "*) printf 'offline mode blocks download: %s\n' "${msg#离线模式禁止下载: }"; return ;;
             "需要 curl 或 wget 才能下载文件") printf 'curl or wget is required to download files\n'; return ;;
             "需要 curl 或 wget 才能查询 GitHub 最新版本") printf 'curl or wget is required to query the latest GitHub version\n'; return ;;
             "无法创建临时配置快照") printf 'failed to create temporary config snapshot\n'; return ;;
@@ -99,7 +97,7 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
-    OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_OFFLINE OS_INIT_FILES_DIR OS_INIT_SCRIPT_TIMEOUT
+    OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_SCRIPT_TIMEOUT
     OS_INIT_TERMINAL_STYLE OS_INIT_TERMINAL_ENABLE_ALIASES OS_INIT_TERMINAL_BAT_THEME
     DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
     HOMEBREW_INSTALL_URL HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
@@ -356,7 +354,7 @@ pkg_install() {
         pkg_update
         sudo_env apt-get install -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo_env pacman -Sy --needed --noconfirm "$@"
+        arch_install_packages_or_aur "$@"
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
         if command -v dnf &>/dev/null; then
             sudo_env dnf install -y "$@"
@@ -372,7 +370,9 @@ pkg_install() {
 
 pkg_remove() {
     if is_macos; then
-        brew_uninstall "$@" 2>/dev/null || true
+        if command -v brew &>/dev/null; then
+            brew_uninstall "$@" 2>/dev/null || true
+        fi
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get remove -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
@@ -411,6 +411,160 @@ is_arch() { [[ "$OS_FAMILY" == "arch" ]]; }
 is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }
 is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
 is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
+
+arch_package_available() {
+    local package="$1"
+    is_arch || return 1
+    pacman -Si "$package" &>/dev/null
+}
+
+arch_package_installed() {
+    local package="$1"
+    is_arch || return 1
+    pacman -Q "$package" &>/dev/null
+}
+
+arch_pacman_install() {
+    [[ "$#" -gt 0 ]] || return 0
+    install "通过 pacman 安装: $*"
+    sudo_env pacman -Sy --needed --noconfirm "$@"
+}
+
+arch_aur_helper_command() {
+    if command -v paru &>/dev/null; then
+        echo "paru"
+        return 0
+    fi
+    if command -v yay &>/dev/null; then
+        echo "yay"
+        return 0
+    fi
+    return 1
+}
+
+run_as_real_user() {
+    local user home
+    if [[ "$(id -u)" != "0" ]]; then
+        "$@"
+        return
+    fi
+
+    user="$(real_user)"
+    home="$(real_home)"
+    [[ -n "$user" && "$user" != "root" ]] || die "AUR 构建需要普通用户"
+    [[ -n "$home" ]] || die "无法确定普通用户 HOME"
+
+    if command -v sudo &>/dev/null; then
+        command sudo -u "$user" -H env HOME="$home" "$@"
+    elif command -v runuser &>/dev/null; then
+        runuser -u "$user" -- env HOME="$home" "$@"
+    else
+        die "需要 sudo 或 runuser 才能以普通用户构建 AUR 包"
+    fi
+}
+
+arch_install_aur_via_makepkg() {
+    local package="$1" tmp_dir package_dir aur_url user
+    [[ -n "$package" ]] || die "AUR 包名为空"
+
+    arch_pacman_install base-devel git
+    command -v git &>/dev/null || die "缺少 git，无法克隆 AUR 包"
+    command -v makepkg &>/dev/null || die "缺少 makepkg，无法构建 AUR 包"
+
+    aur_url="https://aur.archlinux.org/${package}.git"
+    tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/os-init-aur-${package}.XXXXXX")"
+    package_dir="$tmp_dir/$package"
+    user="$(real_user)"
+    if [[ "$(id -u)" == "0" && -n "$user" && "$user" != "root" ]]; then
+        chown "$user" "$tmp_dir" 2>/dev/null || true
+    fi
+
+    install "从 AUR 构建安装: $package"
+    run_as_real_user git clone "$aur_url" "$package_dir" || {
+        rm -rf "$tmp_dir"
+        die "克隆 AUR 仓库失败: $aur_url"
+    }
+    run_as_real_user bash -c "cd \"\$1\" && makepkg -si --needed --noconfirm" bash "$package_dir" || {
+        rm -rf "$tmp_dir"
+        die "AUR 包安装失败: $package"
+    }
+    rm -rf "$tmp_dir"
+}
+
+arch_install_with_current_aur_helper() {
+    local helper
+    [[ "$#" -gt 0 ]] || return 0
+    helper="$(arch_aur_helper_command)" || return 1
+    install "通过 $helper 安装 AUR 包: $*"
+    run_as_real_user "$helper" -S --needed --noconfirm "$@"
+}
+
+ensure_arch_aur_helpers() {
+    local helper
+    is_arch || return 0
+
+    if command -v paru &>/dev/null; then
+        helper="paru"
+    elif command -v yay &>/dev/null; then
+        helper="yay"
+    else
+        install "未检测到 paru/yay，自动安装 paru"
+        if arch_package_available paru; then
+            arch_pacman_install paru
+        else
+            arch_install_aur_via_makepkg paru
+        fi
+        helper="$(arch_aur_helper_command)" || die "AUR helper 安装失败"
+    fi
+
+    if ! command -v yay &>/dev/null; then
+        warn "未检测到 yay，尝试补装 yay 供手动使用"
+        if arch_package_available yay; then
+            arch_pacman_install yay || true
+        else
+            arch_install_with_current_aur_helper yay || warn "yay 安装失败，后续继续使用 $helper"
+        fi
+    fi
+
+    helper="$(arch_aur_helper_command)" || die "AUR helper 不可用"
+    skip "AUR helper 已就绪: $helper"
+}
+
+arch_install_packages_or_aur() {
+    local package helper
+    local pacman_packages=()
+    local aur_packages=()
+
+    [[ "$#" -gt 0 ]] || return 0
+    is_arch || die "当前系统不是 Arch 系，不能使用 Arch 安装策略"
+
+    for package in "$@"; do
+        [[ -n "$package" ]] || die "软件包名为空"
+        if arch_package_installed "$package"; then
+            skip "软件包已安装: $package"
+        elif arch_package_available "$package"; then
+            pacman_packages+=("$package")
+        else
+            aur_packages+=("$package")
+        fi
+    done
+
+    if [[ ${#pacman_packages[@]} -gt 0 ]]; then
+        arch_pacman_install "${pacman_packages[@]}"
+    fi
+
+    if [[ ${#aur_packages[@]} -gt 0 ]]; then
+        warn "pacman 源未提供: ${aur_packages[*]}，改用 AUR helper 安装"
+        ensure_arch_aur_helpers
+        helper="$(arch_aur_helper_command)" || die "AUR helper 不可用"
+        arch_install_with_current_aur_helper "${aur_packages[@]}" || {
+            warn "$helper 安装失败，回退到 makepkg 逐个安装"
+            for package in "${aur_packages[@]}"; do
+                arch_install_aur_via_makepkg "$package"
+            done
+        }
+    fi
+}
 
 sudo_env() {
     if [[ "$(id -u)" == "0" ]]; then
@@ -457,7 +611,9 @@ brew_upgrade() {
 }
 
 brew_uninstall() {
-    run_brew uninstall "$@"
+    export_homebrew_env
+    command -v brew &>/dev/null || return 0
+    HOMEBREW_NO_AUTO_UPDATE="${HOMEBREW_NO_AUTO_UPDATE:-1}" command brew uninstall "$@"
 }
 
 brew_list() {
@@ -545,7 +701,6 @@ git_clone_depth_branch() {
 
 download_file() {
     local url="$1" dest="$2"
-    [[ "${OS_INIT_OFFLINE:-0}" == "1" ]] && die "离线模式禁止下载: $url"
 
     local final_url
     final_url="$(rewrite_download_url "$url")"
@@ -562,42 +717,6 @@ download_file() {
     else
         die "需要 curl 或 wget 才能下载文件"
     fi
-}
-
-find_offline_file() {
-    local filename="$1"
-    local dir candidate
-    local dirs=()
-    [[ -n "${OS_INIT_FILES_DIR:-}" ]] && dirs+=("$OS_INIT_FILES_DIR")
-    [[ -n "${SCRIPT_DIR:-}" ]] && dirs+=("$SCRIPT_DIR/files" "$SCRIPT_DIR")
-    dirs+=("$OS_INIT_REPO_DIR/files")
-
-    for dir in "${dirs[@]}"; do
-        candidate="$dir/$filename"
-        if [[ -n "$candidate" && -f "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-    return 1
-}
-
-download_or_offline_file() {
-    local url="$1" dest="$2" filename="${3:-}"
-    if [[ -z "$filename" ]]; then
-        filename="$(basename "${url%%\?*}")"
-    fi
-
-    if [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
-        local offline_file
-        offline_file="$(find_offline_file "$filename")" || die "离线模式缺少文件: $filename"
-        install "使用离线文件 $filename"
-        mkdir -p "$(dirname "$dest")"
-        cp "$offline_file" "$dest"
-        return
-    fi
-
-    download_file "$url" "$dest"
 }
 
 backup_file() {

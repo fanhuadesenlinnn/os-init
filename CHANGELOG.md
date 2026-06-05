@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## v0.13.0 - 2026-06-06
+
+### Added
+
+- Add package strategy checks for macOS Homebrew removal behavior and Arch pacman/AUR routing.
+
+### Changed
+
+- Align software installation sources by platform: macOS uses Homebrew, Arch Linux uses pacman with paru/yay AUR fallback, and Debian/RedHat-family Linux keeps binary installs for version-sensitive tools.
+- Install Arch Docker components through pacman/AUR while keeping static Docker binaries for Debian/RedHat-family Linux.
+- Remove offline package mode and keep the product positioned as an online initialization tool with GitHub proxy and configurable resource URLs.
+- Update generated config comments, README, implementation plan, and release notes for the new package-source strategy.
+
+### Fixed
+
+- Detect Yazi installation status through package metadata instead of invoking the interactive `yazi` binary from the TUI.
+- Avoid installing Homebrew during uninstall/status-style package removal paths.
+
 ## v0.12.0 - 2026-06-05
 
 ### Added

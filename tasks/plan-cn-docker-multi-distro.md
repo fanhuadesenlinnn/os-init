@@ -11,7 +11,7 @@
 - 每个阶段完成后运行对应验证命令。
 - 不要删除用户未确认删除的功能。
 - 不要执行真实安装、卸载、清空数据目录、重启系统服务等破坏性操作，除非用户明确要求。
-- Shell 保持现场交付风格：中文日志、可重复执行、明确报错、先备份再覆盖、离线优先、代理可配置。
+- Shell 保持现场交付风格：中文日志、可重复执行、明确报错、先备份再覆盖、联网下载、代理可配置。
 
 推荐执行顺序：
 
@@ -19,7 +19,7 @@
 2. 增加平台检测和模块过滤能力。
 3. 增加中国大陆配置、代理、下载 helper。
 4. 新增 Mihomo 代理安装和配置模块，安装逻辑对齐 `ArchDevKit`。
-5. 重写 Docker 为二进制安装。
+5. 重写 Docker 为分平台安装：Arch 走 pacman/AUR，其它 Linux 走静态二进制。
 6. 逐步改造保留模块以支持 Arch/Debian/RedHat。
 7. 更新 README、测试、demo 和验证脚本。
 8. 删除原有构建流水线，重建构建发布包流水线，打 tag 并发布一个版本。
@@ -36,10 +36,10 @@
   - Arch 系：Arch、Manjaro、EndeavourOS 等。
   - Debian 系：Debian、Ubuntu、Linux Mint、Kali 等。
   - RedHat 系：RHEL、CentOS、Rocky、AlmaLinux、Fedora、Oracle Linux 等。
-- macOS 按 OS 自动过滤模块，显示适配 Homebrew 或通用二进制安装的 Shell、终端、开发工具和指定 macOS 应用模块。
-- Docker 和 Docker Compose 使用官方二进制/插件安装方式，不再通过 apt/yum/dnf/pacman 安装 Docker Engine。
+- macOS 按 OS 自动过滤模块，显示适配 Homebrew 的 Shell、终端、开发工具和指定 macOS 应用模块。
+- 安装来源遵循平台生态：macOS 优先 Homebrew，Arch Linux 优先 pacman/paru/yay，其它 Linux 尽量使用官方二进制或可配置下载 URL。
 - 支持安装和配置 Mihomo，配置渲染、systemd 服务检测、配置测试、MetaCubeXD 面板逻辑尽量对齐 `ArchDevKit`。
-- 下载源、代理、Docker registry mirror、离线包路径都可配置。
+- 下载源、代理、Docker registry mirror 都可配置。
 - 系统配置尽量使用 drop-in，不覆盖全局主配置文件。
 - 已确认删除的桌面、安全告警模块不再出现在菜单、README、demo 或测试期望中。
 
@@ -105,7 +105,7 @@
 
 | 模块 | 目标状态 |
 | --- | --- |
-| Docker | 改为 Linux 二进制安装 Docker Engine 和 Docker Compose plugin，支持代理、镜像、离线包、卸载保留数据 |
+| Docker | 改为分平台安装 Docker Engine 和 Docker Compose：Arch 走 pacman/AUR，其它 Linux 走静态二进制，支持代理、镜像、卸载保留数据 |
 | Mihomo | 新增模块，按 `ArchDevKit` 的 Mihomo 逻辑安装核心、渲染配置、测试配置、可选安装 MetaCubeXD 面板 |
 | Kernel sysctl | 改为 `/etc/sysctl.d/99-os-init.conf`，不要覆盖 `/etc/sysctl.conf` |
 | Kernel limits | 改为 `/etc/security/limits.d/99-os-init.conf`，并按发行版检测 PAM/systemd 路径 |
@@ -115,9 +115,9 @@
 | Terminal tools | ncdu 进入跨发行版适配 |
 | macOS apps | 新增用户列出的常用 App、代理网络、效率工具、输入增强、媒体下载、AI/笔记、通讯办公和字体模块，仅在 macOS 目标显示并通过 Homebrew cask 安装 |
 | macOS CLI | 新增用户列出的 Homebrew 顶层命令工具模块，仅在 macOS 目标显示并通过 Homebrew formula 安装 |
-| Go | 改为可配置下载源、架构映射、离线包 |
-| Yazi | 改为可配置下载源、架构映射、离线包 |
-| Neovim + LazyVim | 暂时保留，改为可配置下载源、架构映射、离线包 |
+| Go | 改为可配置下载源和架构映射 |
+| Yazi | 改为可配置下载源和架构映射 |
+| Neovim + LazyVim | 暂时保留，改为可配置下载源和架构映射 |
 
 
 ## 运行时安装顺序
@@ -132,14 +132,14 @@ AI 实施阶段顺序和用户实际选择模块后的执行顺序不是一回�
 
 | 优先级 | 模块类型 | 说明 |
 | --- | --- | --- |
-| 10 | 预检和公共配置 | 加载配置、识别平台、检查 systemd/root/包管理器、检查离线包是否齐全 |
+| 10 | 预检和公共配置 | 加载配置、识别平台、检查 systemd/root/包管理器和下载配置 |
 | 20 | 网络和代理 | Mihomo 优先执行，便于后续 Docker/Go/Neovim/Yazi/GitHub 下载使用代理；未选择 Mihomo 时使用已有 `HTTP_PROXY/HTTPS_PROXY` |
-| 30 | 容器运行时 | Docker 二进制安装、daemon 配置、Compose plugin |
+| 30 | 容器运行时 | Docker 安装、daemon 配置、Compose plugin；Arch 走 pacman/AUR，其它 Linux 走静态二进制 |
 | 40 | 基础终端和 Shell | zsh、starship、direnv、git-lfs、byobu/tmux、ncdu |
 | 50 | 语言和开发工具 | Go、Yazi、Neovim + LazyVim、lazygit、ripgrep/fd |
 | 80 | 内核和系统参数 | sysctl、limits、scheduler、autotune；尽量使用 drop-in，放到软件安装后 |
 
-注意：Mihomo 是优先网络模块，不是 Docker 的硬依赖。未选择 Mihomo 时，Docker 和其他下载模块必须仍可通过已有 `HTTP_PROXY/HTTPS_PROXY`、镜像源或离线包执行。
+注意：Mihomo 是优先网络模块，不是 Docker 的硬依赖。未选择 Mihomo 时，Docker 和其他下载模块必须仍可通过 GitHub 代理、镜像源或自定义下载 URL 执行。
 
 卸载模式不要简单反向执行全部模块。建议顺序：
 
@@ -157,7 +157,7 @@ AI 实施阶段顺序和用户实际选择模块后的执行顺序不是一回�
 - 简单方案：在执行器启动前调用一个 shell 预检脚本，例如 `modules/preflight/check.sh`。
 - 渐进方案：每个模块脚本进入 `main` 前调用 `load_os_init_config`、`detect_platform` 和自身依赖检查。
 
-更推荐简单方案加模块内检查并存：预检脚本负责全局平台、离线包、代理配置可用性；模块内检查负责自己的具体依赖。
+更推荐简单方案加模块内检查并存：预检脚本负责全局平台、下载地址和代理配置可用性；模块内检查负责自己的具体依赖。
 
 `internal/modules.Module` 建议新增执行优先级字段：
 
@@ -372,8 +372,6 @@ go test ./...
 ```bash
 OS_INIT_LANG=zh_CN
 OS_INIT_REGION=cn
-OS_INIT_OFFLINE=0
-OS_INIT_FILES_DIR=
 
 HTTP_PROXY=
 HTTPS_PROXY=
@@ -431,7 +429,6 @@ pkg_install
 pkg_remove
 pkg_is_installed
 download_file
-download_or_offline_file
 backup_file
 json_array_from_csv
 ```
@@ -449,8 +446,6 @@ json_array_from_csv
 - 优先使用 `curl`，没有 curl 再使用 `wget`。
 - 支持 retry、timeout。
 - 导出 `HTTP_PROXY/HTTPS_PROXY/NO_PROXY` 及小写版本。
-- `OS_INIT_OFFLINE=1` 时禁止触网，只从 `OS_INIT_FILES_DIR` 或模块本地 `files/` 查找。
-- 缺少离线文件时必须提前报错，不要边改系统边发现文件缺失。
 - 如果设置了 `GITHUB_PROXY`，GitHub release/raw URL 可以通过该代理前缀改写。
 
 ### 中文日志
@@ -478,7 +473,7 @@ find modules -name '*.sh' -print0 | xargs -0 -n1 bash -n
 人工检查：
 
 - `modules/lib.sh` 不再默认把所有 Linux 都当 apt。
-- 下载函数支持代理和离线模式。
+- 下载函数支持代理、重试、超时和 GitHub URL 改写。
 - 没有硬编码唯一中国镜像站。
 
 ## 阶段 4：Mihomo 代理安装和配置
@@ -537,7 +532,7 @@ find modules -name '*.sh' -print0 | xargs -0 -n1 bash -n
 - `install_mihomo`
   - Arch 系优先使用 `MIHOMO_PACKAGE`，默认 `mihomo`。
   - Debian/RedHat 系如果仓库中存在 `MIHOMO_PACKAGE` 可以走 `pkg_install`；否则使用可配置二进制安装源。
-  - 二进制安装路径、下载源、版本和离线包必须可配置，使用 `MIHOMO_VERSION`、`MIHOMO_DOWNLOAD_BASE`、`MIHOMO_BINARY_SOURCE` 等变量，不要硬编码最新版本。
+  - 二进制安装路径、下载源和版本必须可配置，使用 `MIHOMO_VERSION`、`MIHOMO_DOWNLOAD_BASE`、`MIHOMO_BINARY_SOURCE` 等变量，不要硬编码最新版本。
   - 安装后必须能执行 `mihomo -v`。
 
 - `configure_mihomo`
@@ -645,13 +640,16 @@ rg -n "example.com/your-subscription-url|proxy: DIRECT|__MIHOMO_MIXED_PORT__|MET
 - 启动服务前有 `mihomo -t -d` 配置测试逻辑。
 - 卸载默认保留配置和 state dir。
 
-## 阶段 5：Docker 二进制安装
+## 阶段 5：Docker 分平台安装
 
 ### 目标
 
-重写 `modules/docker/install.sh`，Docker Engine 和 Docker Compose 不再通过包管理器安装。
+重写 `modules/docker/install.sh`，Docker Engine 和 Docker Compose 按平台选择安装来源：
 
-允许用包管理器安装必要前置依赖，例如 `ca-certificates`、`curl`、`tar`、`xz`、`iptables`、`procps`，但禁止用包管理器安装：
+- Arch Linux：通过 `pacman` 安装 `docker`、`docker-compose`、`docker-buildx`，缺包时走 AUR helper。
+- Debian/RedHat 系：通过 Docker 官方静态二进制安装 Engine，通过 GitHub release 安装 Docker Compose CLI 插件。
+
+Debian/RedHat 系允许用包管理器安装必要前置依赖，例如 `ca-certificates`、`curl`、`tar`、`xz`、`iptables`、`procps`，但不要用包管理器安装：
 
 - `docker`
 - `docker-ce`
@@ -695,32 +693,19 @@ DOCKER_PURGE_DATA=0
 
 不支持架构必须明确报错。
 
-### 在线和离线路径
+### 联网下载路径
 
-在线 Docker Engine：
+Docker Engine：
 
 ```bash
 ${DOCKER_DOWNLOAD_BASE}/linux/static/${DOCKER_CHANNEL}/${docker_arch}/docker-${DOCKER_VERSION}.tgz
 ```
 
-在线 Compose plugin：
+Compose plugin：
 
 ```bash
 https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${compose_arch}
 ```
-
-离线文件建议命名：
-
-```text
-${OS_INIT_FILES_DIR}/docker/docker-${DOCKER_VERSION}-${docker_arch}.tgz
-${OS_INIT_FILES_DIR}/docker/docker-compose-linux-${compose_arch}-${DOCKER_COMPOSE_VERSION}
-```
-
-离线模式下：
-
-- 必须在 preflight 阶段检查文件存在。
-- 缺文件直接退出。
-- 不允许触网。
 
 ### 安装流程
 
@@ -733,7 +718,7 @@ ${OS_INIT_FILES_DIR}/docker/docker-compose-linux-${compose_arch}-${DOCKER_COMPOS
 7. 如果检测到包管理器安装的 Docker：
    - 默认报错并提示设置 `DOCKER_FORCE_BINARY=1`。
    - 不要自动覆盖包管理器文件。
-8. 下载或读取离线包。
+8. 通过配置的 URL 下载二进制包。
 9. 解压到：
 
 ```text
@@ -922,10 +907,10 @@ go test ./...
 文本验证：
 
 ```bash
-rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*docker" modules/docker modules/lib.sh
+rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker" modules/docker modules/lib.sh
 ```
 
-预期：Docker 安装脚本不能通过包管理器安装 Docker Engine 或 Compose。
+预期：Debian/RedHat 系 Docker 安装脚本不能通过 apt/yum/dnf 安装 Docker Engine 或 Compose；Arch 分支可以通过 pacman/AUR 安装 Docker 组件。
 
 ## 阶段 6：保留模块跨发行版改造
 
@@ -958,7 +943,6 @@ rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*
 
 - 支持 `x86_64` 和 `aarch64`。
 - 下载源可配置。
-- 支持离线包。
 - 缺少版本或不支持架构时明确报错。
 - 不再固定 Linux x86_64。
 
@@ -1026,9 +1010,9 @@ README 要改成中文，说明：
 
 - 支持 Arch/Debian/RedHat 系。
 - 面向中国大陆网络。
-- Docker 是二进制安装。
+- Docker 是分平台安装：Arch 使用 pacman/AUR，其它 Linux 使用静态二进制和 Compose plugin。
 - Mihomo 可安装配置，支持自定义配置来源和 MetaCubeXD 面板。
-- 支持代理和离线包。
+- 支持代理、镜像源和自定义下载地址。
 - 已删除桌面应用和告警模块。
 
 ## 阶段 8：构建发布流水线和版本发布
@@ -1138,12 +1122,12 @@ Docker 验证：
 
 ```bash
 bash -n modules/docker/install.sh
-rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker|pacman .*docker" modules/docker modules/lib.sh
+rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker" modules/docker modules/lib.sh
 ```
 
 预期：
 
-- 不通过包管理器安装 Docker Engine 或 Compose。
+- Debian/RedHat 系不通过 apt/yum/dnf 安装 Docker Engine 或 Compose；Arch 系通过 pacman/AUR 安装 Docker 组件。
 - `daemon.json` 生成逻辑能处理 registry mirrors、insecure registries、proxy、data-root。
 - 默认卸载保留 Docker 数据目录。
 

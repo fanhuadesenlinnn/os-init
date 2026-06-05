@@ -17,8 +17,6 @@ const (
 var summaryKeys = []string{
 	"OS_INIT_LANG",
 	"GITHUB_PROXY",
-	"OS_INIT_OFFLINE",
-	"OS_INIT_FILES_DIR",
 	"OS_INIT_SCRIPT_TIMEOUT",
 }
 

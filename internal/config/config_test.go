@@ -196,7 +196,7 @@ GITHUB_PROXY=https://gh.example.com/
 
 func TestApplyUsesUserConfigCreatedAfterInitialLoad(t *testing.T) {
 	preserveEnv(t,
-		"OS_INIT_FILES_DIR",
+		"DOWNLOAD_TIMEOUT",
 		"OS_INIT_PROXY",
 		"HTTP_PROXY",
 		"http_proxy",
@@ -209,17 +209,17 @@ func TestApplyUsesUserConfigCreatedAfterInitialLoad(t *testing.T) {
 	)
 	resetOriginalEnvForTest()
 	t.Cleanup(resetOriginalEnvForTest)
-	os.Unsetenv("OS_INIT_FILES_DIR")
+	os.Unsetenv("DOWNLOAD_TIMEOUT")
 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	files := fstest.MapFS{
-		embeddedDefaults: {Data: []byte("OS_INIT_FILES_DIR=\nNO_PROXY=localhost\n")},
+		embeddedDefaults: {Data: []byte("DOWNLOAD_TIMEOUT=30\nNO_PROXY=localhost\n")},
 	}
 
 	Apply(files)
-	if got := os.Getenv("OS_INIT_FILES_DIR"); got != "" {
-		t.Fatalf("unexpected OS_INIT_FILES_DIR after defaults: %q", got)
+	if got := os.Getenv("DOWNLOAD_TIMEOUT"); got != "30" {
+		t.Fatalf("unexpected DOWNLOAD_TIMEOUT after defaults: %q", got)
 	}
 
 	userConfigDir := filepath.Join(home, ".config", "os-init")
@@ -227,12 +227,12 @@ func TestApplyUsesUserConfigCreatedAfterInitialLoad(t *testing.T) {
 		t.Fatalf("create user config dir: %v", err)
 	}
 	userConfig := filepath.Join(userConfigDir, "config.env")
-	if err := os.WriteFile(userConfig, []byte("OS_INIT_FILES_DIR=/opt/os-init/packages\n"), 0o600); err != nil {
+	if err := os.WriteFile(userConfig, []byte("DOWNLOAD_TIMEOUT=45\n"), 0o600); err != nil {
 		t.Fatalf("write user config: %v", err)
 	}
 
 	Apply(files)
-	if got := os.Getenv("OS_INIT_FILES_DIR"); got != "/opt/os-init/packages" {
+	if got := os.Getenv("DOWNLOAD_TIMEOUT"); got != "45" {
 		t.Fatalf("user config should win after second Apply, got %q", got)
 	}
 }

@@ -7,7 +7,7 @@ verify_hyprland() {
   run_cmd waybar --version || true
   run_cmd rofi -version || true
   run_cmd dunst --version || true
-  run_cmd yazi --version || true
+  run_cmd pacman -Q yazi || true
   run_cmd alacritty --version || true
   run_cmd foot --version || true
   run_cmd "${BROWSER_APP:-google-chrome-stable}" --version || true

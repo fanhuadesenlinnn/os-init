@@ -54,10 +54,14 @@ var versionCheckers = []versionChecker{
 		versionRe:  regexp.MustCompile(`go(\d+\.\d+\.\d+)`),
 	},
 	{
-		moduleID:   "yazi",
-		repo:       "sxyazi/yazi",
-		versionCmd: []string{"yazi", "--version"},
-		versionRe:  regexp.MustCompile(`(\d+\.\d+\.\d+)`),
+		moduleID: "yazi",
+		repo:     "sxyazi/yazi",
+		versionCmd: []string{
+			"sh",
+			"-c",
+			"brew list --versions yazi 2>/dev/null || pacman -Q yazi 2>/dev/null || dpkg-query -W -f='yazi ${Version}\\n' yazi 2>/dev/null || rpm -q --qf 'yazi %{VERSION}\\n' yazi 2>/dev/null",
+		},
+		versionRe: regexp.MustCompile(`(\d+\.\d+\.\d+)`),
 	},
 	{
 		moduleID:   "neovim",

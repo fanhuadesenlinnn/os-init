@@ -37,6 +37,10 @@ fd_package_name() {
     fi
 }
 
+tool_prefers_package_manager() {
+    is_macos || is_arch
+}
+
 TITLE="Setup"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
 echo "=== Neovim + LazyVim $TITLE ==="
@@ -46,7 +50,7 @@ if [[ "$UNINSTALL" == true ]]; then
     # neovim
     if command -v nvim &>/dev/null; then
         remove "removing neovim"
-        if is_macos; then
+        if tool_prefers_package_manager; then
             pkg_remove neovim 2>/dev/null || true
         else
             sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
@@ -58,7 +62,7 @@ if [[ "$UNINSTALL" == true ]]; then
     # lazygit
     if command -v lazygit &>/dev/null; then
         remove "removing lazygit"
-        if is_macos; then
+        if tool_prefers_package_manager; then
             pkg_remove lazygit 2>/dev/null || true
         else
             sudo rm -f /usr/local/bin/lazygit
@@ -89,7 +93,7 @@ if [[ "$UNINSTALL" == true ]]; then
     exit 0
 fi
 
-# [1/4] Neovim via GitHub release tarball
+# [1/4] Neovim via package manager or GitHub release tarball
 echo "[1/4] neovim..."
 install_nvim_linux() {
     local label="$1"
@@ -98,7 +102,7 @@ install_nvim_linux() {
     TMP_DIR=$(mktemp -d /tmp/nvim-XXXXXX)
     NVIM_URL="$(resource_url NVIM_DOWNLOAD_URL "${NVIM_DOWNLOAD_BASE%/}/${NVIM_ARCH_DIR}.tar.gz")"
     echo "  获取: $NVIM_URL"
-    download_or_offline_file "$NVIM_URL" "$TMP_DIR/nvim.tar.gz" "$(basename "${NVIM_URL%%\?*}")"
+    download_file "$NVIM_URL" "$TMP_DIR/nvim.tar.gz"
     tar -xzf "$TMP_DIR/nvim.tar.gz" -C "$TMP_DIR"
     sudo rm -rf "$NVIM_INSTALL_DIR"
     sudo mv "$TMP_DIR/$NVIM_ARCH_DIR" "$NVIM_INSTALL_DIR"
@@ -107,11 +111,23 @@ install_nvim_linux() {
     echo "  installed: $(nvim --version | head -1)"
 }
 
+install_nvim_package() {
+    local label="$1"
+    if is_macos; then
+        $label "通过 Homebrew 安装 Neovim"
+    else
+        $label "通过 pacman/AUR 安装 Neovim"
+    fi
+    pkg_install neovim
+}
+
 if command -v nvim &>/dev/null && nvim --version &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
         if is_macos; then
             update "updating neovim via Homebrew"
             brew_upgrade neovim 2>/dev/null || skip "neovim already at latest"
+        elif is_arch; then
+            install_nvim_package update
         else
             install_nvim_linux update
         fi
@@ -119,8 +135,8 @@ if command -v nvim &>/dev/null && nvim --version &>/dev/null; then
         skip "nvim $(nvim --version | head -1) already installed"
     fi
 else
-    if is_macos; then
-        pkg_install neovim
+    if tool_prefers_package_manager; then
+        install_nvim_package install
     else
         install_nvim_linux install
     fi
@@ -157,7 +173,7 @@ install_lazygit_linux() {
     TMP_DIR=$(mktemp -d /tmp/lazygit-XXXXXX)
     LAZYGIT_URL="$(resource_url LAZYGIT_DOWNLOAD_URL "${LAZYGIT_DOWNLOAD_BASE%/}/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz")"
     echo "  获取: $LAZYGIT_URL"
-    download_or_offline_file "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz" "$(basename "${LAZYGIT_URL%%\?*}")"
+    download_file "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz"
     tar -xzf "$TMP_DIR/lazygit.tar.gz" -C "$TMP_DIR"
     sudo mv "$TMP_DIR/lazygit" /usr/local/bin/lazygit
     sudo chmod +x /usr/local/bin/lazygit
@@ -165,11 +181,23 @@ install_lazygit_linux() {
     echo "  installed: lazygit $LAZYGIT_VERSION"
 }
 
+install_lazygit_package() {
+    local label="$1"
+    if is_macos; then
+        $label "通过 Homebrew 安装 lazygit"
+    else
+        $label "通过 pacman/AUR 安装 lazygit"
+    fi
+    pkg_install lazygit
+}
+
 if command -v lazygit &>/dev/null; then
     if [[ "$UPDATE" == true ]]; then
         if is_macos; then
             update "updating lazygit via Homebrew"
             brew_upgrade lazygit 2>/dev/null || skip "lazygit already at latest"
+        elif is_arch; then
+            install_lazygit_package update
         else
             install_lazygit_linux update
         fi
@@ -177,8 +205,8 @@ if command -v lazygit &>/dev/null; then
         skip "lazygit already installed"
     fi
 else
-    if is_macos; then
-        pkg_install lazygit
+    if tool_prefers_package_manager; then
+        install_lazygit_package install
     else
         install_lazygit_linux install
     fi

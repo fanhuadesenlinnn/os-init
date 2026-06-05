@@ -18,7 +18,7 @@ DAEMON_CFG="/etc/docker/daemon.json"
 
 TITLE="安装"
 [[ "$UNINSTALL" == true ]] && TITLE="卸载"
-echo "=== Docker 二进制安装 ($TITLE) ==="
+echo "=== Docker 安装 ($TITLE) ==="
 echo ""
 
 docker_static_arch() {
@@ -47,7 +47,6 @@ docker_static_base_url() {
 
 latest_docker_version() {
     local index_file version
-    [[ "${OS_INIT_OFFLINE:-0}" == "1" ]] && die "离线模式请设置 DOCKER_VERSION"
     index_file="$(mktemp "${TMPDIR:-/tmp}/docker-index.XXXXXX")"
     download_file "$(docker_static_base_url)/" "$index_file"
     version="$(grep -Eo 'docker-[0-9]+(\.[0-9]+){1,3}\.tgz' "$index_file" \
@@ -123,7 +122,7 @@ install_docker_binaries() {
     tmp="$(mktemp -d /tmp/docker-bin-XXXXXX)"
 
     install "获取 Docker 静态二进制: $file_name"
-    download_or_offline_file "$url" "$tmp/$file_name" "$file_name"
+    download_file "$url" "$tmp/$file_name"
     tar -xzf "$tmp/$file_name" -C "$tmp"
     sudo install -m 0755 "$tmp/docker/"* /usr/local/bin/
     rm -rf "$tmp"
@@ -137,9 +136,16 @@ install_compose_plugin() {
     tmp="$(mktemp -d /tmp/docker-compose-XXXXXX)"
 
     install "安装 Docker Compose CLI 插件: $file_name"
-    download_or_offline_file "$url" "$tmp/docker-compose" "$file_name"
+    download_file "$url" "$tmp/docker-compose"
     sudo install -m 0755 -D "$tmp/docker-compose" "$COMPOSE_PLUGIN"
     rm -rf "$tmp"
+}
+
+install_docker_arch_packages() {
+    install "通过 pacman/AUR 安装 Docker 组件"
+    pkg_install docker docker-compose docker-buildx
+    docker --version || true
+    docker compose version || true
 }
 
 json_string() {
@@ -257,7 +263,9 @@ ensure_docker_group() {
 
 enable_docker_service() {
     install "启用 Docker 服务"
-    sudo systemctl enable --now containerd.service
+    if systemctl list-unit-files containerd.service >/dev/null 2>&1; then
+        sudo systemctl enable --now containerd.service || warn "containerd.service 启用失败，将继续尝试 docker.service"
+    fi
     sudo systemctl enable --now docker.service
 }
 
@@ -292,21 +300,26 @@ uninstall_docker() {
     sudo systemctl disable --now containerd.service 2>/dev/null || true
     sudo systemctl reset-failed docker.service containerd.service 2>/dev/null || true
 
-    remove "删除 systemd unit 和 Compose 插件"
-    sudo rm -f "$DOCKER_SERVICE" "$CONTAINERD_SERVICE" "$COMPOSE_PLUGIN"
-    sudo systemctl daemon-reload
+    if is_arch; then
+        remove "通过 pacman/AUR 卸载 Docker 组件"
+        pkg_remove docker-buildx docker-compose docker 2>/dev/null || true
+    else
+        remove "删除 systemd unit 和 Compose 插件"
+        sudo rm -f "$DOCKER_SERVICE" "$CONTAINERD_SERVICE" "$COMPOSE_PLUGIN"
+        sudo systemctl daemon-reload
 
-    remove "删除 Docker 静态二进制"
-    sudo rm -f \
-        /usr/local/bin/containerd \
-        /usr/local/bin/containerd-shim \
-        /usr/local/bin/containerd-shim-runc-v2 \
-        /usr/local/bin/ctr \
-        /usr/local/bin/docker \
-        /usr/local/bin/dockerd \
-        /usr/local/bin/docker-init \
-        /usr/local/bin/docker-proxy \
-        /usr/local/bin/runc
+        remove "删除 Docker 静态二进制"
+        sudo rm -f \
+            /usr/local/bin/containerd \
+            /usr/local/bin/containerd-shim \
+            /usr/local/bin/containerd-shim-runc-v2 \
+            /usr/local/bin/ctr \
+            /usr/local/bin/docker \
+            /usr/local/bin/dockerd \
+            /usr/local/bin/docker-init \
+            /usr/local/bin/docker-proxy \
+            /usr/local/bin/runc
+    fi
 
     if [[ "${PURGE_DATA:-0}" == "1" ]]; then
         warn "PURGE_DATA=1，将删除 Docker 数据目录"
@@ -332,33 +345,50 @@ fi
 
 require_systemd
 
-echo "[1/6] 前置依赖..."
-install_prerequisites
+if is_arch; then
+    echo "[1/5] Docker 软件包..."
+    install_docker_arch_packages
 
-echo "[2/6] Docker 静态二进制..."
-if command -v dockerd &>/dev/null && command -v docker &>/dev/null && [[ "$UPDATE" != true ]]; then
-    skip "Docker 已安装: $(docker --version)"
+    echo "[2/5] daemon.json..."
+    write_daemon_config
+
+    echo "[3/5] systemd..."
+    enable_docker_service
+
+    echo "[4/5] docker 组..."
+    ensure_docker_group
+
+    echo "[5/5] 验证..."
+    verify_docker
 else
-    install_docker_binaries
+    echo "[1/6] 前置依赖..."
+    install_prerequisites
+
+    echo "[2/6] Docker 静态二进制..."
+    if command -v dockerd &>/dev/null && command -v docker &>/dev/null && [[ "$UPDATE" != true ]]; then
+        skip "Docker 已安装: $(docker --version)"
+    else
+        install_docker_binaries
+    fi
+
+    echo "[3/6] Docker Compose plugin..."
+    if docker compose version &>/dev/null && [[ "$UPDATE" != true ]]; then
+        skip "Docker Compose 已安装: $(docker compose version --short 2>/dev/null || echo '?')"
+    else
+        install_compose_plugin
+    fi
+
+    echo "[4/6] daemon.json..."
+    write_daemon_config
+
+    echo "[5/6] systemd..."
+    write_systemd_units
+    enable_docker_service
+
+    echo "[6/6] docker 组..."
+    ensure_docker_group
+
+    verify_docker
 fi
-
-echo "[3/6] Docker Compose plugin..."
-if docker compose version &>/dev/null && [[ "$UPDATE" != true ]]; then
-    skip "Docker Compose 已安装: $(docker compose version --short 2>/dev/null || echo '?')"
-else
-    install_compose_plugin
-fi
-
-echo "[4/6] daemon.json..."
-write_daemon_config
-
-echo "[5/6] systemd..."
-write_systemd_units
-enable_docker_service
-
-echo "[6/6] docker 组..."
-ensure_docker_group
-
-verify_docker
 echo ""
 echo "=== Docker 安装完成 ==="

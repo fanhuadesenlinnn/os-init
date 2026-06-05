@@ -1,4 +1,4 @@
-.PHONY: build run lint test archdevkit-test check clean
+.PHONY: build run lint test lib-strategy-test archdevkit-test check clean
 
 BINARY ?= os-init
 VERSION ?= dev
@@ -12,16 +12,19 @@ run:
 
 lint:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './.git/*'))"
-	bash -n modules/lib.sh modules/*/*.sh
-	shellcheck modules/lib.sh modules/*/*.sh
+	bash -n modules/lib.sh modules/*/*.sh tooling/*.sh
+	shellcheck modules/lib.sh modules/*/*.sh tooling/*.sh
 
 test:
 	go test ./...
 
+lib-strategy-test:
+	bash tooling/test-lib-strategy.sh
+
 archdevkit-test:
 	bash modules/archdevkit/vendor/scripts/test.sh
 
-check: test lint archdevkit-test
+check: test lint lib-strategy-test archdevkit-test
 
 clean:
 	rm -rf os-init kickstart dist

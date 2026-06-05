@@ -30,10 +30,11 @@ make build
 - 三种模式：安装、更新、卸载。
 - 系统识别：Linux 下识别 Debian/Ubuntu、Rocky/RHEL/Fedora、Arch/Manjaro；macOS 识别为 Darwin 系。
 - 模块过滤：Linux 显示系统优化、Docker、Mihomo 等 Linux 专属模块；macOS 只显示适配 macOS 的 Shell、终端和开发工具模块。
-- 中国大陆网络适配：GitHub 专用代理、下载重试、超时、离线包目录。
+- 中国大陆网络适配：GitHub 专用代理、镜像源、资源下载地址覆盖、下载重试和超时。
 - 执行保护：单模块超时，按所选模块决定是否提前校验 sudo，macOS Homebrew 模块不会无故要求 sudo。
 - TCP/UDP 优化：吸收 `tcp.vpsing.de` 的有效配置，加入 IPv4 优先、BBR/FQ、ECN、MTU 探测、RPS/RSS、MSS clamp。
-- 二进制 Docker：安装 Docker Engine 静态二进制和 Docker Compose CLI 插件。
+- 分平台安装策略：macOS 优先 Homebrew，Arch Linux 优先 pacman/paru/yay，其它 Linux 尽量使用官方二进制。
+- Docker：Arch Linux 使用 pacman/AUR 安装 Docker 组件；Debian/RedHat 系使用 Docker 静态二进制和 Docker Compose CLI 插件。
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
 - ArchDevKit：在 Arch Linux 上显示独立菜单，完整嵌入 ArchDevKit 的 base、archlinuxcn、dns、runtime、desktop、doctor、config 等能力。
 - Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
@@ -76,6 +77,8 @@ make build
 | macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
 | 网络代理 | Mihomo |
 | 开发工具 | Docker、Go、Neovim + LazyVim |
+
+安装来源遵循平台生态：macOS 模块会自动安装并使用 Homebrew；Arch Linux 普通模块优先使用 pacman，缺包时自动准备 paru/yay 后走 AUR；Debian/RedHat 系的版本敏感工具优先使用官方二进制或可配置下载地址。
 
 ### ArchDevKit
 
@@ -128,7 +131,7 @@ ArchDevKit 使用自己的配置文件和状态目录：
 ~/.config/os-init/config.env
 ```
 
-创建出来的配置文件带中文注释，说明 GitHub 代理、终端样式、资源地址和离线参数的用途。
+创建出来的配置文件带中文注释，说明 GitHub 代理、终端样式、镜像源和资源下载地址的用途。
 
 配置加载顺序：
 
@@ -141,8 +144,6 @@ ArchDevKit 使用自己的配置文件和状态目录：
 
 ```bash
 export GITHUB_PROXY=https://gh-proxy.com/
-export OS_INIT_OFFLINE=1
-export OS_INIT_FILES_DIR=/opt/os-init/packages
 export OS_INIT_SCRIPT_TIMEOUT=45m
 ```
 
@@ -165,7 +166,7 @@ OS_INIT_CONFIG_PROMPT=0
 资源下载可以按两种方式覆盖：
 
 - 设置 GitHub 代理：`GITHUB_PROXY` 只改写 GitHub、raw.githubusercontent.com、objects.githubusercontent.com 和 github-releases.githubusercontent.com。
-- 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。
+- 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。这些主要用于非 Arch Linux 的二进制安装路径；macOS/Arch 默认优先包管理器。
 - 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
 - 设置 Homebrew 下载和元数据地址：例如 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_ARTIFACT_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`。
 - 设置模块执行超时：`OS_INIT_SCRIPT_TIMEOUT=45m`，也可以用纯秒数；`0` 表示不限制。

@@ -74,7 +74,7 @@ func (m configStartupModel) View() string {
 			helpAction{key: "Q", desc: text("退出", "quit")},
 		) + "\n\n")
 		b.WriteString(text("  当前将使用程序内置默认配置启动。\n", "  The program will start with the built-in defaults.\n"))
-		b.WriteString(text("  建议创建配置文件，用于设置 GitHub 代理、下载地址和离线包目录。\n\n", "  Creating a config file is recommended for GitHub proxy, download URLs, and offline package paths.\n\n"))
+		b.WriteString(text("  建议创建配置文件，用于设置 GitHub 代理、镜像源和资源下载地址。\n\n", "  Creating a config file is recommended for GitHub proxy, mirrors, and resource download URLs.\n\n"))
 		b.WriteString(text("  创建位置\n", "  Create at\n"))
 		if m.info.UserPath != "" {
 			b.WriteString(HelpKeyStyle.Render("  "+m.info.UserPath) + "\n")

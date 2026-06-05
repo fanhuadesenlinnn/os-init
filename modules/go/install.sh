@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install Go programming language from go.dev tarball
+# Install Go programming language through the native package manager or go.dev tarball
 # Author: Dusan Panic <dpanic@gmail.com>
 # Safe to re-run -- idempotent
 
@@ -20,6 +20,12 @@ echo "=== Go Programming Language ($TITLE) ==="
 echo ""
 
 if [[ "$UNINSTALL" == true ]]; then
+    if is_macos || is_arch; then
+        if pkg_is_installed go; then
+            remove "通过系统包管理器卸载 Go"
+            pkg_remove go 2>/dev/null || true
+        fi
+    fi
     if [[ -d "$GO_INSTALL_DIR" ]]; then
         remove "removing $GO_INSTALL_DIR"
         sudo rm -rf "$GO_INSTALL_DIR"
@@ -32,14 +38,25 @@ if [[ "$UNINSTALL" == true ]]; then
     exit 0
 fi
 
-install_go() {
+go_prefers_package_manager() {
+    is_macos || is_arch
+}
+
+install_go_package() {
     local label="$1"
-    local version_file go_os go_arch go_url archive_name
+    if is_macos; then
+        $label "通过 Homebrew 安装 Go"
+    else
+        $label "通过 pacman/AUR 安装 Go"
+    fi
+    pkg_install go
+}
+
+install_go_binary() {
+    local label="$1"
+    local version_file go_os go_arch go_url
 
     if [[ -z "${GO_VERSION:-}" ]]; then
-        if [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
-            die "离线模式请在配置中设置 GO_VERSION，例如 GO_VERSION=go1.22.5"
-        fi
         version_file="$(mktemp "${TMPDIR:-/tmp}/go-version.XXXXXX")"
         download_file "${GO_VERSION_URL:-https://go.dev/VERSION?m=text}" "$version_file"
         GO_VERSION="$(head -1 "$version_file")"
@@ -69,10 +86,9 @@ install_go() {
 
     local go_base="${GO_DOWNLOAD_BASE:-https://go.dev/dl}"
     go_url="$(resource_url GO_DOWNLOAD_URL "${go_base%/}/${GO_VERSION}.${go_os}-${go_arch}.tar.gz")"
-    archive_name="$(basename "${go_url%%\?*}")"
     TMP_DIR=$(mktemp -d /tmp/go-XXXXXX)
     echo "  获取: $go_url"
-    download_or_offline_file "$go_url" "$TMP_DIR/go.tar.gz" "$archive_name"
+    download_file "$go_url" "$TMP_DIR/go.tar.gz"
     sudo rm -rf "$GO_INSTALL_DIR"
     sudo tar -C /usr/local -xzf "$TMP_DIR/go.tar.gz"
     rm -rf "$TMP_DIR"
@@ -82,12 +98,20 @@ install_go() {
 echo "[1/2] go..."
 if command -v go &>/dev/null || [[ -x "$GO_INSTALL_DIR/bin/go" ]]; then
     if [[ "$UPDATE" == true ]]; then
-        install_go update
+        if go_prefers_package_manager; then
+            install_go_package update
+        else
+            install_go_binary update
+        fi
     else
         skip "go $(go version 2>/dev/null | awk '{print $3}') already installed"
     fi
 else
-    install_go install
+    if go_prefers_package_manager; then
+        install_go_package install
+    else
+        install_go_binary install
+    fi
 fi
 
 echo "[2/2] PATH..."

@@ -136,7 +136,7 @@ install_mihomo_binary() {
     install "获取 Mihomo 核心: $file_name"
     case "$url" in
         http://*|https://*)
-            download_or_offline_file "$url" "$gz" "$file_name"
+            download_file "$url" "$gz"
             ;;
         *)
             [[ -f "$url" ]] || die "Mihomo 二进制来源不存在: $url"
@@ -175,6 +175,12 @@ package_available() {
 install_mihomo_core() {
     local package="${MIHOMO_PACKAGE:-mihomo}"
 
+    if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && is_arch; then
+        install "通过 pacman/AUR 安装 Mihomo: $package"
+        pkg_install "$package"
+        return
+    fi
+
     if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && package_available "$package"; then
         install "通过发行版仓库安装 Mihomo: $package"
         pkg_install "$package"
@@ -190,7 +196,7 @@ config_source_to_root_file() {
     tmp="$(mktemp "${TMPDIR:-/tmp}/mihomo-source.XXXXXX")"
     case "$source" in
         http://*|https://*)
-            download_or_offline_file "$source" "$tmp" "$(basename "${source%%\?*}")"
+            download_file "$source" "$tmp"
             ;;
         *)
             [[ -f "$source" ]] || die "Mihomo 配置文件不存在: $source"
@@ -294,7 +300,7 @@ install_metacubexd() {
     if [[ -n "$source" ]]; then
         case "$source" in
             http://*|https://*)
-                download_or_offline_file "$source" "$tmp/metacubexd.tar.gz" "$(basename "${source%%\?*}")"
+                download_file "$source" "$tmp/metacubexd.tar.gz"
                 tar -xzf "$tmp/metacubexd.tar.gz" -C "$tmp"
                 source="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
                 ;;
@@ -305,8 +311,6 @@ install_metacubexd() {
         sudo rm -rf "$target"
         sudo mkdir -p "$(dirname "$target")"
         sudo cp -a "$source" "$target"
-    elif [[ "${OS_INIT_OFFLINE:-0}" == "1" ]]; then
-        warn "离线模式未设置 METACUBEXD_SOURCE，跳过 MetaCubeXD 面板"
     else
         git_clone_depth_branch 1 gh-pages "$(repo_url METACUBEXD_REPO "https://github.com/metacubex/metacubexd.git")" "$tmp/ui"
         sudo rm -rf "$target"
