@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"testing/fstest"
+
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 func TestParseEnv(t *testing.T) {
@@ -38,11 +40,9 @@ bad-key=value
 
 func TestCreateUserConfig(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	files := fstest.MapFS{
-		embeddedExample: {Data: []byte("# 中文说明\nGITHUB_PROXY=\n")},
-	}
+	files := fstest.MapFS{}
 
-	path, err := CreateUserConfig(files)
+	path, err := createUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN")
 	if err != nil {
 		t.Fatalf("CreateUserConfig failed: %v", err)
 	}
@@ -56,14 +56,14 @@ func TestCreateUserConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	if !strings.Contains(string(data), "中文说明") {
-		t.Fatalf("config template was not copied: %q", string(data))
+	if !strings.Contains(string(data), "OS Init 启动配置") || !strings.Contains(string(data), "GITHUB_PROXY=") {
+		t.Fatalf("config was not generated with expected content: %q", string(data))
 	}
 
 	if err := os.WriteFile(path, []byte("CUSTOM=1\n"), 0o600); err != nil {
 		t.Fatalf("write custom config: %v", err)
 	}
-	if _, err := CreateUserConfig(files); err != nil {
+	if _, err := createUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"); err != nil {
 		t.Fatalf("second CreateUserConfig failed: %v", err)
 	}
 	data, err = os.ReadFile(path)
@@ -72,6 +72,70 @@ func TestCreateUserConfig(t *testing.T) {
 	}
 	if string(data) != "CUSTOM=1\n" {
 		t.Fatalf("existing config should not be overwritten: %q", string(data))
+	}
+}
+
+func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
+	t.Parallel()
+
+	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN"))
+	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "OH_MY_ZSH_REPO=", "GO_DOWNLOAD_BASE="} {
+		if !strings.Contains(data, want) {
+			t.Fatalf("darwin config should contain %q, got %q", want, data)
+		}
+	}
+	for _, unwanted := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE="} {
+		if strings.Contains(data, unwanted) {
+			t.Fatalf("darwin config should not contain %q, got %q", unwanted, data)
+		}
+	}
+}
+
+func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
+	t.Parallel()
+
+	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"))
+	for _, want := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "NVIM_DOWNLOAD_BASE=", "YAZI_DOWNLOAD_BASE="} {
+		if !strings.Contains(data, want) {
+			t.Fatalf("linux config should contain %q, got %q", want, data)
+		}
+	}
+	if strings.Contains(data, "HOMEBREW_API_DOMAIN=") {
+		t.Fatalf("linux config should not contain Homebrew settings, got %q", data)
+	}
+	if strings.Contains(data, "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE=") {
+		t.Fatalf("non-Arch linux config should not contain ArchDevKit settings, got %q", data)
+	}
+}
+
+func TestRenderUserConfig_ArchIncludesArchDevKitBridge(t *testing.T) {
+	t.Parallel()
+
+	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyArch}, "zh_CN"))
+	for _, want := range []string{
+		"ArchDevKit 桥接配置",
+		"OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE=dev",
+		"OS_INIT_ARCHDEVKIT_ENABLE_PROXY=1",
+		"OS_INIT_ARCHDEVKIT_PROXY_CORE=mihomo",
+		"OS_INIT_ARCHDEVKIT_ENABLE_METACUBEXD=1",
+	} {
+		if !strings.Contains(data, want) {
+			t.Fatalf("arch config should contain %q, got %q", want, data)
+		}
+	}
+}
+
+func TestRenderUserConfig_EnglishComments(t *testing.T) {
+	t.Parallel()
+
+	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "en_US"))
+	for _, want := range []string{"OS Init startup configuration", "Base Settings", "OS_INIT_LANG=en_US"} {
+		if !strings.Contains(data, want) {
+			t.Fatalf("english config should contain %q, got %q", want, data)
+		}
+	}
+	if strings.Contains(data, "启动配置") {
+		t.Fatalf("english config should not contain Chinese header, got %q", data)
 	}
 }
 

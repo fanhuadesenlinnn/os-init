@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 const (
@@ -65,6 +67,11 @@ func (d Discovery) ExistingPaths() []string {
 }
 
 func CreateUserConfig(files fs.FS) (string, error) {
+	return createUserConfig(files, platform.Detect(), os.Getenv("OS_INIT_LANG"))
+}
+
+func createUserConfig(files fs.FS, target platform.Target, lang string) (string, error) {
+	_ = files
 	info := Discover()
 	if info.UserPath == "" {
 		return "", fmt.Errorf("无法确定当前用户配置目录")
@@ -72,14 +79,7 @@ func CreateUserConfig(files fs.FS) (string, error) {
 	if info.UserExists {
 		return info.UserPath, nil
 	}
-	if files == nil {
-		return "", fmt.Errorf("缺少内置配置模板")
-	}
-
-	data, err := fs.ReadFile(files, embeddedExample)
-	if err != nil {
-		return "", fmt.Errorf("读取内置配置模板失败: %w", err)
-	}
+	data := renderUserConfig(target, lang)
 
 	dir := filepath.Dir(info.UserPath)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
