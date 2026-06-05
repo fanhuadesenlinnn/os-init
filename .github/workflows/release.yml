@@ -141,6 +141,10 @@ jobs:
           - 按模块权限决定是否提前 sudo，Homebrew 模块不包 sudo
           - Homebrew 镜像变量统一注入
           - Arch Linux 下显示独立 ArchDevKit 菜单，完整保留 ArchDevKit 子系统能力
+          - 模块执行计划器：强依赖自动补齐、软关联提示、稳定执行顺序
+          - 按当前系统生成启动配置，Arch Linux 自动包含 ArchDevKit 桥接配置
+          - ArchDevKit 默认 dev 开发环境，并默认启用 Mihomo/MetaCubeXD 代理能力
+          - 安装总结页显示重新登录、shell 刷新、手动配置等后续动作
           - Go、Bash 和 ShellCheck 发布前检查
           NOTES
 

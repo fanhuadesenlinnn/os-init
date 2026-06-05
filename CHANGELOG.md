@@ -2,15 +2,23 @@
 
 ## Unreleased
 
+## v0.11.0 - 2026-06-05
+
+### Added
+
+- Add a module execution planner with strong dependency auto-fill, soft association hints, ArchDevKit batch isolation, and execution order preview.
+- Generate a smaller platform-aware startup config for the current system while keeping the same `~/.config/os-init/config.env` path.
+- Add Arch Linux-only os-init config keys that bridge into ArchDevKit defaults.
+- Show post-install next steps in the summary page, including relogin, shell refresh, proxy config, and macOS app first-run reminders.
+- Document the product language in `CONTEXT.md`.
+- Record architecture decisions for initialization tracks, ArchDevKit independence, flat module selection, planned execution, and unified configuration.
+
 ### Changed
 
 - Replace the flat ArchDevKit install-target list with a native os-init ArchDevKit wizard that follows the original ArchDevKit menu flow.
 - Pass ArchDevKit wizard choices through a temporary override config so the embedded ArchDevKit installer keeps its own config and execution logic.
-
-### Added
-
-- Document the product language in `CONTEXT.md`.
-- Record architecture decisions for initialization tracks, ArchDevKit independence, flat module selection, planned execution, and unified configuration.
+- Default ArchDevKit to the `dev` profile, with proxy enabled through Mihomo, auto-enabled service, and MetaCubeXD.
+- Preserve the user's ArchDevKit config when os-init bridge overrides are present by appending bridge values after the existing config.
 
 ## v0.10.0 - 2026-06-05
 
