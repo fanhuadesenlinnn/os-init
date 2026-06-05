@@ -75,6 +75,17 @@ ID=fedora
 			want: platform.FamilyRedHat,
 		},
 		{
+			name: "kylin advanced server",
+			content: `
+NAME="Kylin Linux Advanced Server"
+VERSION="V10 (Halberd)"
+ID="kylin"
+VERSION_ID="V10"
+PRETTY_NAME="Kylin Linux Advanced Server V10 (Halberd)"
+`,
+			want: platform.FamilyRedHat,
+		},
+		{
 			name: "arch",
 			content: `
 ID=arch

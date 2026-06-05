@@ -96,7 +96,7 @@ func ClassifyFamily(id string, idLike []string) Family {
 		return FamilyArch
 	case "debian", "ubuntu", "linuxmint", "kali":
 		return FamilyDebian
-	case "rhel", "centos", "rocky", "almalinux", "fedora", "oracle", "oraclelinux", "ol":
+	case "rhel", "centos", "rocky", "almalinux", "fedora", "oracle", "oraclelinux", "ol", "kylin":
 		return FamilyRedHat
 	}
 

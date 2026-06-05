@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.2 - 2026-06-05
+
+### Changed
+
+- Clean unused startup configuration keys and align defaults, examples, and shell whitelist.
+
+### Fixed
+
+- Classify Kylin Linux Advanced Server as a RedHat-family Linux distribution.
+
 ## v0.9.1 - 2026-06-05
 
 ### Fixed

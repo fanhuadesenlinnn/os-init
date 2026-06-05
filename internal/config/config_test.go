@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -197,6 +199,25 @@ func TestApplyPreservesRuntimeOverride(t *testing.T) {
 	}
 }
 
+func TestEmbeddedConfigKeysMatchShellWhitelist(t *testing.T) {
+	t.Parallel()
+
+	defaults := readRepoFile(t, "modules/config/defaults.env")
+	example := readRepoFile(t, "modules/config/config.env.example")
+	lib := readRepoFile(t, "modules/lib.sh")
+
+	defaultKeys := sortedKeys(ParseEnv(strings.NewReader(defaults)))
+	exampleKeys := sortedKeys(ParseEnv(strings.NewReader(example)))
+	shellKeys := parseShellConfigKeys(t, lib)
+
+	if diff := compareKeySets("defaults", defaultKeys, "example", exampleKeys); diff != "" {
+		t.Fatal(diff)
+	}
+	if diff := compareKeySets("defaults", defaultKeys, "shell whitelist", shellKeys); diff != "" {
+		t.Fatal(diff)
+	}
+}
+
 func resetOriginalEnvForTest() {
 	originalEnvOnce = sync.Once{}
 	originalEnv = nil
@@ -223,4 +244,69 @@ func preserveEnv(t *testing.T, keys ...string) {
 			}
 		}
 	})
+}
+
+func readRepoFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", path))
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(data)
+}
+
+func parseShellConfigKeys(t *testing.T, lib string) []string {
+	t.Helper()
+	re := regexp.MustCompile(`(?s)OS_INIT_CONFIG_KEYS=\(\n(?P<body>.*?)\n\)`)
+	match := re.FindStringSubmatch(lib)
+	if match == nil {
+		t.Fatal("OS_INIT_CONFIG_KEYS block not found")
+	}
+	keys := strings.Fields(match[1])
+	sort.Strings(keys)
+	return keys
+}
+
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func compareKeySets(leftName string, left []string, rightName string, right []string) string {
+	leftOnly, rightOnly := diffKeys(left, right)
+	if len(leftOnly) == 0 && len(rightOnly) == 0 {
+		return ""
+	}
+	return leftName + " and " + rightName + " config keys differ; " +
+		leftName + " only=" + strings.Join(leftOnly, ",") + "; " +
+		rightName + " only=" + strings.Join(rightOnly, ",")
+}
+
+func diffKeys(left []string, right []string) ([]string, []string) {
+	rightSet := make(map[string]bool, len(right))
+	for _, key := range right {
+		rightSet[key] = true
+	}
+	leftSet := make(map[string]bool, len(left))
+	for _, key := range left {
+		leftSet[key] = true
+	}
+
+	leftOnly := make([]string, 0)
+	for _, key := range left {
+		if !rightSet[key] {
+			leftOnly = append(leftOnly, key)
+		}
+	}
+	rightOnly := make([]string, 0)
+	for _, key := range right {
+		if !leftSet[key] {
+			rightOnly = append(rightOnly, key)
+		}
+	}
+	return leftOnly, rightOnly
 }
