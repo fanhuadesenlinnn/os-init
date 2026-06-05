@@ -68,6 +68,18 @@ enable_system_service() {
   return 1
 }
 
+enable_system_service_best_effort() {
+  local service="$1"
+  [[ -n "${service}" ]] || die "systemd 系统服务名为空"
+
+  if enable_system_service "${service}"; then
+    return 0
+  fi
+
+  log_warn "已保留安装结果，但未阻断后续模块；重启后可检查：sudo systemctl status ${service}"
+  return 0
+}
+
 enable_system_service_on_boot() {
   local service="$1"
   [[ -n "${service}" ]] || die "systemd 系统服务名为空"

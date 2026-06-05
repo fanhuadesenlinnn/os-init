@@ -114,6 +114,23 @@ systemd_output="$(
 [[ "${systemd_output}" == *"sudo systemctl enable sddm.service"* ]] || { echo "missing boot enable"; exit 1; }
 [[ "${systemd_output}" == *"systemctl --user daemon-reload"* ]] || { echo "missing user daemon-reload"; exit 1; }
 [[ "${systemd_output}" == *"systemctl --user enable --now archdevkit-sing-box.service"* ]] || { echo "missing user enable"; exit 1; }
+best_effort_output="$(
+  bash -c '
+    set -Eeuo pipefail
+    source lib/common.sh
+    source lib/systemd.sh
+    run_sudo() {
+      if [[ "$*" == "systemctl enable --now docker.service" ]]; then
+        return 1
+      fi
+      return 0
+    }
+    enable_system_service_best_effort docker.service
+    echo "continued"
+  '
+)"
+[[ "${best_effort_output}" == *"continued"* ]] || { echo "best effort service failure should continue"; exit 1; }
+[[ "${best_effort_output}" == *"未阻断后续模块"* ]] || { echo "missing best effort warning"; exit 1; }
 
 echo "==> file helpers"
 file_output="$(

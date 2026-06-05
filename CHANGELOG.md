@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Do not abort ArchDevKit Docker or Mihomo installs when systemd cannot start the service immediately; keep the installed files and continue, with reboot/status follow-up guidance.
+
 ## v0.11.0 - 2026-06-05
 
 ### Added

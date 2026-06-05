@@ -47,7 +47,7 @@ install_docker_env() {
 
   if [[ "${ENABLE_DOCKER_SERVICE:-0}" -eq 1 ]]; then
     log_info "启用 Docker 服务"
-    enable_system_service docker.service
+    enable_system_service_best_effort docker.service
   fi
 
   if [[ "${ADD_USER_TO_DOCKER_GROUP:-0}" -eq 1 ]]; then

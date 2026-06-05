@@ -55,7 +55,7 @@ enable_proxy_service_if_needed() {
   case "${PROXY_CORE:-mihomo}" in
     mihomo)
       if mihomo_service_ready; then
-        enable_system_service "$(proxy_service_name)" || die "Mihomo 服务启动失败，请根据上方日志修正配置后重试"
+        enable_system_service_best_effort "$(proxy_service_name)"
       else
         log_warn "已跳过 Mihomo 服务启动；配置修正后执行：sudo systemctl enable --now ${MIHOMO_SERVICE_NAME:-mihomo.service}"
       fi
