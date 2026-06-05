@@ -34,6 +34,29 @@ func TestBuild_AddsStrongDependenciesForInstall(t *testing.T) {
 	}
 }
 
+func TestBuild_AddsStarshipForTerminalStyleWithoutForcingZsh(t *testing.T) {
+	t.Parallel()
+
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	byID := modulesByID(modules.ForTarget(target))
+
+	plan := planner.Build(
+		[]modules.Module{byID["terminal-style"]},
+		target,
+		planner.Options{Mode: planner.ModeInstall},
+	)
+
+	if !hasModule(plan.Modules, "shell-starship") {
+		t.Fatalf("plan should add shell-starship dependency, got %v", ids(plan.Modules))
+	}
+	if hasModule(plan.Modules, "shell-zsh") {
+		t.Fatalf("terminal style should not force shell-zsh, got %v", ids(plan.Modules))
+	}
+	if got, want := ids(plan.Modules), []string{"shell-starship", "terminal-style"}; !sameOrderPrefix(got, want) {
+		t.Fatalf("plan order = %v, want prefix %v", got, want)
+	}
+}
+
 func TestBuild_DoesNotAddStrongDependenciesForUninstall(t *testing.T) {
 	t.Parallel()
 

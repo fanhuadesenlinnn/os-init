@@ -1,0 +1,29 @@
+# os-init plain terminal prompt.
+# Intended for TTY, rescue shells, dumb terminals, and unknown remote consoles.
+
+"$schema" = "https://starship.rs/config-schema.json"
+
+format = "$directory$git_branch$line_break$character"
+
+[directory]
+style = "white"
+format = "[$path]($style) "
+truncation_length = 2
+truncation_symbol = ".../"
+
+[git_branch]
+symbol = "git:"
+style = "white"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+disabled = true
+
+[line_break]
+disabled = false
+
+[character]
+success_symbol = "> "
+error_symbol = "> "
+vimcmd_symbol = "< "
+

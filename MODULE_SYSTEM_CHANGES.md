@@ -127,7 +127,7 @@ ArchDevKit 向导覆盖原项目能力：
 - `nvim`：安装 Neovim 并写入 ArchDevKit 的 Neovim 配置。
 - `docker`：通过 pacman 安装 Docker/Compose，写入 `/etc/docker/daemon.json`，启用 `docker.service`，可把用户加入 `docker` 组。
 - `fonts`：安装中文字体、Emoji、Nerd Font、Monaco，并调整 fontconfig/GTK 字体。
-- `shell`：按 ArchDevKit 原逻辑安装 Zsh、Oh My Zsh、Powerlevel10k 和插件，会生成或覆盖 `~/.zshrc` 与 `~/.p10k.zsh`。
+- `shell`：安装 Zsh、Oh My Zsh、插件和 Starship 终端样式，会生成或覆盖 `~/.zshrc`，并向 `~/.bashrc` 写入终端样式 managed block；如配置 `SHELL_PROMPT_ENGINE=powerlevel10k`，会安装 Powerlevel10k 并写入 `~/.p10k.zsh`。
 - `proxy`：安装 Mihomo 或 sing-box，写入代理配置、systemd 服务和 shell 代理模板。
 - `desktop`：安装 Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots，会写入 Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等用户配置。
 - `dev` / `workstation`：保留 ArchDevKit 原有组合套餐。
@@ -159,9 +159,28 @@ ArchDevKit 向导覆盖原项目能力：
 ### starship
 
 - 下载并执行 starship 安装脚本。
-- 如果 `~/.config/starship.toml` 不存在，复制 `modules/shell/starship.toml`。
-- 在 `~/.zshrc` 写入或更新 `os-init starship` 管理块，执行 `eval "$(starship init zsh)"`。
+- 如果 `~/.config/starship.toml` 不存在，复制 rich 风格模板作为兼容配置。
+- 在 `~/.zshrc` 和 `~/.bashrc` 写入或更新 `os-init starship` 管理块。
+- 管理块会在 shell 启动时按 `OS_INIT_TERMINAL_STYLE` 选择模板：
+  - `auto`：本地图形终端使用 `rich`，SSH 使用 `simple`，TTY/救援环境使用 `plain`。
+  - `rich`：类 macOS/iTerm2 的彩色 powerline 风格，适合 Nerd Font 和 truecolor。
+  - `simple`：SSH 推荐，保留清晰颜色，不依赖 Nerd Font 图标。
+  - `plain`：最兼容，尽量少样式，适合 TTY、救援环境或未知终端。
+  - `none`：不启用 starship。
 - 卸载时删除 `starship` 二进制。
+
+### 终端样式
+
+- 写入 `~/.config/os-init/terminal/starship-rich.toml`。
+- 写入 `~/.config/os-init/terminal/starship-simple.toml`。
+- 写入 `~/.config/os-init/terminal/starship-plain.toml`。
+- 如目标模板已存在且内容不同，会在同目录生成 `.bak.YYYYMMDD-HHMMSS` 备份。
+- 在 `~/.zshrc` 和 `~/.bashrc` 写入 `os-init terminal-style` 管理块：
+  - `OS_INIT_TERMINAL_ENABLE_ALIASES=1` 时，为 `eza` 写入 `ls`、`ll`、`la`、`tree` alias。
+  - 未安装 `eza` 时，`ll`、`la` 降级为系统 `ls`。
+  - 未安装 `bat` 但存在 `batcat` 时，写入 `bat` alias。
+  - `OS_INIT_TERMINAL_BAT_THEME` 控制 bat 默认主题。
+- 卸载时删除 `os-init terminal-style` 管理块和 os-init 自己写入的三套模板；不卸载 starship。
 
 ### direnv
 

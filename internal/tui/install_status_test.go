@@ -93,14 +93,27 @@ func TestInstallStatusChecker_ShellIntegrationRequiresManagedBlock(t *testing.T)
 		return "", errors.New("missing")
 	}
 
-	mod := modules.Module{InstalledCmd: "starship", InstalledZshBlocks: []string{"starship"}}
+	mod := modules.Module{InstalledCmd: "starship", InstalledShellBlocks: []string{"starship"}}
 	if checker.moduleInstalled(context.Background(), mod) {
-		t.Fatal("starship should not be complete without the zsh block")
+		t.Fatal("starship should not be complete without the shell block")
 	}
 
 	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init starship >>>\neval \"$(starship init zsh)\"\n# <<< os-init starship <<<\n")
 	if !checker.moduleInstalled(context.Background(), mod) {
-		t.Fatal("starship should be complete with command and managed zsh block")
+		t.Fatal("starship should be complete with command and managed shell block")
+	}
+}
+
+func TestInstallStatusChecker_ShellBlockCanExistInOneInteractiveRc(t *testing.T) {
+	home := t.TempDir()
+	checker := testStatusChecker(t, home)
+
+	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init go >>>\nexport PATH=\"/usr/local/go/bin:$PATH\"\n# <<< os-init go <<<\n")
+	writeFile(t, filepath.Join(home, ".bashrc"), "# user bash config\n")
+
+	mod := modules.Module{InstalledShellBlocks: []string{"go"}}
+	if !checker.moduleInstalled(context.Background(), mod) {
+		t.Fatal("shell integration should be complete when the managed block exists in one interactive rc file")
 	}
 }
 

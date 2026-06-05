@@ -29,6 +29,8 @@ func moduleSection(label string) string {
 		return "ArchDevKit"
 	case "Shell 工具":
 		return "Shell Tools"
+	case "终端体验":
+		return "Terminal Experience"
 	case "终端工具":
 		return "Terminal Tools"
 	case "macOS 开发应用":
@@ -94,6 +96,7 @@ var moduleLabelEN = map[string]string{
 	"shell-fnm":                  "fnm",
 	"shell-git":                  "Git configuration",
 	"shell-byobu":                "byobu + tmux",
+	"terminal-style":             "Terminal style",
 	"terminal-ncdu":              "ncdu",
 	"yazi":                       "Yazi",
 	"mihomo":                     "Mihomo",
@@ -110,7 +113,7 @@ var moduleLabelEN = map[string]string{
 	"archdevkit-nvim":            "Neovim",
 	"archdevkit-docker":          "Docker / Compose",
 	"archdevkit-fonts":           "Font environment",
-	"archdevkit-shell":           "Zsh / Oh My Zsh / Powerlevel10k",
+	"archdevkit-shell":           "Zsh / Oh My Zsh / Starship",
 	"archdevkit-proxy":           "Proxy environment",
 	"archdevkit-desktop":         "Hyprland desktop",
 	"archdevkit-dev":             "Development profile",
@@ -134,7 +137,7 @@ var moduleDescriptionEN = map[string]string{
 	"network-ipv4":                        "Prefer IPv4 resolver results through gai.conf",
 	"network-tune":                        "RPS/RSS distribution, ring buffers, and MSS clamp",
 	"shell-zsh":                           "Interactive shell environment",
-	"shell-starship":                      "Cross-shell prompt using the bundled template",
+	"shell-starship":                      "Cross-shell prompt for bash and zsh",
 	"shell-direnv":                        "Per-directory environment variables",
 	"shell-autosuggestions":               "Command history suggestions",
 	"shell-syntax-hl":                     "Command syntax highlighting",
@@ -142,6 +145,7 @@ var moduleDescriptionEN = map[string]string{
 	"shell-fnm":                           "Fast Node version manager",
 	"shell-git":                           "LFS, SSH-over-HTTPS, and template config",
 	"shell-byobu":                         "Terminal multiplexer",
+	"terminal-style":                      "Auto-select rich locally, simple over SSH, and plain on TTY",
 	"terminal-ncdu":                       "Disk usage analyzer",
 	"yazi":                                "Terminal file manager",
 	"macos-google-chrome":                 "Browser",
@@ -229,7 +233,7 @@ var moduleDescriptionEN = map[string]string{
 	"archdevkit-nvim":                     "Neovim and personal configuration",
 	"archdevkit-docker":                   "Install Docker/Compose through pacman, configure mirrors, service, and group",
 	"archdevkit-fonts":                    "Chinese fonts, Emoji, Nerd Font, Monaco, and fontconfig",
-	"archdevkit-shell":                    "Zsh, Oh My Zsh, Powerlevel10k, plugins, and default shell",
+	"archdevkit-shell":                    "Zsh, Oh My Zsh, Starship terminal style, plugins, and default shell",
 	"archdevkit-proxy":                    "Mihomo or sing-box, MetaCubeXD, and shell proxy template",
 	"archdevkit-desktop":                  "Hyprland, SDDM, Fcitx5/Rime, browser, terminal, and hyprdots",
 	"archdevkit-dev":                      "base + archlinuxcn + dns + git + ops-toolkit + runtime + nvim + docker + fonts + shell + proxy",

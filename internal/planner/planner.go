@@ -271,6 +271,8 @@ func moduleRank(m modules.Module) int {
 	switch m.Subsection {
 	case "Shell 工具":
 		return shellRank(m.ID)
+	case "终端体验":
+		return 19
 	case "终端工具":
 		return 20
 	case "macOS 命令行":

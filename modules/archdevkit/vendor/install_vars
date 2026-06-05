@@ -84,12 +84,16 @@ NVIM_CONFIG_DIR="${HOME}/.config/nvim"
 SYNC_NVIM_PLUGINS=1
 
 # =========================
-# Zsh / Oh My Zsh / Powerlevel10k
+# Zsh / Oh My Zsh / Prompt
 # =========================
 INSTALL_OH_MY_ZSH=1
-INSTALL_POWERLEVEL10K=1
-INSTALL_P10K_CONFIG=1
+SHELL_PROMPT_ENGINE="starship" # starship / powerlevel10k / basic
+INSTALL_POWERLEVEL10K=0
+INSTALL_P10K_CONFIG=0
 SET_ZSH_AS_DEFAULT=1
+OS_INIT_TERMINAL_STYLE="auto" # auto / rich / simple / plain / none
+OS_INIT_TERMINAL_ENABLE_ALIASES=1
+OS_INIT_TERMINAL_BAT_THEME="Catppuccin Mocha"
 
 OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
 ZSH_AUTOSUGGESTIONS_REPO="https://github.com/zsh-users/zsh-autosuggestions.git"

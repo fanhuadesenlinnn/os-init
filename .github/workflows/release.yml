@@ -132,6 +132,8 @@ jobs:
           - ArchDevKit 安装 Docker 或 Mihomo 时，如果 systemd 暂时无法启动服务，不再中断整个 dev 安装流程
           - 中文 TUI
           - GitHub 专用代理与资源下载配置
+          - 终端样式模块：本地图形终端 rich、SSH simple、TTY plain 自动切换
+          - Starship 同时支持 bash 和 zsh，不再强制依赖 zsh
           - Mihomo 安装与 systemd 配置
           - Docker Engine 静态二进制安装
           - Docker Compose CLI 插件安装
@@ -145,6 +147,7 @@ jobs:
           - 模块执行计划器：强依赖自动补齐、软关联提示、稳定执行顺序
           - 按当前系统生成启动配置，Arch Linux 自动包含 ArchDevKit 桥接配置
           - ArchDevKit 默认 dev 开发环境，并默认启用 Mihomo/MetaCubeXD 代理能力
+          - ArchDevKit shell 默认使用 Starship 终端样式，并保留 Powerlevel10k 可选配置
           - 安装总结页显示重新登录、shell 刷新、手动配置等后续动作
           - Go、Bash 和 ShellCheck 发布前检查
           NOTES

@@ -163,11 +163,16 @@ func TestShellModules_DeclareDependenciesAndActivation(t *testing.T) {
 	if starship.Kind != modules.KindShellIntegration {
 		t.Fatalf("shell-starship kind = %q, want %q", starship.Kind, modules.KindShellIntegration)
 	}
-	if !contains(starship.DependsOn, "shell-zsh") {
-		t.Fatalf("shell-starship should depend on shell-zsh, got %v", starship.DependsOn)
+	if contains(starship.DependsOn, "shell-zsh") {
+		t.Fatalf("shell-starship should not force zsh, got %v", starship.DependsOn)
 	}
-	if !contains(starship.Activates, modules.ActivationZshrc) {
-		t.Fatalf("shell-starship should activate zshrc, got %v", starship.Activates)
+	if !contains(starship.Activates, modules.ActivationShellProfile) {
+		t.Fatalf("shell-starship should activate shell profile files, got %v", starship.Activates)
+	}
+
+	style := findModule(t, mods, "terminal-style")
+	if !contains(style.DependsOn, "shell-starship") {
+		t.Fatalf("terminal-style should depend on shell-starship, got %v", style.DependsOn)
 	}
 
 	auto := findModule(t, mods, "shell-autosuggestions")
@@ -239,13 +244,13 @@ func TestMacOSScriptComponentsMatchRegistry(t *testing.T) {
 func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
-	for _, id := range []string{"shell-zsh", "shell-starship", "shell-direnv", "shell-nvm", "shell-fnm"} {
+	for _, id := range []string{"shell-zsh", "shell-direnv", "shell-nvm", "shell-fnm"} {
 		mod := findModule(t, mods, id)
 		if len(mod.InstalledZshBlocks) == 0 {
 			t.Fatalf("%s should declare zsh block checks", id)
 		}
 	}
-	for _, id := range []string{"go", "yazi", "neovim"} {
+	for _, id := range []string{"shell-starship", "terminal-style", "go", "yazi", "neovim"} {
 		mod := findModule(t, mods, id)
 		if len(mod.InstalledShellBlocks) == 0 {
 			t.Fatalf("%s should declare shell block checks", id)
@@ -432,6 +437,7 @@ func TestInstallSubsections_ReturnsCurrentGroups(t *testing.T) {
 
 	want := []string{
 		"Shell 工具",
+		"终端体验",
 		"终端工具",
 		"macOS 开发应用",
 		"macOS 代理网络",

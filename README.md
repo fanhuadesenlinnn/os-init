@@ -37,6 +37,7 @@ make build
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
 - ArchDevKit：在 Arch Linux 上显示独立菜单，完整嵌入 ArchDevKit 的 base、archlinuxcn、dns、runtime、desktop、doctor、config 等能力。
 - Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
+- 终端体验：Starship 自动选择本地图形终端 `rich`、SSH `simple`、TTY/救援环境 `plain` 三种样式；可配置 eza/bat 友好 alias。
 - 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
 
 ## 项目定义
@@ -66,6 +67,7 @@ make build
 | 分组 | 模块 |
 | --- | --- |
 | Shell 工具 | zsh、oh-my-zsh、starship、direnv、zsh 插件、nvm/fnm、Git 配置、byobu/tmux（Linux） |
+| 终端体验 | 终端样式：本地 rich、SSH simple、TTY plain 自动切换 |
 | 终端工具 | ncdu、Yazi |
 | macOS 开发应用 | Chrome、Codex、OrbStack、VS Code、iTerm2、Ghostty、Sublime Text、Neovide |
 | macOS 代理网络 | Clash Verge Rev、Clash Party、Royal TSX、Seafile Client |
@@ -89,7 +91,7 @@ ArchDevKit 安装目标通过“原版交互菜单”选择。进入后按 ArchD
 | Git / Ops Toolkit | GitHub CLI、OpenSSH、ops-toolkit 命令入口 |
 | Runtime / mise | Node/npm/Python/Go、mise、国内镜像环境 |
 | Neovim / Docker / 字体 | ArchDevKit 原有开发环境模块 |
-| Zsh / Proxy / Hyprland | Oh My Zsh、Powerlevel10k、Mihomo/sing-box、Hyprland 桌面 |
+| Zsh / Proxy / Hyprland | Oh My Zsh、Starship 终端样式、Mihomo/sing-box、Hyprland 桌面 |
 | dev / workstation | ArchDevKit 原有组合套餐 |
 | status / doctor / config | ArchDevKit 原有状态、诊断和配置命令 |
 
@@ -100,7 +102,7 @@ ArchDevKit 使用自己的配置文件和状态目录：
 ~/.local/state/archdevkit
 ```
 
-注意：ArchDevKit 的 `shell` 和 `desktop` 模块会按原项目逻辑生成或覆盖部分用户配置，例如 `~/.zshrc`、Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等配置。需要更温和的 Shell 接入时，优先使用 os-init 自带 Shell 模块。
+注意：ArchDevKit 的 `shell` 和 `desktop` 模块会生成或覆盖部分用户配置，例如 `~/.zshrc`、Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等配置。`shell` 默认使用 Starship 终端样式，`--p10k` 或 `SHELL_PROMPT_ENGINE=powerlevel10k` 可切回 Powerlevel10k。需要更温和的 Shell 接入时，优先使用 os-init 自带 Shell 和终端样式模块。
 
 ## 已移除模块
 
@@ -126,7 +128,7 @@ ArchDevKit 使用自己的配置文件和状态目录：
 ~/.config/os-init/config.env
 ```
 
-创建出来的配置文件带中文注释，说明 GitHub 代理、资源地址和离线参数的用途。
+创建出来的配置文件带中文注释，说明 GitHub 代理、终端样式、资源地址和离线参数的用途。
 
 配置加载顺序：
 

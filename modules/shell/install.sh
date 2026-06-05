@@ -181,15 +181,9 @@ EOF
     os_init_upsert_zsh_block "oh-my-zsh" "$content" "$before_regex"
 }
 
-configure_starship_zsh() {
-    local content
-    content="$(cat <<'EOF'
-if command -v starship >/dev/null 2>&1; then
-    eval "$(starship init zsh)"
-fi
-EOF
-)"
-    os_init_upsert_zsh_block "starship" "$content"
+configure_starship_shells() {
+    os_init_upsert_zsh_block "starship" "$(os_init_starship_block_content zsh)"
+    os_init_upsert_bash_block "starship" "$(os_init_starship_block_content bash)"
 }
 
 configure_direnv_zsh() {
@@ -309,6 +303,7 @@ if [[ "$UNINSTALL" == true ]]; then
             skip "starship not installed"
         fi
         os_init_remove_zsh_block "starship"
+        os_init_remove_bash_block "starship"
     fi
 
     if want "direnv"; then
@@ -409,7 +404,11 @@ if want "starship"; then
         skip "$HOME/.config/starship.toml already exists (not overwriting)"
     else
         install "$(os_init_text "复制 starship.toml" "copying starship.toml")"
-        cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
+        if [[ -f "$REPO_DIR/terminal/starship-rich.toml" ]]; then
+            cp "$REPO_DIR/terminal/starship-rich.toml" "$HOME/.config/starship.toml"
+        else
+            cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
+        fi
     fi
 fi
 
@@ -626,7 +625,7 @@ if want "zsh" || want_zsh_plugin; then
     configure_oh_my_zsh
 fi
 if want "starship"; then
-    configure_starship_zsh
+    configure_starship_shells
 fi
 if want "direnv"; then
     configure_direnv_zsh

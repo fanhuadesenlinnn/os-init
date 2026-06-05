@@ -29,6 +29,7 @@ func renderUserConfig(target platform.Target, lang string) []byte {
 
 	sections := []configSection{
 		commonConfigSection(langValue),
+		terminalConfigSection(),
 		githubConfigSection(),
 	}
 
@@ -108,6 +109,33 @@ func commonConfigSection(lang string) configSection {
 				Value:    "45m",
 				CommentZ: "单个模块最大执行时间。支持 30m、1h 或纯秒数；0 表示不限制。",
 				CommentE: "Maximum time per module. Supports 30m, 1h, or seconds; 0 disables the limit.",
+			},
+		},
+	}
+}
+
+func terminalConfigSection() configSection {
+	return configSection{
+		TitleZ: "终端体验",
+		TitleE: "Terminal Experience",
+		Entries: []configEntry{
+			{
+				Key:      "OS_INIT_TERMINAL_STYLE",
+				Value:    "auto",
+				CommentZ: "终端提示符样式：auto 自动判断；rich 适合本地图形终端；simple 适合 SSH；plain 适合 TTY/救援环境；none 禁用 starship。",
+				CommentE: "Terminal prompt style: auto detects the session; rich for local graphical terminals; simple for SSH; plain for TTY/rescue shells; none disables starship.",
+			},
+			{
+				Key:      "OS_INIT_TERMINAL_ENABLE_ALIASES",
+				Value:    "1",
+				CommentZ: "是否写入终端常用 alias：1 启用 eza/bat 友好别名，0 不启用。",
+				CommentE: "Enable terminal aliases: 1 enables eza/bat-friendly aliases, 0 disables them.",
+			},
+			{
+				Key:      "OS_INIT_TERMINAL_BAT_THEME",
+				Value:    "\"Catppuccin Mocha\"",
+				CommentZ: "bat 默认主题。仅在 bat 已安装时生效。",
+				CommentE: "Default bat theme. Only applies when bat is installed.",
 			},
 		},
 	}
@@ -255,6 +283,7 @@ func archDevKitConfigSection() configSection {
 		TitleE: "ArchDevKit Bridge Settings",
 		Entries: []configEntry{
 			{Key: "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE", Value: "dev", CommentZ: "ArchDevKit 原版菜单默认目标。dev = 完整开发环境，不默认安装桌面。", CommentE: "Default target for the original ArchDevKit menu. dev means a complete development environment without the desktop by default."},
+			{Key: "OS_INIT_ARCHDEVKIT_SHELL_PROMPT_ENGINE", Value: "starship", CommentZ: "ArchDevKit shell 提示符引擎：starship、powerlevel10k 或 basic。默认 starship 会复用 os-init 终端样式模板。", CommentE: "ArchDevKit shell prompt engine: starship, powerlevel10k, or basic. The default starship option reuses os-init terminal style templates."},
 			{Key: "OS_INIT_ARCHDEVKIT_ENABLE_PROXY", Value: "1", CommentZ: "dev/workstation 中是否安装代理模块。", CommentE: "Install the proxy module in dev/workstation targets."},
 			{Key: "OS_INIT_ARCHDEVKIT_PROXY_CORE", Value: "mihomo", CommentZ: "ArchDevKit 代理核心：mihomo 或 sing-box。", CommentE: "ArchDevKit proxy core: mihomo or sing-box."},
 			{Key: "OS_INIT_ARCHDEVKIT_PROXY_AUTO_ENABLE_SERVICE", Value: "1", CommentZ: "安装代理后是否自动启用并启动服务。", CommentE: "Enable and start the proxy service after installation."},

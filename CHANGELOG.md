@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.12.0 - 2026-06-05
+
+### Added
+
+- Add a Terminal Style module with rich/simple/plain Starship templates and shell aliases for local, SSH, and TTY sessions.
+
+### Changed
+
+- Let starship work with bash and zsh without forcing zsh as a dependency.
+- Default ArchDevKit shell initialization to Starship terminal styling while keeping Powerlevel10k available through configuration.
+
 ## v0.11.1 - 2026-06-05
 
 ### Fixed

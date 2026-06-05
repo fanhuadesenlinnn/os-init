@@ -173,6 +173,8 @@ func manualStepText(step string) string {
 		return "ArchDevKit keeps independent config and state at ~/.config/archdevkit/config.env and ~/.local/state/archdevkit"
 	case "桌面模块会写入 Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等用户配置":
 		return "the desktop module writes Hyprland, Waybar, Rofi, Dunst, Yazi, GTK, and related user config"
+	case "SSH 会自动使用 simple 提示符，TTY 会自动使用 plain 提示符":
+		return "SSH automatically uses the simple prompt, and TTY sessions automatically use the plain prompt"
 	default:
 		return step
 	}

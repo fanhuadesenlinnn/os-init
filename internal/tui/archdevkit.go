@@ -531,7 +531,7 @@ func archTargetOptions(includeCustom bool) []archOption {
 		archOption{"nvim", text("Neovim：安装 Neovim、个人配置和可选插件同步", "Neovim: install Neovim, personal config, and optional plugin sync")},
 		archOption{"docker", text("Docker：docker/compose、镜像源、服务和用户组", "Docker: docker/compose, mirrors, service, and user group")},
 		archOption{"fonts", text("字体：中文字体、Emoji、Nerd Font、Monaco 和 fontconfig", "Fonts: Chinese fonts, Emoji, Nerd Font, Monaco, and fontconfig")},
-		archOption{"shell", text("Shell：Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell", "Shell: Zsh, Oh My Zsh, Powerlevel10k, plugins, and default shell")},
+		archOption{"shell", text("Shell：Zsh、Oh My Zsh、Starship 终端样式、插件和默认 shell", "Shell: Zsh, Oh My Zsh, Starship terminal style, plugins, and default shell")},
 		archOption{"desktop", text("桌面：Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots", "Desktop: Hyprland, SDDM, Fcitx5/Rime, browser, terminal, and hyprdots")},
 		archOption{"proxy", text("代理：Mihomo 或 sing-box、MetaCubeXD 和 shell 代理环境模板", "Proxy: Mihomo or sing-box, MetaCubeXD, and shell proxy templates")},
 	)

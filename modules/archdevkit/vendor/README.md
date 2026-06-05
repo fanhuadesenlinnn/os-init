@@ -98,7 +98,7 @@ bash install.sh install proxy
 | `nvim` | Neovim 和个人配置 |
 | `docker` | Docker、Docker Compose、镜像源和用户组 |
 | `fonts` | 中文字体、Emoji、Nerd Font、可选 Monaco |
-| `shell` | Zsh、Oh My Zsh、Powerlevel10k 和插件 |
+| `shell` | Zsh、Oh My Zsh、Starship 终端样式和插件；可配置切回 Powerlevel10k |
 | `desktop` | Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots |
 | `proxy` | Mihomo 或 sing-box，Mihomo 可选 MetaCubeXD |
 | `dev` | 开发环境套餐 |

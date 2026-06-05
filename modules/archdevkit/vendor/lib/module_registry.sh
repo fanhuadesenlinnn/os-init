@@ -12,7 +12,7 @@ module_desc() {
     nvim) echo "Neovim + 个人配置" ;;
     docker) echo "Docker / Compose" ;;
     fonts) echo "字体环境" ;;
-    shell_zsh) echo "Zsh / Oh My Zsh / Powerlevel10k" ;;
+    shell_zsh) echo "Zsh / Oh My Zsh / Starship" ;;
     desktop_hyprland) echo "Hyprland 桌面环境" ;;
     proxy) echo "Proxy 代理环境" ;;
     *) echo "$1" ;;
@@ -87,7 +87,9 @@ module_impacts() {
       ;;
     shell_zsh)
       echo "${HOME}/.zshrc"
-      echo "${HOME}/.p10k.zsh"
+      echo "${HOME}/.bashrc"
+      echo "${HOME}/.config/os-init/terminal/starship-*.toml"
+      echo "${HOME}/.p10k.zsh（仅 Powerlevel10k 模式）"
       echo "默认 shell"
       ;;
     proxy)
@@ -159,8 +161,9 @@ module_config_fingerprint() {
           "${INSTALL_CN_FONTS:-0}" "${INSTALL_NERD_FONTS:-0}" "${INSTALL_MONACO_FONT:-0}"
         ;;
       shell_zsh)
-        printf 'ohmyzsh=%s\np10k=%s\nplugins=%s\n' \
-          "${INSTALL_OH_MY_ZSH:-0}" "${INSTALL_POWERLEVEL10K:-0}" "${ZSH_PLUGINS:-}"
+        printf 'ohmyzsh=%s\nprompt=%s\nterminal_style=%s\np10k=%s\nplugins=%s\n' \
+          "${INSTALL_OH_MY_ZSH:-0}" "${SHELL_PROMPT_ENGINE:-starship}" "${OS_INIT_TERMINAL_STYLE:-auto}" \
+          "${INSTALL_POWERLEVEL10K:-0}" "${ZSH_PLUGINS:-}"
         ;;
       proxy)
         printf 'core=%s\nmihomo=%s\nsingbox=%s\nmetacubexd=%s\n' \
@@ -232,7 +235,7 @@ menu_target_overview() {
   printf "  %-12s %s\n" "nvim" "Neovim：安装 Neovim，拉取个人配置，并按需同步插件"
   printf "  %-12s %s\n" "docker" "Docker：安装 docker/compose，配置镜像源、服务和用户组"
   printf "  %-12s %s\n" "fonts" "字体：中文字体、Emoji、Nerd Font、Monaco 和 fontconfig/GTK 字体设置"
-  printf "  %-12s %s\n" "shell" "Shell：安装 Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell 设置"
+  printf "  %-12s %s\n" "shell" "Shell：安装 Zsh、Oh My Zsh、Starship 终端样式、插件和默认 shell 设置"
   printf "  %-12s %s\n" "proxy" "代理：安装 Mihomo 或 sing-box，配置 MetaCubeXD 和 shell 代理环境模板"
   printf "  %-12s %s\n" "desktop" "桌面：安装 Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots 配置"
   echo

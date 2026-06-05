@@ -245,8 +245,12 @@ parse_args() {
       --mihomo-config=*) MIHOMO_CONFIG_SOURCE="${1#*=}"; PROXY_CORE="mihomo"; ENABLE_PROXY=1; shift ;;
       --sing-box-config) SING_BOX_CONFIG_SOURCE="${2:-}"; PROXY_CORE="sing-box"; ENABLE_PROXY=1; shift 2 ;;
       --sing-box-config=*) SING_BOX_CONFIG_SOURCE="${1#*=}"; PROXY_CORE="sing-box"; ENABLE_PROXY=1; shift ;;
-      --no-p10k) INSTALL_POWERLEVEL10K=0; INSTALL_P10K_CONFIG=0; shift ;;
-      --p10k) INSTALL_POWERLEVEL10K=1; INSTALL_P10K_CONFIG=1; shift ;;
+      --prompt-engine) SHELL_PROMPT_ENGINE="${2:-starship}"; shift 2 ;;
+      --prompt-engine=*) SHELL_PROMPT_ENGINE="${1#*=}"; shift ;;
+      --terminal-style) OS_INIT_TERMINAL_STYLE="${2:-auto}"; shift 2 ;;
+      --terminal-style=*) OS_INIT_TERMINAL_STYLE="${1#*=}"; shift ;;
+      --no-p10k) SHELL_PROMPT_ENGINE="starship"; INSTALL_POWERLEVEL10K=0; INSTALL_P10K_CONFIG=0; shift ;;
+      --p10k) SHELL_PROMPT_ENGINE="powerlevel10k"; INSTALL_POWERLEVEL10K=1; INSTALL_P10K_CONFIG=1; shift ;;
       --set-zsh-default) SET_ZSH_AS_DEFAULT=1; shift ;;
       --no-set-zsh-default) SET_ZSH_AS_DEFAULT=0; shift ;;
       -h|--help) ACTION="help"; shift ;;

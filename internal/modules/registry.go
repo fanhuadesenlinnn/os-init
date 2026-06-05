@@ -83,7 +83,7 @@ func AllModules() []Module {
 
 		// ── Installations / Shell ──
 		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 需要安装 zsh 并可能写入 /etc/shells", InstalledCmd: "zsh", InstalledCheck: "$HOME/.oh-my-zsh", InstalledZshBlocks: []string{"oh-my-zsh"}},
-		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装脚本默认写入系统二进制目录", InstalledCmd: "starship", InstalledZshBlocks: []string{"starship"}},
+		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "bash/zsh 跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装脚本默认写入系统二进制目录", InstalledCmd: "starship", InstalledShellBlocks: []string{"starship"}},
 		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 direnv", InstalledCmd: "direnv", InstalledZshBlocks: []string{"direnv"}},
 		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-autosuggestions"},
 		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-syntax-highlighting"},
@@ -93,6 +93,7 @@ func AllModules() []Module {
 		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, Privilege: PrivilegeSystem, PrivilegeReason: "通过系统包管理器安装 byobu/tmux", InstalledCmd: "byobu"},
 
 		// ── Installations / Terminal ──
+		{ID: "terminal-style", Script: "terminal/style.sh", Components: []string{"style"}, Label: "终端样式", Description: "本地 rich、SSH simple、TTY plain 自动切换", Category: "installation", Subsection: "终端体验", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-starship"}, Activates: []string{ActivationShellProfile}, ManualSteps: []string{"SSH 会自动使用 simple 提示符，TTY 会自动使用 plain 提示符"}, InstalledCmd: "starship", InstalledCheck: "$HOME/.config/os-init/terminal/starship-rich.toml", InstalledShellBlocks: []string{"terminal-style", "starship"}},
 		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 ncdu", InstalledCmd: "ncdu"},
 		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /usr/local/bin", InstalledCmd: "yazi", InstalledCheck: "$HOME/.config/yazi/ya.sh", InstalledShellBlocks: []string{"yazi"}},
 
@@ -235,7 +236,7 @@ func ArchDevKitInstallModule(component string) (Module, bool) {
 	case "fonts":
 		return archDevKitInstall("fonts", "字体环境", "中文字体、Emoji、Nerd Font、Monaco 和 fontconfig", KindInstallOnly, "fc-cache"), true
 	case "shell":
-		return archDevKitInstall("shell", "Zsh / Oh My Zsh / Powerlevel10k", "Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell", KindShellIntegration, "zsh"), true
+		return archDevKitInstall("shell", "Zsh / Oh My Zsh / Starship", "Zsh、Oh My Zsh、Starship 终端样式、插件和默认 shell", KindShellIntegration, "zsh"), true
 	case "proxy":
 		return archDevKitInstall("proxy", "Proxy 代理环境", "Mihomo 或 sing-box、MetaCubeXD、shell 代理模板", KindSystemService, ""), true
 	case "desktop":
@@ -521,6 +522,7 @@ func NeedsWebhook(selected []Module) bool {
 func InstallSubsections() []string {
 	return []string{
 		"Shell 工具",
+		"终端体验",
 		"终端工具",
 		"macOS 开发应用",
 		"macOS 代理网络",

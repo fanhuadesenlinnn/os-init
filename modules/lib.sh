@@ -100,6 +100,7 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_OFFLINE OS_INIT_FILES_DIR OS_INIT_SCRIPT_TIMEOUT
+    OS_INIT_TERMINAL_STYLE OS_INIT_TERMINAL_ENABLE_ALIASES OS_INIT_TERMINAL_BAT_THEME
     DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
     HOMEBREW_INSTALL_URL HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
@@ -734,6 +735,21 @@ os_init_zshrc() {
     printf '%s\n' "$home/.zshrc"
 }
 
+os_init_bashrc() {
+    local home
+    home="$(real_home)"
+    [[ -n "$home" ]] || return 1
+    printf '%s\n' "$home/.bashrc"
+}
+
+os_init_interactive_shell_rc_files() {
+    local home
+    home="$(real_home)"
+    [[ -n "$home" ]] || return 1
+    printf '%s\n' "$home/.zshrc"
+    printf '%s\n' "$home/.bashrc"
+}
+
 os_init_shell_rc_files() {
     local home file any=false
     home="$(real_home)"
@@ -755,6 +771,12 @@ os_init_upsert_zsh_block() {
     os_init_upsert_block "$file" "$name" "$content" "$before_regex"
 }
 
+os_init_upsert_bash_block() {
+    local name="$1" content="$2" before_regex="${3:-}" file
+    file="$(os_init_bashrc)" || return 0
+    os_init_upsert_block "$file" "$name" "$content" "$before_regex"
+}
+
 os_init_upsert_shell_block() {
     local name="$1" content="$2" file
     while IFS= read -r file; do
@@ -763,9 +785,23 @@ os_init_upsert_shell_block() {
     done < <(os_init_shell_rc_files)
 }
 
+os_init_upsert_interactive_shell_block() {
+    local name="$1" content="$2" file
+    while IFS= read -r file; do
+        [[ -n "$file" ]] || continue
+        os_init_upsert_block "$file" "$name" "$content"
+    done < <(os_init_interactive_shell_rc_files)
+}
+
 os_init_remove_zsh_block() {
     local name="$1" file
     file="$(os_init_zshrc)" || return 0
+    os_init_remove_block "$file" "$name"
+}
+
+os_init_remove_bash_block() {
+    local name="$1" file
+    file="$(os_init_bashrc)" || return 0
     os_init_remove_block "$file" "$name"
 }
 
@@ -775,6 +811,66 @@ os_init_remove_shell_block() {
         [[ -n "$file" ]] || continue
         os_init_remove_block "$file" "$name"
     done < <(os_init_shell_rc_files)
+}
+
+os_init_remove_interactive_shell_block() {
+    local name="$1" file
+    while IFS= read -r file; do
+        [[ -n "$file" ]] || continue
+        os_init_remove_block "$file" "$name"
+    done < <(os_init_interactive_shell_rc_files)
+}
+
+os_init_starship_block_content() {
+    local shell_name="$1" default_style
+    default_style="${OS_INIT_TERMINAL_STYLE:-auto}"
+    cat <<EOF
+: "\${OS_INIT_TERMINAL_STYLE:=${default_style}}"
+export OS_INIT_TERMINAL_STYLE
+
+_os_init_starship_config() {
+    local style config_dir candidate
+    style="\${OS_INIT_TERMINAL_STYLE:-auto}"
+
+    case "\$style" in
+        none|off|0|false|disable|disabled)
+            return 1
+            ;;
+        rich|simple|plain)
+            ;;
+        auto|"")
+            if [[ -z "\${TERM:-}" || "\${TERM:-}" == "dumb" ]]; then
+                style="plain"
+            elif [[ -n "\${SSH_CONNECTION:-}\${SSH_TTY:-}" ]]; then
+                style="simple"
+            elif [[ -n "\${DISPLAY:-}\${WAYLAND_DISPLAY:-}" || "\${COLORTERM:-}" == "truecolor" || "\${COLORTERM:-}" == "24bit" ]]; then
+                style="rich"
+            else
+                style="simple"
+            fi
+            ;;
+        *)
+            style="simple"
+            ;;
+    esac
+
+    config_dir="\${OS_INIT_TERMINAL_CONFIG_DIR:-\${HOME}/.config/os-init/terminal}"
+    candidate="\${config_dir}/starship-\${style}.toml"
+    if [[ -f "\$candidate" ]]; then
+        export STARSHIP_CONFIG="\$candidate"
+        return 0
+    fi
+    if [[ -f "\${HOME}/.config/starship.toml" ]]; then
+        export STARSHIP_CONFIG="\${HOME}/.config/starship.toml"
+    fi
+    return 0
+}
+
+if command -v starship >/dev/null 2>&1 && _os_init_starship_config; then
+    eval "\$(starship init ${shell_name})"
+fi
+unset -f _os_init_starship_config >/dev/null 2>&1 || true
+EOF
 }
 
 json_escape() {

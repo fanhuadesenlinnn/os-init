@@ -260,6 +260,8 @@ show_plan() {
   fi
   if plan_has_module "${modules_text}" "shell"; then
     echo "  Oh My Zsh:        $(bool_text "${INSTALL_OH_MY_ZSH}")"
+    echo "  提示符引擎:       ${SHELL_PROMPT_ENGINE:-starship}"
+    echo "  终端样式:         ${OS_INIT_TERMINAL_STYLE:-auto}"
     echo "  Powerlevel10k:    $(bool_text "${INSTALL_POWERLEVEL10K}")"
     echo "  p10k 配置:        $(bool_text "${INSTALL_P10K_CONFIG}")"
     echo "  切换默认 shell:   $(bool_text "${SET_ZSH_AS_DEFAULT}")"

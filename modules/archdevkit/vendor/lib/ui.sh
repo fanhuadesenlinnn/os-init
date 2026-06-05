@@ -117,7 +117,7 @@ show_menu() {
       "nvim|Neovim：安装 Neovim、个人配置和可选插件同步" \
       "docker|Docker：docker/compose、镜像源、服务和用户组" \
       "fonts|字体：中文字体、Emoji、Nerd Font、Monaco 和 fontconfig" \
-      "shell|Shell：Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell" \
+      "shell|Shell：Zsh、Oh My Zsh、Starship 终端样式、插件和默认 shell" \
       "desktop|桌面：Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots" \
       "proxy|代理：Mihomo 或 sing-box、MetaCubeXD 和 shell 代理环境模板"
   )"

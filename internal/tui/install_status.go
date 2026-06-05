@@ -187,11 +187,11 @@ func (c *installStatusChecker) shellBlockExists(name string) bool {
 		return false
 	}
 	for _, file := range files {
-		if !c.blockExists(file, name) {
-			return false
+		if c.blockExists(file, name) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (c *installStatusChecker) shellRCFiles() []string {
