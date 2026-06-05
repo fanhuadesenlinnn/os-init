@@ -97,20 +97,7 @@ func AllModules() []Module {
 		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /usr/local/bin", InstalledCmd: "yazi", InstalledCheck: "$HOME/.config/yazi/ya.sh", InstalledShellBlocks: []string{"yazi"}},
 
 		// ── ArchDevKit ──
-		archDevKitInstall("base", "基础环境", "基础工具、排障工具、现代 CLI、tmux、AUR helper", KindInstallOnly, "rg"),
-		archDevKitInstall("archlinuxcn", "archlinuxcn 软件源", "配置 archlinuxcn 源、keyring 和 mirrorlist", KindSystemTuning, ""),
-		archDevKitInstall("dns", "系统 DNS", "systemd-resolved、NetworkManager DNS 后端、国内 DNS 基线", KindSystemTuning, ""),
-		archDevKitInstall("git", "Git / GitHub CLI", "git、gh、openssh 和基础 Git 配置", KindInstallOnly, "gh"),
-		archDevKitInstall("ops-toolkit", "Ops Toolkit", "克隆运维脚本仓库并生成稳定命令入口", KindShellIntegration, "ops"),
-		archDevKitInstall("runtime", "Runtime / mise", "系统 Node/npm/Python/Go、mise 和国内镜像配置", KindShellIntegration, "mise"),
-		archDevKitInstall("nvim", "Neovim", "Neovim 和个人配置", KindShellIntegration, "nvim"),
-		archDevKitInstall("docker", "Docker / Compose", "pacman 安装 Docker/Compose、镜像源、服务和用户组", KindSystemService, "docker"),
-		archDevKitInstall("fonts", "字体环境", "中文字体、Emoji、Nerd Font、Monaco 和 fontconfig", KindInstallOnly, "fc-cache"),
-		archDevKitInstall("shell", "Zsh / Oh My Zsh / Powerlevel10k", "Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell", KindShellIntegration, "zsh"),
-		archDevKitInstall("proxy", "Proxy 代理环境", "Mihomo 或 sing-box、MetaCubeXD、shell 代理模板", KindSystemService, ""),
-		archDevKitInstall("desktop", "Hyprland 桌面环境", "Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots", KindSystemService, "Hyprland"),
-		archDevKitInstall("dev", "开发环境套餐", "base + archlinuxcn + dns + git + ops-toolkit + runtime + nvim + docker + fonts + shell + proxy", KindSystemService, ""),
-		archDevKitInstall("workstation", "完整工作站套餐", "dev + Hyprland 桌面", KindSystemService, ""),
+		archDevKitMenu(),
 		archDevKitAction("status", "状态检查", "查看 ArchDevKit 模块状态和建议动作"),
 		archDevKitAction("doctor", "诊断", "运行 ArchDevKit doctor 诊断"),
 		archDevKitAction("config-init", "初始化配置", "创建 ~/.config/archdevkit/config.env"),
@@ -206,6 +193,59 @@ func AllModules() []Module {
 		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, Privilege: PrivilegeSystem, PrivilegeReason: "安装系统二进制、写入 Docker systemd 服务和用户组", InstalledCommands: [][]string{{"docker", "--version"}, {"dockerd", "--version"}, {"docker", "compose", "version"}}, InstalledSystemdServices: []string{"docker.service", "containerd.service"}, InstalledUserGroups: []string{"docker"}},
 		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeSystem, PrivilegeReason: "安装或更新 /usr/local/go", InstalledAnyCommands: [][]string{{"go", "version"}, {"/usr/local/go/bin/go", "version"}}, InstalledShellBlocks: []string{"go"}},
 		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /opt 和 /usr/local/bin", InstalledCmd: "nvim", InstalledAnyChecks: []string{"$HOME/.config/nvim/lazyvim.json", "$HOME/.config/nvim/lazy-lock.json"}, InstalledShellBlocks: []string{"neovim"}},
+	}
+}
+
+func archDevKitMenu() Module {
+	return Module{
+		ID:              "archdevkit-menu",
+		Script:          "archdevkit/run.sh",
+		Components:      []string{"menu"},
+		Label:           "原版交互菜单",
+		Description:     "按 ArchDevKit 原版流程选择安装目标和安装选项",
+		Category:        "archdevkit",
+		OS:              "linux",
+		Families:        []string{"arch"},
+		Kind:            KindSystemService,
+		Privilege:       PrivilegeSystem,
+		PrivilegeReason: "ArchDevKit 会通过 pacman、systemd 或用户 shell/桌面配置修改 Arch 系统",
+		ManualSteps:     []string{"ArchDevKit 保留独立配置和状态：~/.config/archdevkit/config.env、~/.local/state/archdevkit"},
+	}
+}
+
+// ArchDevKitInstallModule returns a runnable module for an ArchDevKit install target.
+func ArchDevKitInstallModule(component string) (Module, bool) {
+	switch component {
+	case "base":
+		return archDevKitInstall("base", "基础环境", "基础工具、排障工具、现代 CLI、tmux、AUR helper", KindInstallOnly, "rg"), true
+	case "archlinuxcn":
+		return archDevKitInstall("archlinuxcn", "archlinuxcn 软件源", "配置 archlinuxcn 源、keyring 和 mirrorlist", KindSystemTuning, ""), true
+	case "dns":
+		return archDevKitInstall("dns", "系统 DNS", "systemd-resolved、NetworkManager DNS 后端、国内 DNS 基线", KindSystemTuning, ""), true
+	case "git":
+		return archDevKitInstall("git", "Git / GitHub CLI", "git、gh、openssh 和基础 Git 配置", KindInstallOnly, "gh"), true
+	case "ops-toolkit":
+		return archDevKitInstall("ops-toolkit", "Ops Toolkit", "克隆运维脚本仓库并生成稳定命令入口", KindShellIntegration, "ops"), true
+	case "runtime":
+		return archDevKitInstall("runtime", "Runtime / mise", "系统 Node/npm/Python/Go、mise 和国内镜像配置", KindShellIntegration, "mise"), true
+	case "nvim":
+		return archDevKitInstall("nvim", "Neovim", "Neovim 和个人配置", KindShellIntegration, "nvim"), true
+	case "docker":
+		return archDevKitInstall("docker", "Docker / Compose", "pacman 安装 Docker/Compose、镜像源、服务和用户组", KindSystemService, "docker"), true
+	case "fonts":
+		return archDevKitInstall("fonts", "字体环境", "中文字体、Emoji、Nerd Font、Monaco 和 fontconfig", KindInstallOnly, "fc-cache"), true
+	case "shell":
+		return archDevKitInstall("shell", "Zsh / Oh My Zsh / Powerlevel10k", "Zsh、Oh My Zsh、Powerlevel10k、插件和默认 shell", KindShellIntegration, "zsh"), true
+	case "proxy":
+		return archDevKitInstall("proxy", "Proxy 代理环境", "Mihomo 或 sing-box、MetaCubeXD、shell 代理模板", KindSystemService, ""), true
+	case "desktop":
+		return archDevKitInstall("desktop", "Hyprland 桌面环境", "Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots", KindSystemService, "Hyprland"), true
+	case "dev":
+		return archDevKitInstall("dev", "开发环境套餐", "base + archlinuxcn + dns + git + ops-toolkit + runtime + nvim + docker + fonts + shell + proxy", KindSystemService, ""), true
+	case "workstation":
+		return archDevKitInstall("workstation", "完整工作站套餐", "dev + Hyprland 桌面", KindSystemService, ""), true
+	default:
+		return Module{}, false
 	}
 }
 

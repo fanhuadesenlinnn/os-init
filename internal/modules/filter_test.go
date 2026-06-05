@@ -114,23 +114,38 @@ func TestForTarget_ShowsArchDevKitOnlyOnArchLinux(t *testing.T) {
 	t.Parallel()
 
 	arch := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
-	if !hasModule(arch, "archdevkit-workstation") {
-		t.Fatal("ArchDevKit modules should appear on Arch Linux")
+	if !hasModule(arch, "archdevkit-menu") {
+		t.Fatal("ArchDevKit menu should appear on Arch Linux")
 	}
 
 	debian := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"})
-	if hasModule(debian, "archdevkit-workstation") {
-		t.Fatal("ArchDevKit modules should be hidden on Debian-family Linux")
+	if hasModule(debian, "archdevkit-menu") {
+		t.Fatal("ArchDevKit menu should be hidden on Debian-family Linux")
 	}
 
 	redhat := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyRedHat, Init: "systemd"})
-	if hasModule(redhat, "archdevkit-workstation") {
-		t.Fatal("ArchDevKit modules should be hidden on RedHat-family Linux")
+	if hasModule(redhat, "archdevkit-menu") {
+		t.Fatal("ArchDevKit menu should be hidden on RedHat-family Linux")
 	}
 
 	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
-	if hasModule(darwin, "archdevkit-workstation") {
-		t.Fatal("ArchDevKit modules should be hidden on macOS")
+	if hasModule(darwin, "archdevkit-menu") {
+		t.Fatal("ArchDevKit menu should be hidden on macOS")
+	}
+}
+
+func TestArchDevKitInstallModule_CreatesOriginalTargets(t *testing.T) {
+	t.Parallel()
+
+	mod, ok := ArchDevKitInstallModule("workstation")
+	if !ok {
+		t.Fatal("workstation should be a valid ArchDevKit install target")
+	}
+	if mod.ID != "archdevkit-workstation" {
+		t.Fatalf("module ID = %q, want archdevkit-workstation", mod.ID)
+	}
+	if len(mod.Components) != 1 || mod.Components[0] != "workstation" {
+		t.Fatalf("components = %v, want [workstation]", mod.Components)
 	}
 }
 

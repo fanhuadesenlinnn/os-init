@@ -13,6 +13,7 @@ const (
 	screenBanner
 	screenConfig
 	screenMenu
+	screenArchDevKit
 	screenMode
 	screenGitInfo
 	screenConfirm
@@ -61,6 +62,11 @@ type languageSelectedMsg struct{ code string }
 type configReadyMsg struct{}
 
 type selectedModulesMsg struct{ modules []modules.Module }
+
+type archDevKitSelectedMsg struct {
+	module modules.Module
+	env    map[string]string
+}
 
 type selectedModeMsg struct{ mode mode }
 

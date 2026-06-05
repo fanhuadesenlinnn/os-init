@@ -6,6 +6,26 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ARCHDEVKIT_DIR="$SCRIPT_DIR/vendor"
+ARCHDEVKIT_OVERRIDE_FILE=""
+
+ARCHDEVKIT_OVERRIDE_KEYS=(
+    INSTALL_ARCHLINUXCN
+    ENABLE_DNS
+    ENABLE_OPS_TOOLKIT
+    ENABLE_PROXY
+    PROXY_CORE
+    PROXY_AUTO_ENABLE_SERVICE
+    ENABLE_METACUBEXD
+    GPU_TYPE
+    ENABLE_SDDM
+    HYPRLAND_CONFIG_MODE
+    ENABLE_FCITX5
+    INPUT_METHOD_ENGINE
+    RIME_SCHEMA
+    INSTALL_RIME_CONFIG
+    BROWSER_PACKAGE
+    BROWSER_APP
+)
 
 # shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
@@ -20,6 +40,39 @@ run_archdevkit() {
         cd "$ARCHDEVKIT_DIR"
         bash install.sh "$@"
     )
+}
+
+cleanup_archdevkit_override_file() {
+    [[ -n "${ARCHDEVKIT_OVERRIDE_FILE:-}" ]] || return 0
+    rm -f "$ARCHDEVKIT_OVERRIDE_FILE"
+}
+
+escape_archdevkit_config_value() {
+    local value="$1"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    printf "%s" "$value"
+}
+
+build_archdevkit_override_file() {
+    local key env_key value has_override=0 tmp_file
+    tmp_file="$(mktemp)"
+
+    for key in "${ARCHDEVKIT_OVERRIDE_KEYS[@]}"; do
+        env_key="OS_INIT_ARCHDEVKIT_${key}"
+        if [[ -n "${!env_key+x}" ]]; then
+            value="${!env_key}"
+            printf '%s="%s"\n' "$key" "$(escape_archdevkit_config_value "$value")" >> "$tmp_file"
+            has_override=1
+        fi
+    done
+
+    if [[ "$has_override" -eq 1 ]]; then
+        ARCHDEVKIT_OVERRIDE_FILE="$tmp_file"
+        trap cleanup_archdevkit_override_file EXIT
+    else
+        rm -f "$tmp_file"
+    fi
 }
 
 normalize_archdevkit_target() {
@@ -55,15 +108,19 @@ run_archdevkit_target() {
             run_archdevkit reset-state all
             ;;
         base|dns|archlinuxcn|git|ops-toolkit|runtime|nvim|docker|fonts|shell|proxy|desktop|dev|workstation)
+            local config_args=()
+            if [[ -n "${ARCHDEVKIT_OVERRIDE_FILE:-}" ]]; then
+                config_args=(--config-file "$ARCHDEVKIT_OVERRIDE_FILE")
+            fi
             case "$mode" in
                 --uninstall)
                     die "ArchDevKit 原项目不提供卸载流程；如需重跑请使用 ArchDevKit reset-state 或 --update"
                     ;;
                 --update)
-                    run_archdevkit install "$target" --yes --force
+                    run_archdevkit install "$target" "${config_args[@]}" --yes --force
                     ;;
                 *)
-                    run_archdevkit install "$target" --yes
+                    run_archdevkit install "$target" "${config_args[@]}" --yes
                     ;;
             esac
             ;;
@@ -75,6 +132,7 @@ run_archdevkit_target() {
 
 main() {
     require_archdevkit
+    build_archdevkit_override_file
 
     local mode="" arg
     local targets=()

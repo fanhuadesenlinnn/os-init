@@ -35,6 +35,7 @@ type menuModel struct {
 	filter    string
 	visible   []int // indices of visible items when filtering
 	ready     bool  // true after first navigation key — blocks phantom space on startup
+	notice    string
 }
 
 func newMenuModel(mods []modules.Module) menuModel {
@@ -168,6 +169,7 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 		m.fixScroll()
 
 	case tea.KeyMsg:
+		m.notice = ""
 		// Filter mode input
 		if m.filtering {
 			switch msg.String() {
@@ -237,7 +239,17 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 		case "enter":
 			selected := m.getSelected()
 			if len(selected) == 0 {
+				if !m.items[m.cursor].separator && m.items[m.cursor].module.ID == "archdevkit-menu" {
+					return m, func() tea.Msg { return switchScreenMsg{to: screenArchDevKit} }
+				}
 				return m, nil
+			}
+			if selectedHasModule(selected, "archdevkit-menu") {
+				if len(selected) > 1 {
+					m.notice = text("ArchDevKit 原版菜单需要单独进入，请取消其它选择。", "Open the ArchDevKit menu by itself; deselect other modules first.")
+					return m, nil
+				}
+				return m, func() tea.Msg { return switchScreenMsg{to: screenArchDevKit} }
 			}
 			return m, tea.Batch(
 				func() tea.Msg { return selectedModulesMsg{modules: selected} },
@@ -368,6 +380,9 @@ func (m menuModel) View() string {
 			lipgloss.NewStyle().Foreground(ColorAccent2).Render(text(" 过滤: ", " Filter: ")+m.filter) +
 				MutedStyle.Render(text(" (esc 清空)", " (esc clear)")) + "\n",
 		)
+	}
+	if m.notice != "" {
+		b.WriteString("  " + lipgloss.NewStyle().Foreground(ColorWarn).Render(m.notice) + "\n")
 	}
 
 	b.WriteString("\n")
@@ -559,4 +574,13 @@ func (m menuModel) getSelected() []modules.Module {
 		}
 	}
 	return result
+}
+
+func selectedHasModule(selected []modules.Module, id string) bool {
+	for _, m := range selected {
+		if m.ID == id {
+			return true
+		}
+	}
+	return false
 }

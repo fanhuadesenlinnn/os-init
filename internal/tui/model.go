@@ -31,6 +31,7 @@ type Model struct {
 	banner        bannerModel
 	configStartup configStartupModel
 	menu          menuModel
+	archDevKit    archDevKitModel
 	mode          modeModel
 	gitInfo       gitInfoModel
 	confirm       confirmModel
@@ -40,6 +41,7 @@ type Model struct {
 	// Shared state
 	selectedModules []modules.Module
 	selectedMode    mode
+	executionEnv    map[string]string
 	userName        string
 	userEmail       string
 	webhookURL      string
@@ -87,6 +89,9 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 	env := map[string]string{
 		"KICKSTART_USER_NAME":  m.userName,
 		"KICKSTART_USER_EMAIL": m.userEmail,
+	}
+	for k, v := range m.executionEnv {
+		env[k] = v
 	}
 
 	m.executor = newExecutorModel(
@@ -160,6 +165,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.configStartup, cmd = m.configStartup.Update(msg)
 	case screenMenu:
 		m.menu, cmd = m.menu.Update(msg)
+	case screenArchDevKit:
+		m.archDevKit, cmd = m.archDevKit.Update(msg)
 	case screenMode:
 		m.mode, cmd = m.mode.Update(msg)
 	case screenGitInfo:
@@ -190,6 +197,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case switchScreenMsg:
 		m.screen = msg.to
 		switch msg.to {
+		case screenArchDevKit:
+			m.archDevKit = newArchDevKitModel(m.config.Assets)
+			return m, m.archDevKit.Init()
 		case screenGitInfo:
 			showUserInfo := modules.NeedsUserInfo(m.selectedModules)
 			showWebhook := modules.NeedsWebhook(m.selectedModules)
@@ -208,6 +218,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case selectedModulesMsg:
 		m.selectedModules = msg.modules
+		m.executionEnv = nil
+
+	case archDevKitSelectedMsg:
+		m.selectedModules = []modules.Module{msg.module}
+		m.executionEnv = msg.env
+		m.selectedMode = modeInstall
+		m.screen = screenConfirm
+		m.confirm = newConfirmModelForSelection(m.selectedModules, m.selectedMode, platform.Detect())
+		return m, m.confirm.Init()
 
 	case selectedModeMsg:
 		m.selectedMode = msg.mode
@@ -268,6 +287,8 @@ func (m Model) View() string {
 		return m.configStartup.View()
 	case screenMenu:
 		return m.menu.View()
+	case screenArchDevKit:
+		return m.archDevKit.View()
 	case screenMode:
 		return m.mode.View()
 	case screenGitInfo:
@@ -292,6 +313,8 @@ func (m Model) initScreen(s screen) tea.Cmd {
 		return m.configStartup.Init()
 	case screenMenu:
 		return m.menu.Init()
+	case screenArchDevKit:
+		return m.archDevKit.Init()
 	case screenMode:
 		return m.mode.Init()
 	case screenGitInfo:
