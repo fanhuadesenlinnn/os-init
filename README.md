@@ -1,6 +1,6 @@
 # OS Init
 
-面向中国大陆网络环境的系统初始化工具。它保留 TUI 多选、搜索、安装/更新/卸载体验，并会根据当前 OS 自动显示可用模块：Linux 适配 Arch 系、Debian 系、RedHat 系；macOS 显示可通过 Homebrew 或通用二进制安装的终端/开发工具。
+面向中国大陆网络环境的跨平台系统初始化工具。它保留 TUI 多选、搜索、安装/更新/卸载体验，并会根据当前 OS 自动显示可用模块：macOS 面向开发机和日常电脑；通用 Linux 面向服务器和开发环境；Arch Linux 通过 ArchDevKit 面向最小化安装后的完整开发环境初始化。
 
 <p align="center">
   <img src="demo.gif" alt="OS Init TUI 演示" width="720" />
@@ -39,6 +39,15 @@ make build
 - Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
 - 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
 
+## 项目定义
+
+长期产品语言见 [CONTEXT.md](CONTEXT.md)。关键架构决策记录在 [docs/adr](docs/adr)：
+
+- macOS、通用 Linux、ArchDevKit 是三条接管深度不同的初始化主线。
+- ArchDevKit 是 Arch Linux 最小化安装后的独立大模块，不和普通 os-init 模块统一批次执行。
+- 主界面坚持模块平铺选择，但执行顺序由软件规划。
+- 所有平台使用统一配置文件，首次创建时生成通用段和当前系统相关段。
+
 ## 当前模块
 
 ### 系统优化
@@ -70,7 +79,9 @@ make build
 
 该菜单仅在 Arch Linux 系统显示。ArchDevKit 作为独立子系统嵌入在 `modules/archdevkit/vendor`，保留自己的配置、状态和模块逻辑。
 
-| 模块 | 功能 |
+ArchDevKit 安装目标通过“原版交互菜单”选择。进入后按 ArchDevKit 原版顺序选择安装目标、Proxy、GPU、Hyprland、输入法和浏览器等选项；os-init 会把这些选择写成临时覆盖配置，再交给 ArchDevKit 原始安装入口执行。状态检查、诊断、配置初始化、配置校验和状态重置保留为独立动作入口。
+
+| 向导目标/动作 | 功能 |
 | --- | --- |
 | 基础环境 | 基础工具、排障工具、现代 CLI、tmux、AUR helper |
 | archlinuxcn 软件源 | archlinuxcn 源、keyring、mirrorlist |

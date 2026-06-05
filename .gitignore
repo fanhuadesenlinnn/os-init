@@ -1,5 +1,8 @@
 logs/
-docs/
+/docs/*
+!/docs/adr/
+!/docs/adr/*.md
+modules/archdevkit/vendor/docs/
 .worktrees/
 CLAUDE.md
 .claude

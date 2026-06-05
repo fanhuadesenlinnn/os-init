@@ -112,10 +112,11 @@
 - ArchDevKit 保留自己的配置文件：`~/.config/archdevkit/config.env`。
 - ArchDevKit 保留自己的状态目录：`~/.local/state/archdevkit`。
 - os-init 不会把 ArchDevKit 配置强行并入 `~/.config/os-init/config.env`。
-- 安装类菜单会调用 `bash install.sh install <target> --yes`；更新模式会追加 `--force`。
+- ArchDevKit 安装目标通过“原版交互菜单”入口选择；状态检查、诊断、配置初始化、配置校验和状态重置保留为独立动作入口。
+- os-init 原生 TUI 会把菜单答案转成 `OS_INIT_ARCHDEVKIT_*` 临时环境，再由 `modules/archdevkit/run.sh` 写入临时 `config.env`，调用 `bash install.sh install <target> --config-file <tmp> --yes`；更新模式会追加 `--force`。
 - ArchDevKit 原项目不提供系统卸载流程，因此 os-init 的卸载模式不会伪装成卸载；需要重跑时使用更新模式或 ArchDevKit 的 `reset-state`。
 
-ArchDevKit 菜单项覆盖原项目能力：
+ArchDevKit 向导覆盖原项目能力：
 
 - `base`：通过 pacman 安装基础工具、排障工具、现代 CLI、tmux、AUR helper。
 - `archlinuxcn`：备份并修改 `/etc/pacman.conf`，安装 `archlinuxcn-keyring` 和可选 mirrorlist。

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Replace the flat ArchDevKit install-target list with a native os-init ArchDevKit wizard that follows the original ArchDevKit menu flow.
+- Pass ArchDevKit wizard choices through a temporary override config so the embedded ArchDevKit installer keeps its own config and execution logic.
+
+### Added
+
+- Document the product language in `CONTEXT.md`.
+- Record architecture decisions for initialization tracks, ArchDevKit independence, flat module selection, planned execution, and unified configuration.
+
 ## v0.10.0 - 2026-06-05
 
 ### Added
