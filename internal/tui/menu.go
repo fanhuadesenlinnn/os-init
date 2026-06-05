@@ -251,10 +251,7 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 				}
 				return m, func() tea.Msg { return switchScreenMsg{to: screenArchDevKit} }
 			}
-			return m, tea.Batch(
-				func() tea.Msg { return selectedModulesMsg{modules: selected} },
-				func() tea.Msg { return switchScreenMsg{to: screenMode} },
-			)
+			return m, func() tea.Msg { return selectedModulesMsg{modules: selected} }
 		case "q", "esc":
 			if m.filter != "" {
 				m.filter = ""

@@ -104,18 +104,13 @@ func (m gitInfoModel) Update(msg tea.Msg) (gitInfoModel, tea.Cmd) {
 					return m, nil
 				}
 			}
-			return m, tea.Batch(
-				func() tea.Msg {
-					return userInfoMsg{
-						name:    name,
-						email:   email,
-						webhook: webhook,
-					}
-				},
-				func() tea.Msg {
-					return switchScreenMsg{to: screenConfirm}
-				},
-			)
+			return m, func() tea.Msg {
+				return userInfoMsg{
+					name:    name,
+					email:   email,
+					webhook: webhook,
+				}
+			}
 
 		case "esc":
 			return m, func() tea.Msg {

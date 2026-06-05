@@ -44,15 +44,7 @@ func (m modeModel) Update(msg tea.Msg) (modeModel, tea.Cmd) {
 			}
 		case "enter":
 			selected := modeOptions()[m.cursor].mode
-			return m, tea.Batch(
-				func() tea.Msg { return selectedModeMsg{mode: selected} },
-				func() tea.Msg {
-					if selected == modeUninstall {
-						return switchScreenMsg{to: screenConfirm}
-					}
-					return switchScreenMsg{to: screenGitInfo}
-				},
-			)
+			return m, func() tea.Msg { return selectedModeMsg{mode: selected} }
 		case "esc":
 			return m, func() tea.Msg { return switchScreenMsg{to: screenMenu} }
 		}

@@ -8,6 +8,7 @@ import (
 	appconfig "github.com/fanhuadesenlinnn/os-init/internal/config"
 	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/planner"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
 )
@@ -39,15 +40,17 @@ type Model struct {
 	summary       summaryModel
 
 	// Shared state
-	selectedModules []modules.Module
-	selectedMode    mode
-	executionEnv    map[string]string
-	userName        string
-	userEmail       string
-	webhookURL      string
-	tmpDir          string
-	cleanupFn       func()
-	sudoCancel      func()
+	requestedModules []modules.Module
+	selectedModules  []modules.Module
+	selectedMode     mode
+	executionPlan    planner.Plan
+	executionEnv     map[string]string
+	userName         string
+	userEmail        string
+	webhookURL       string
+	tmpDir           string
+	cleanupFn        func()
+	sudoCancel       func()
 }
 
 // New creates a new root Model.
@@ -104,6 +107,70 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 	m.executor.program = globalProgram
 	m.screen = screenExecutor
 	return m, m.executor.Init()
+}
+
+func (m Model) showMode() (Model, tea.Cmd) {
+	m.mode = newModeModel()
+	m.screen = screenMode
+	return m, m.mode.Init()
+}
+
+func (m Model) buildExecutionPlan() (Model, bool) {
+	base := m.requestedModules
+	if len(base) == 0 {
+		base = m.selectedModules
+	}
+
+	plan := planner.Build(base, platform.Detect(), planner.Options{Mode: plannerMode(m.selectedMode)})
+	m.executionPlan = plan
+	if issue, ok := plan.BlockingIssue(); ok {
+		m.selectedModules = base
+		m.menu.notice = planIssueText(issue)
+		m.screen = screenMenu
+		return m, false
+	}
+
+	m.selectedModules = plan.Modules
+	return m, true
+}
+
+func (m Model) showGitInfoOrConfirm() (Model, tea.Cmd) {
+	showUserInfo := modules.NeedsUserInfo(m.selectedModules)
+	showWebhook := modules.NeedsWebhook(m.selectedModules)
+	if !showUserInfo && !showWebhook {
+		return m.showConfirm()
+	}
+	m.gitInfo = newGitInfoModel(showUserInfo, showWebhook)
+	m.screen = screenGitInfo
+	return m, m.gitInfo.Init()
+}
+
+func (m Model) showConfirm() (Model, tea.Cmd) {
+	if len(m.executionPlan.Modules) == 0 && len(m.selectedModules) > 0 {
+		next, ok := m.buildExecutionPlan()
+		if !ok {
+			return next, nil
+		}
+		m = next
+	}
+	m.confirm = newConfirmModelForPlan(m.executionPlan, m.selectedMode, platform.Detect())
+	m.screen = screenConfirm
+	return m, m.confirm.Init()
+}
+
+func plannerMode(m mode) planner.Mode {
+	switch m {
+	case modeUpdate:
+		return planner.ModeUpdate
+	case modeUninstall:
+		return planner.ModeUninstall
+	default:
+		return planner.ModeInstall
+	}
+}
+
+func planIssueText(issue planner.Issue) string {
+	return text(issue.MessageZH, issue.MessageEN)
 }
 
 var (
@@ -201,40 +268,52 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.archDevKit = newArchDevKitModel(m.config.Assets)
 			return m, m.archDevKit.Init()
 		case screenGitInfo:
-			showUserInfo := modules.NeedsUserInfo(m.selectedModules)
-			showWebhook := modules.NeedsWebhook(m.selectedModules)
-			if !showUserInfo && !showWebhook {
-				m.screen = screenConfirm
-				m.confirm = newConfirmModelForSelection(m.selectedModules, m.selectedMode, platform.Detect())
-				return m, m.confirm.Init()
-			}
-			m.gitInfo = newGitInfoModel(showUserInfo, showWebhook)
-			return m, m.gitInfo.Init()
+			return m.showGitInfoOrConfirm()
 		case screenConfirm:
-			m.confirm = newConfirmModelForSelection(m.selectedModules, m.selectedMode, platform.Detect())
-			return m, m.confirm.Init()
+			return m.showConfirm()
 		}
 		return m, m.initScreen(msg.to)
 
 	case selectedModulesMsg:
+		m.requestedModules = msg.modules
 		m.selectedModules = msg.modules
+		m.executionPlan = planner.Plan{}
 		m.executionEnv = nil
+		next, ok := m.buildExecutionPlan()
+		if !ok {
+			return next, nil
+		}
+		m = next
+		return m.showMode()
 
 	case archDevKitSelectedMsg:
+		m.requestedModules = []modules.Module{msg.module}
 		m.selectedModules = []modules.Module{msg.module}
 		m.executionEnv = msg.env
 		m.selectedMode = modeInstall
-		m.screen = screenConfirm
-		m.confirm = newConfirmModelForSelection(m.selectedModules, m.selectedMode, platform.Detect())
-		return m, m.confirm.Init()
+		next, ok := m.buildExecutionPlan()
+		if !ok {
+			return next, nil
+		}
+		return next.showConfirm()
 
 	case selectedModeMsg:
 		m.selectedMode = msg.mode
+		next, ok := m.buildExecutionPlan()
+		if !ok {
+			return next, nil
+		}
+		m = next
+		if m.selectedMode == modeUninstall {
+			return m.showConfirm()
+		}
+		return m.showGitInfoOrConfirm()
 
 	case userInfoMsg:
 		m.userName = msg.name
 		m.userEmail = msg.email
 		m.webhookURL = msg.webhook
+		return m.showConfirm()
 
 	case confirmMsg:
 		if m.sudoCancel == nil && selectionNeedsSudoPrime(m.selectedModules, platform.Detect()) {
