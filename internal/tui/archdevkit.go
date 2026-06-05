@@ -77,7 +77,7 @@ func newArchDevKitModel(assets fs.FS) archDevKitModel {
 	values := loadArchDevKitSettings(assets)
 	target := normalizeArchTarget(values["ARCHDEVKIT_DEFAULT_PROFILE"])
 	if target == "" || target == "custom" {
-		target = "workstation"
+		target = "dev"
 	}
 
 	m := archDevKitModel{
@@ -348,13 +348,13 @@ func (m archDevKitModel) question() archQuestion {
 	case archStepTarget:
 		current := normalizeArchTarget(m.target)
 		if current == "" {
-			current = "workstation"
+			current = "dev"
 		}
 		return archQuestion{kind: archQuestionChoice, title: text("安装目标", "Install Target"), current: current, options: archTargetOptions(true)}
 	case archStepCustomTarget:
 		current := normalizeArchTarget(m.target)
 		if current == "" || current == "custom" {
-			current = "workstation"
+			current = "dev"
 		}
 		return archQuestion{kind: archQuestionChoice, title: text("自定义起点", "Custom Starting Point"), current: current, options: archTargetOptions(false)}
 	case archStepArchlinuxcn:
@@ -737,7 +737,7 @@ func isArchBoolKey(key string) bool {
 
 func loadArchDevKitSettings(assets fs.FS) map[string]string {
 	values := map[string]string{
-		"ARCHDEVKIT_DEFAULT_PROFILE": "workstation",
+		"ARCHDEVKIT_DEFAULT_PROFILE": "dev",
 		"INSTALL_ARCHLINUXCN":        "1",
 		"ENABLE_DNS":                 "1",
 		"ENABLE_OPS_TOOLKIT":         "1",
@@ -766,7 +766,23 @@ func loadArchDevKitSettings(assets fs.FS) map[string]string {
 			mergeArchAssignments(values, string(data))
 		}
 	}
+	mergeArchEnvOverrides(values)
 	return values
+}
+
+func mergeArchEnvOverrides(values map[string]string) {
+	for key := range values {
+		if value, ok := os.LookupEnv(archEnvKey(key)); ok {
+			values[key] = value
+		}
+	}
+}
+
+func archEnvKey(key string) string {
+	if key == "ARCHDEVKIT_DEFAULT_PROFILE" {
+		return "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE"
+	}
+	return "OS_INIT_ARCHDEVKIT_" + key
 }
 
 func shouldLoadArchUserConfig() bool {

@@ -41,6 +41,32 @@ BROWSER_PACKAGE="google-chrome"
 	}
 }
 
+func TestLoadArchDevKitSettings_UsesOsInitBridgeEnv(t *testing.T) {
+	t.Setenv("ARCHDEVKIT_LOAD_CONFIG_FILE", "0")
+	t.Setenv("OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE", "dev")
+	t.Setenv("OS_INIT_ARCHDEVKIT_PROXY_CORE", "sing-box")
+	t.Setenv("OS_INIT_ARCHDEVKIT_ENABLE_METACUBEXD", "0")
+
+	fsys := fstest.MapFS{
+		"modules/archdevkit/vendor/install_vars": {Data: []byte(`
+ARCHDEVKIT_DEFAULT_PROFILE="workstation"
+PROXY_CORE="mihomo"
+ENABLE_METACUBEXD=1
+`)},
+	}
+
+	values := loadArchDevKitSettings(fsys)
+	if values["ARCHDEVKIT_DEFAULT_PROFILE"] != "dev" {
+		t.Fatalf("profile = %q, want dev", values["ARCHDEVKIT_DEFAULT_PROFILE"])
+	}
+	if values["PROXY_CORE"] != "sing-box" {
+		t.Fatalf("proxy core = %q, want sing-box", values["PROXY_CORE"])
+	}
+	if values["ENABLE_METACUBEXD"] != "0" {
+		t.Fatalf("metacubexd = %q, want 0", values["ENABLE_METACUBEXD"])
+	}
+}
+
 func TestArchDevKitExecutionEnv_FiltersStaleBranchOverrides(t *testing.T) {
 	m := newArchDevKitModel(nil)
 	m.target = "workstation"
