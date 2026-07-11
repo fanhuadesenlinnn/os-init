@@ -56,8 +56,17 @@ func TestForOS_IncludesMacModulesOnlyOnDarwin(t *testing.T) {
 	if !hasModuleID(mods, "macos-orbstack") {
 		t.Fatal("OrbStack should appear on darwin")
 	}
-	if !hasModuleID(mods, "macos-clash-verge-rev") {
-		t.Fatal("Clash Verge Rev should appear on darwin")
+	if !hasModuleID(mods, "macos-motrix-next") {
+		t.Fatal("Motrix Next should appear on darwin")
+	}
+	if !hasModuleID(mods, "macos-squirrel-app") {
+		t.Fatal("Squirrel should appear on darwin")
+	}
+	if !hasModuleID(mods, "macos-lm-studio") {
+		t.Fatal("LM Studio should appear on darwin")
+	}
+	if hasModuleID(mods, "macos-clash-verge-rev") || hasModuleID(mods, "macos-motrix") {
+		t.Fatal("removed Clash Verge Rev and legacy Motrix modules should not appear on darwin")
 	}
 	if !hasModuleID(mods, "macos-iterm2") {
 		t.Fatal("iTerm2 should appear on darwin")
@@ -242,6 +251,25 @@ func TestMacOSScriptComponentsMatchRegistry(t *testing.T) {
 
 	assertSameStringSet(t, caskFromRegistry, caskFromScript, "macOS cask components")
 	assertSameStringSet(t, formulaFromRegistry, formulaFromScript, "macOS formula components")
+}
+
+func TestMacOSCustomHomebrewRoutes(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "modules", "macos", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	if !strings.Contains(script, "stats|orbstack|loop|squirrel-app") {
+		t.Fatal("Stats, OrbStack, Loop, and Squirrel should use brew install without a forced --cask flag")
+	}
+	if !strings.Contains(script, "run_brew tap AnInsomniacy/motrix-next") {
+		t.Fatal("Motrix Next should add its Homebrew tap before installation")
+	}
+	for _, command := range []string{"brew_install \"$cask\"", "brew_install --cask \"$cask\""} {
+		if !strings.Contains(script, command) {
+			t.Fatalf("macOS installer should contain route %q", command)
+		}
+	}
 }
 
 func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {

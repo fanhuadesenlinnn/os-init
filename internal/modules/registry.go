@@ -118,7 +118,6 @@ func AllModules() []Module {
 		macOSCask("macOS 开发应用", "sublime-text", "Sublime Text", "轻量代码编辑器", "/Applications/Sublime Text.app"),
 		macOSCask("macOS 开发应用", "neovide-app", "Neovide", "Neovim 图形客户端", "/Applications/Neovide.app"),
 
-		macOSCask("macOS 代理网络", "clash-verge-rev", "Clash Verge Rev", "基于 Mihomo/Clash Meta 的代理 GUI", "/Applications/Clash Verge.app"),
 		macOSCask("macOS 代理网络", "clash-party", "Clash Party", "Mihomo/Clash 代理 GUI", "/Applications/Clash Party.app"),
 		macOSCask("macOS 代理网络", "royal-tsx", "Royal TSX", "远程连接管理器", "/Applications/Royal TSX.app"),
 		macOSCask("macOS 代理网络", "seafile-client", "Seafile Client", "文件同步客户端", "/Applications/Seafile Client.app"),
@@ -134,17 +133,19 @@ func AllModules() []Module {
 		macOSCask("macOS 效率工具", "menubarx", "MenubarX", "菜单栏浏览器", "/Applications/MenubarX.app"),
 
 		macOSCask("macOS 输入增强", "karabiner-elements", "Karabiner-Elements", "键盘映射工具", "/Applications/Karabiner-Elements.app"),
+		macOSCask("macOS 输入增强", "squirrel-app", "Squirrel", "Rime 中文输入法", "/Library/Input Methods/Squirrel.app"),
 		macOSCask("macOS 输入增强", "aldente", "AlDente", "电池充电管理", "/Applications/AlDente.app"),
 		macOSCask("macOS 输入增强", "keka", "Keka", "压缩解压工具", "/Applications/Keka.app"),
 
 		macOSCask("macOS 媒体下载", "iina", "IINA", "视频播放器", "/Applications/IINA.app"),
 		macOSCask("macOS 媒体下载", "downie", "Downie 4", "视频下载工具", "/Applications/Downie 4.app"),
-		macOSCask("macOS 媒体下载", "motrix", "Motrix", "下载工具", "/Applications/Motrix.app"),
+		macOSCask("macOS 媒体下载", "motrix-next", "Motrix Next", "现代化下载管理器", "/Applications/MotrixNext.app"),
 		macOSCask("macOS 媒体下载", "spotify", "Spotify", "音乐客户端", "/Applications/Spotify.app"),
 		macOSCask("macOS 媒体下载", "steam", "Steam", "游戏平台", "/Applications/Steam.app"),
 		macOSCask("macOS 媒体下载", "qqlive", "腾讯视频", "视频客户端", "/Applications/QQLive.app"),
 
 		macOSCask("macOS AI 笔记", "chatgpt", "ChatGPT", "ChatGPT 桌面端", "/Applications/ChatGPT.app"),
+		macOSCask("macOS AI 笔记", "lm-studio", "LM Studio", "本地大语言模型运行与管理", "/Applications/LM Studio.app"),
 		macOSCask("macOS AI 笔记", "cherry-studio", "Cherry Studio", "AI 客户端", "/Applications/Cherry Studio.app"),
 		macOSCask("macOS AI 笔记", "siyuan", "SiYuan", "本地优先笔记工具", "/Applications/SiYuan.app"),
 
@@ -369,7 +370,7 @@ func macOSFormula(component, label, description, installedCmd string) Module {
 
 func caskActivations(component string) []string {
 	switch component {
-	case "orbstack", "clash-verge-rev", "clash-party", "royal-tsx", "seafile-client", "bitwarden":
+	case "orbstack", "clash-party", "royal-tsx", "seafile-client", "bitwarden", "motrix-next":
 		return []string{ActivationManual}
 	default:
 		return nil
@@ -380,8 +381,10 @@ func caskManualSteps(component string) []string {
 	switch component {
 	case "orbstack":
 		return []string{"打开 OrbStack 完成首次初始化"}
-	case "clash-verge-rev", "clash-party":
+	case "clash-party":
 		return []string{"打开应用后导入自己的代理配置，不由 os-init 接管订阅和系统代理"}
+	case "motrix-next":
+		return []string{"Motrix Next 未签名；如 macOS 拒绝打开，请先核对上游说明再决定是否移除隔离属性"}
 	case "royal-tsx":
 		return []string{"打开 Royal TSX 后导入或创建自己的连接配置"}
 	case "seafile-client":

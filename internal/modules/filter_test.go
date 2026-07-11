@@ -81,8 +81,11 @@ func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	if !hasModule(darwin, "macos-orbstack") {
 		t.Fatal("darwin targets should receive OrbStack module")
 	}
-	if !hasModule(darwin, "macos-clash-verge-rev") {
-		t.Fatal("darwin targets should receive Clash Verge Rev module")
+	if !hasModule(darwin, "macos-motrix-next") {
+		t.Fatal("darwin targets should receive Motrix Next module")
+	}
+	if hasModule(darwin, "macos-clash-verge-rev") || hasModule(darwin, "macos-motrix") {
+		t.Fatal("darwin targets should not receive removed macOS app modules")
 	}
 	if !hasModule(darwin, "macos-iterm2") {
 		t.Fatal("darwin targets should receive iTerm2 module")

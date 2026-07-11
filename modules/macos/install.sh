@@ -11,11 +11,11 @@ source "$REPO_DIR/lib.sh"
 ALL_COMPONENTS=(
     google-chrome codex wechat royal-tsx
     orbstack visual-studio-code iterm2 ghostty sublime-text neovide-app
-    clash-verge-rev clash-party seafile-client
+    clash-party seafile-client
     pixpin bob loop jordanbaird-ice stats monitorcontrol mos input-source-pro menubarx
-    karabiner-elements aldente keka
-    iina downie motrix spotify steam qqlive
-    chatgpt cherry-studio siyuan
+    karabiner-elements squirrel-app aldente keka
+    iina downie motrix-next spotify steam qqlive
+    chatgpt lm-studio cherry-studio siyuan
     telegram tencent-meeting wpsoffice bitwarden cleanmymac cc-switch
     font-hack-nerd-font font-jetbrains-mono-nerd-font font-maple-mono-nf
 )
@@ -44,7 +44,6 @@ cask_label() {
         wechat) os_init_text "微信" "WeChat" ;;
         royal-tsx) echo "Royal TSX" ;;
         orbstack) echo "OrbStack" ;;
-        clash-verge-rev) echo "Clash Verge Rev" ;;
         clash-party) echo "Clash Party" ;;
         iterm2) echo "iTerm2" ;;
         visual-studio-code) echo "Visual Studio Code" ;;
@@ -62,15 +61,17 @@ cask_label() {
         input-source-pro) echo "Input Source Pro" ;;
         menubarx) echo "MenubarX" ;;
         karabiner-elements) echo "Karabiner-Elements" ;;
+        squirrel-app) echo "Squirrel" ;;
         aldente) echo "AlDente" ;;
         keka) echo "Keka" ;;
         iina) echo "IINA" ;;
         downie) echo "Downie 4" ;;
-        motrix) echo "Motrix" ;;
+        motrix-next) echo "Motrix Next" ;;
         spotify) echo "Spotify" ;;
         steam) echo "Steam" ;;
         qqlive) os_init_text "腾讯视频" "Tencent Video" ;;
         chatgpt) echo "ChatGPT" ;;
+        lm-studio) echo "LM Studio" ;;
         cherry-studio) echo "Cherry Studio" ;;
         siyuan) echo "SiYuan" ;;
         telegram) echo "Telegram" ;;
@@ -93,7 +94,6 @@ cask_app_path() {
         wechat) echo "/Applications/WeChat.app" ;;
         royal-tsx) echo "/Applications/Royal TSX.app" ;;
         orbstack) echo "/Applications/OrbStack.app" ;;
-        clash-verge-rev) echo "/Applications/Clash Verge.app" ;;
         clash-party) echo "/Applications/Clash Party.app" ;;
         iterm2) echo "/Applications/iTerm.app" ;;
         visual-studio-code) echo "/Applications/Visual Studio Code.app" ;;
@@ -111,15 +111,17 @@ cask_app_path() {
         input-source-pro) echo "/Applications/Input Source Pro.app" ;;
         menubarx) echo "/Applications/MenubarX.app" ;;
         karabiner-elements) echo "/Applications/Karabiner-Elements.app" ;;
+        squirrel-app) echo "/Library/Input Methods/Squirrel.app" ;;
         aldente) echo "/Applications/AlDente.app" ;;
         keka) echo "/Applications/Keka.app" ;;
         iina) echo "/Applications/IINA.app" ;;
         downie) echo "/Applications/Downie 4.app" ;;
-        motrix) echo "/Applications/Motrix.app" ;;
+        motrix-next) echo "/Applications/MotrixNext.app" ;;
         spotify) echo "/Applications/Spotify.app" ;;
         steam) echo "/Applications/Steam.app" ;;
         qqlive) echo "/Applications/QQLive.app" ;;
         chatgpt) echo "/Applications/ChatGPT.app" ;;
+        lm-studio) echo "/Applications/LM Studio.app" ;;
         cherry-studio) echo "/Applications/Cherry Studio.app" ;;
         siyuan) echo "/Applications/SiYuan.app" ;;
         telegram) echo "/Applications/Telegram.app" ;;
@@ -139,6 +141,22 @@ cask_installed() {
     [[ -n "$app_path" && -d "$app_path" ]]
 }
 
+install_without_cask_flag() {
+    case "$1" in
+        stats|orbstack|loop|squirrel-app) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+prepare_cask_source() {
+    case "$1" in
+        motrix-next)
+            install "$(os_init_text "添加 Homebrew tap: AnInsomniacy/motrix-next" "adding Homebrew tap: AnInsomniacy/motrix-next")"
+            run_brew tap AnInsomniacy/motrix-next
+            ;;
+    esac
+}
+
 install_cask() {
     local cask="$1" label
     label="$(cask_label "$cask")"
@@ -151,7 +169,12 @@ install_cask() {
         fi
 	else
 		install "安装 $label"
-		brew_install --cask "$cask"
+		prepare_cask_source "$cask"
+		if install_without_cask_flag "$cask"; then
+			brew_install "$cask"
+		else
+			brew_install --cask "$cask"
+		fi
 		os_init_mark_user_ownership "macos-cask-${cask//[^A-Za-z0-9._-]/-}"
 	fi
 }
@@ -209,9 +232,10 @@ if [[ "$UNINSTALL" != true ]]; then
     echo ""
     MANUAL_NOTES=()
     want "orbstack" && MANUAL_NOTES+=("$(os_init_text "OrbStack: 打开应用完成首次初始化。" "OrbStack: open the app to finish first-time initialization.")")
-    if want "clash-verge-rev" || want "clash-party"; then
+    if want "clash-party"; then
         MANUAL_NOTES+=("$(os_init_text "Clash: 打开应用后导入自己的代理配置；os-init 不接管订阅和系统代理。" "Clash: import your own proxy profile in the app; os-init does not manage subscriptions or system proxy settings.")")
     fi
+	want "motrix-next" && MANUAL_NOTES+=("$(os_init_text "Motrix Next: 应用未签名；如 macOS 拒绝打开，请先核对上游说明再决定是否移除隔离属性。" "Motrix Next: the app is unsigned; if macOS blocks it, review the upstream guidance before deciding whether to remove quarantine attributes.")")
     want "royal-tsx" && MANUAL_NOTES+=("$(os_init_text "Royal TSX: 打开应用后导入或创建自己的连接配置。" "Royal TSX: import or create your own connection configuration in the app.")")
     want "seafile-client" && MANUAL_NOTES+=("$(os_init_text "Seafile Client: 登录账号并选择同步目录。" "Seafile Client: sign in and choose sync directories.")")
     want "bitwarden" && MANUAL_NOTES+=("$(os_init_text "Bitwarden: 登录账号或导入自己的密码库。" "Bitwarden: sign in or import your own vault.")")

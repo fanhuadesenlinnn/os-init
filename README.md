@@ -78,9 +78,9 @@ Choose `English` on startup, or set `OS_INIT_LANG=en_US` before launching. The E
 | 终端体验 | 终端样式：本地 rich、SSH simple、TTY plain 自动切换 |
 | 终端工具 | ncdu、Yazi |
 | macOS 开发应用 | Chrome、Codex、OrbStack、VS Code、iTerm2、Ghostty、Sublime Text、Neovide |
-| macOS 代理网络 | Clash Verge Rev、Clash Party、Royal TSX、Seafile Client |
-| macOS 效率/输入/媒体 | PixPin、Bob、Loop、Ice、Stats、MonitorControl、Mos、Karabiner、AlDente、Keka、IINA、Downie、Motrix、Spotify、Steam、腾讯视频等 |
-| macOS AI/办公/通讯 | ChatGPT、Cherry Studio、SiYuan、微信、Telegram、腾讯会议、WPS Office、Bitwarden、CleanMyMac X、CC Switch |
+| macOS 代理网络 | Clash Party、Royal TSX、Seafile Client |
+| macOS 效率/输入/媒体 | PixPin、Bob、Loop、Ice、Stats、MonitorControl、Mos、Input Source Pro、Squirrel、Karabiner、AlDente、Keka、IINA、Downie、Motrix Next、Spotify、Steam、腾讯视频等 |
+| macOS AI/办公/通讯 | ChatGPT、LM Studio、Cherry Studio、SiYuan、微信、Telegram、腾讯会议、WPS Office、Bitwarden、CleanMyMac X、CC Switch |
 | macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
 | 网络代理 | Mihomo |
 | 开发工具 | Docker、Go、Neovim + LazyVim |

@@ -248,7 +248,7 @@ ArchDevKit 向导覆盖原项目能力：
 
 ### macOS 应用和字体
 
-以下模块仅 macOS 显示，统一通过 Homebrew cask 安装、更新和卸载。卸载时执行 `brew uninstall --cask <cask>`；不主动执行 `zap`，因此默认保留应用配置和用户数据。
+以下模块仅 macOS 显示，通过 Homebrew 安装、更新和卸载。Stats、OrbStack、Loop 和 Squirrel 按 Homebrew 自动类型识别执行 `brew install <name>`，其他图形应用明确使用 `brew install --cask <cask>`。卸载时不主动执行 `zap`，因此默认保留应用配置和用户数据。
 
 - 开发应用：
   - `google-chrome` -> `/Applications/Google Chrome.app`
@@ -260,7 +260,6 @@ ArchDevKit 向导覆盖原项目能力：
   - `sublime-text` -> `/Applications/Sublime Text.app`
   - `neovide-app` -> `/Applications/Neovide.app`
 - 代理和网络：
-  - `clash-verge-rev` -> `/Applications/Clash Verge.app`
   - `clash-party` -> `/Applications/Clash Party.app`
   - `royal-tsx` -> `/Applications/Royal TSX.app`
   - `seafile-client` -> `/Applications/Seafile Client.app`
@@ -276,17 +275,19 @@ ArchDevKit 向导覆盖原项目能力：
   - `menubarx` -> `/Applications/MenubarX.app`
 - 输入和系统增强：
   - `karabiner-elements` -> `/Applications/Karabiner-Elements.app`
+  - `squirrel-app` -> `/Library/Input Methods/Squirrel.app`
   - `aldente` -> `/Applications/AlDente.app`
   - `keka` -> `/Applications/Keka.app`
 - 媒体和下载：
   - `iina` -> `/Applications/IINA.app`
   - `downie` -> `/Applications/Downie 4.app`
-  - `motrix` -> `/Applications/Motrix.app`
+  - `motrix-next` -> `/Applications/MotrixNext.app`（安装前执行 `brew tap AnInsomniacy/motrix-next`）
   - `spotify` -> `/Applications/Spotify.app`
   - `steam` -> `/Applications/Steam.app`
   - `qqlive` -> `/Applications/QQLive.app`
 - AI、笔记、通讯和办公：
   - `chatgpt` -> `/Applications/ChatGPT.app`
+  - `lm-studio` -> `/Applications/LM Studio.app`
   - `cherry-studio` -> `/Applications/Cherry Studio.app`
   - `siyuan` -> `/Applications/SiYuan.app`
   - `wechat` -> `/Applications/WeChat.app`
@@ -304,7 +305,8 @@ ArchDevKit 向导覆盖原项目能力：
 以下 macOS GUI 应用只由 os-init 安装，不接管私有配置、账号、订阅或系统代理：
 
 - OrbStack 安装后需要打开应用完成首次初始化。
-- Clash Verge Rev / Clash Party 安装后需要用户在应用内导入自己的代理配置。
+- Clash Party 安装后需要用户在应用内导入自己的代理配置。
+- Motrix Next 当前未签名；如果 macOS 阻止打开，程序只提示用户核对上游说明，不会自动移除隔离属性。
 - Royal TSX、Seafile Client、Bitwarden 安装后需要用户在应用内登录或导入自己的数据。
 
 ### macOS 命令行工具
