@@ -22,7 +22,7 @@ type languageModel struct {
 func newLanguageModel() languageModel {
 	options := []languageOption{
 		{code: "zh_CN", label: "中文", description: "界面、提示和脚本日志优先使用中文"},
-		{code: "en_US", label: "English", description: "Use English for interface, prompts, and script logs"},
+		{code: "en_US", label: "English", description: "Use English for the interface, prompts, and live status"},
 	}
 	cursor := 0
 	lang := strings.ToLower(os.Getenv("OS_INIT_LANG"))

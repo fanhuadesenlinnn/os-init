@@ -36,7 +36,7 @@ func (m summaryModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render(text("  执行结果", "  Run Results")) + "\n\n")
+	b.WriteString(titleStyle.Render(text("  执行结果", "  Results")) + "\n\n")
 
 	succeeded := 0
 	failed := 0
@@ -67,6 +67,7 @@ func (m summaryModel) View() string {
 			b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    日志: %s", "    log: %s"), r.LogFile)) + "\n")
 		} else if r.ExitCode != 0 && strings.TrimSpace(r.Output) != "" {
 			detail := strings.TrimSpace(strings.SplitN(r.Output, "\n", 2)[0])
+			detail = localizedExecutionLine(detail)
 			if len([]rune(detail)) > 120 {
 				detail = string([]rune(detail)[:117]) + "..."
 			}

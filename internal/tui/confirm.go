@@ -63,12 +63,16 @@ func (m confirmModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render(text("  确认执行", "  Confirm Run")) + "\n\n")
+	b.WriteString(titleStyle.Render(text("  确认执行", "  Review Changes")) + "\n\n")
 
 	warnStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorWarn)
 	msg := fmt.Sprintf("  将以%s模式执行 %d 个模块，是否继续？", m.mode.String(), m.count)
 	if langIsEnglish() {
-		msg = fmt.Sprintf("  Run %d modules in %s mode?", m.count, m.mode.String())
+		moduleWord := "modules"
+		if m.count == 1 {
+			moduleWord = "module"
+		}
+		msg = fmt.Sprintf("  Run %d %s in %s mode?", m.count, moduleWord, m.mode.String())
 	}
 	b.WriteString(warnStyle.Render(msg) + "\n\n")
 
@@ -79,7 +83,7 @@ func (m confirmModel) View() string {
 				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个模块需要系统权限", "    %d more modules need system privileges"), len(m.privilegeNeeds)-i)) + "\n")
 				break
 			}
-			b.WriteString(MutedStyle.Render(fmt.Sprintf("    - %s: %s", need.Label, need.Reason)) + "\n")
+			b.WriteString(MutedStyle.Render(fmt.Sprintf("    - %s: %s", moduleLabel(need.ModuleID, need.Label), modulePrivilegeReason(need.ModuleID, need.Reason))) + "\n")
 		}
 		b.WriteString("\n")
 	}
@@ -131,7 +135,7 @@ func (m confirmModel) View() string {
 				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个路径", "    %d more paths"), len(m.affectedPaths)-i)) + "\n")
 				break
 			}
-			b.WriteString(MutedStyle.Render("    - "+path) + "\n")
+			b.WriteString(MutedStyle.Render("    - "+localizedMetadata(path)) + "\n")
 		}
 		b.WriteString("\n")
 	}
@@ -143,7 +147,7 @@ func (m confirmModel) View() string {
 				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个路径", "    %d more paths"), len(m.destructivePaths)-i)) + "\n")
 				break
 			}
-			b.WriteString(MutedStyle.Render("    - "+path) + "\n")
+			b.WriteString(MutedStyle.Render("    - "+localizedMetadata(path)) + "\n")
 		}
 		b.WriteString("\n")
 	}

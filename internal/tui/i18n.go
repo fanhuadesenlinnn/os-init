@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"strings"
+	"unicode"
 )
 
 func langIsEnglish() bool {
@@ -78,6 +79,93 @@ func moduleDescription(id, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func modulePrivilegeReason(id, fallback string) string {
+	if !langIsEnglish() {
+		return fallback
+	}
+	if value, ok := modulePrivilegeReasonEN[id]; ok {
+		return value
+	}
+	if strings.HasPrefix(id, "archdevkit-") {
+		return "ArchDevKit modifies the Arch system through pacman, systemd, and user shell or desktop configuration"
+	}
+	return "requires system-level configuration or system-wide component installation"
+}
+
+func localizedMetadata(value string) string {
+	if !langIsEnglish() {
+		return value
+	}
+	replacer := strings.NewReplacer(
+		"Homebrew/pacman 软件包，或 Linux ", "Homebrew/pacman packages, or Linux ",
+		"OS Init 所有权状态目录", "OS Init ownership state directory",
+		"、", ", ",
+		"(仅 PURGE_DATA=1)", "(only with PURGE_DATA=1)",
+		"(仅 PURGE_CONFIG=1)", "(only with PURGE_CONFIG=1)",
+	)
+	return replacer.Replace(value)
+}
+
+func containsHan(value string) bool {
+	for _, r := range value {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+	return false
+}
+
+// localizedExecutionLine keeps the English TUI readable even when a bundled or
+// third-party installer emits a legacy Chinese diagnostic. The original output
+// remains available in the per-run log file for troubleshooting.
+func localizedExecutionLine(line string) string {
+	if !langIsEnglish() || !containsHan(line) {
+		return line
+	}
+
+	switch {
+	case strings.Contains(line, "[Error]") || strings.Contains(line, "[错误]"):
+		return "[Error] The module reported an error; see the run log for details"
+	case strings.Contains(line, "[Warning]") || strings.Contains(line, "[警告]"):
+		return "[Warning] The module reported a warning; see the run log for details"
+	case strings.Contains(line, "[Skip]") || strings.Contains(line, "[跳过]"):
+		return "[Skip] The module skipped this step; see the run log for details"
+	case strings.Contains(line, "[Update]") || strings.Contains(line, "[更新]"):
+		return "[Update] Updating module resources"
+	case strings.Contains(line, "[Remove]") || strings.Contains(line, "[删除]"):
+		return "[Remove] Removing module-managed resources"
+	case strings.Contains(line, "[Install]") || strings.Contains(line, "[安装]"):
+		return "[Install] Applying module changes"
+	case strings.HasPrefix(strings.TrimSpace(line), "==="):
+		return "=== Module operation ==="
+	default:
+		return "Module output is available in the run log"
+	}
+}
+
+var modulePrivilegeReasonEN = map[string]string{
+	"kernel-sysctl":         "writes /etc/sysctl.d and applies settings with sysctl",
+	"kernel-limits":         "writes /etc/security and systemd drop-ins",
+	"kernel-scheduler":      "writes /etc/udev/rules.d",
+	"kernel-autotune":       "installs a systemd service and a /usr/local/sbin helper",
+	"network-ipv4":          "modifies /etc/gai.conf",
+	"network-tune":          "installs a systemd service and adjusts network and iptables settings",
+	"shell-zsh":             "Linux may install zsh and update /etc/shells",
+	"shell-starship":        "Linux installs the binary in a system-wide directory",
+	"shell-direnv":          "Linux installs direnv through the system package manager",
+	"shell-autosuggestions": "Linux may need to install zsh first",
+	"shell-syntax-hl":       "Linux may need to install zsh first",
+	"shell-fnm":             "Linux installs unzip through the system package manager when needed",
+	"shell-git":             "Linux installs git-lfs through the system package manager",
+	"shell-byobu":           "installs byobu and tmux through the system package manager",
+	"terminal-ncdu":         "Linux installs ncdu through the system package manager",
+	"yazi":                  "Linux installs binaries in /usr/local/bin",
+	"mihomo":                "writes /etc/mihomo, a systemd service, and system-wide binaries",
+	"docker":                "installs system-wide binaries and configures Docker services and the docker group",
+	"go":                    "Linux installs or updates /usr/local/go",
+	"neovim":                "Linux installs binaries in /opt and /usr/local/bin",
 }
 
 var moduleLabelEN = map[string]string{

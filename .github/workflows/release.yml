@@ -133,7 +133,7 @@ jobs:
           ### 主要能力
 
           - ArchDevKit 安装 Docker 或 Mihomo 时，如果 systemd 暂时无法启动服务，不再中断整个 dev 安装流程
-          - 中文 TUI
+          - 中英双语 TUI，覆盖菜单、确认信息、执行状态和结果页
           - GitHub 专用代理与资源下载配置
           - 终端样式模块：本地图形终端 rich、SSH simple、TTY plain 自动切换
           - Starship 同时支持 bash 和 zsh，不再强制依赖 zsh

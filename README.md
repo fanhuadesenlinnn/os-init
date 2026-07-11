@@ -42,7 +42,11 @@ make build
 - ArchDevKit：在 Arch Linux 上显示独立菜单，完整嵌入 ArchDevKit 的 base、archlinuxcn、dns、runtime、desktop、doctor、config 等能力。
 - Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
 - 终端体验：Starship 自动选择本地图形终端 `rich`、SSH `simple`、TTY/救援环境 `plain` 三种样式；可配置 eza/bat 友好 alias。
-- 中文界面：TUI、模块描述、执行状态和 README 面向中文使用场景。
+- 中英双语界面：启动时可选择中文或 English；菜单、确认信息、执行状态和结果页会保持所选语言一致。
+
+### English interface
+
+Choose `English` on startup, or set `OS_INIT_LANG=en_US` before launching. The English flow covers startup configuration, module search and selection, action selection, privilege and affected-path review, live execution status, and results. Original installer diagnostics remain available in the run log when a bundled script does not provide a native English message.
 
 ## 项目定义
 

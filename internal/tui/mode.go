@@ -56,7 +56,7 @@ func (m modeModel) View() string {
 	var b strings.Builder
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
-	b.WriteString(titleStyle.Render(text("  选择执行模式", "  Select Run Mode")) + "\n")
+	b.WriteString(titleStyle.Render(text("  选择执行模式", "  Choose an Action")) + "\n")
 	b.WriteString(renderHelpLine(
 		helpAction{key: "↑/↓", desc: text("移动", "move")},
 		helpAction{key: "J/K", desc: text("移动", "move")},

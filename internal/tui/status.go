@@ -14,7 +14,7 @@ func statusInstalled() string {
 }
 
 func statusUpdate(installed, latest string) string {
-	return text("[可更新 "+installed+" → "+latest+"]", "[update "+installed+" -> "+latest+"]")
+	return text("[可更新 "+installed+" → "+latest+"]", "[update available: "+installed+" → "+latest+"]")
 }
 
 func isInstalledStatus(status string) bool {

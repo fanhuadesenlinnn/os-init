@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 )
 
 func TestLanguageModel_DefaultsToChinese(t *testing.T) {
@@ -64,6 +65,19 @@ func TestText_UsesEnglishWhenSelected(t *testing.T) {
 	}
 	if got := moduleSection("软件安装"); got != "Software Installation" {
 		t.Fatalf("moduleSection() = %q, want Software Installation", got)
+	}
+}
+
+func TestEnglishModuleTranslationsCoverRegistry(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "en_US")
+
+	for _, mod := range modules.AllModules() {
+		if containsHan(moduleLabel(mod.ID, mod.Label)) {
+			t.Errorf("module %s has an untranslated label: %q", mod.ID, moduleLabel(mod.ID, mod.Label))
+		}
+		if containsHan(moduleDescription(mod.ID, mod.Description)) {
+			t.Errorf("module %s has an untranslated description: %q", mod.ID, moduleDescription(mod.ID, mod.Description))
+		}
 	}
 }
 

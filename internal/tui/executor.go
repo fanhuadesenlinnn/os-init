@@ -93,7 +93,11 @@ func (m executorModel) Update(msg tea.Msg) (executorModel, tea.Cmd) {
 		return m, cmd
 
 	case scriptOutputMsg:
-		m.output = append(m.output, msg.line)
+		line := localizedExecutionLine(msg.line)
+		if len(m.output) > 0 && m.output[len(m.output)-1] == line {
+			return m, nil
+		}
+		m.output = append(m.output, line)
 		if len(m.output) > maxOutputLines {
 			m.output = m.output[len(m.output)-maxOutputLines:]
 		}

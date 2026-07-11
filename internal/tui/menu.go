@@ -387,7 +387,7 @@ func (m menuModel) View() string {
 
 	// ── Header ──────────────────────────────────────────────────
 	titleText := HeaderTitleStyle.Render("OS Init")
-	byText := HeaderByLineStyle.Render(text(" 中国大陆优化", " China-ready"))
+	byText := HeaderByLineStyle.Render(text(" 中国大陆优化", " Mainland China optimized"))
 	headerLeft := lipgloss.JoinHorizontal(lipgloss.Center, titleText, byText)
 
 	// spinner moved to footer

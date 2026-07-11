@@ -42,7 +42,7 @@ func (m bannerModel) View() string {
 	subtitle := lipgloss.NewStyle().
 		Foreground(ColorAccent2).
 		PaddingLeft(2).
-		Render(text("面向中国大陆网络环境的系统初始化工具", "System initialization for China mainland network environments"))
+		Render(text("面向中国大陆网络环境的系统初始化工具", "System setup optimized for mainland China networks"))
 
 	ver := m.version
 	if m.commit != "none" && m.commit != "" {

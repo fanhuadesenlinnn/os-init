@@ -50,6 +50,57 @@ func TestConfirmView_ShowsPrivilegeReasons(t *testing.T) {
 	}
 }
 
+func TestConfirmView_EnglishContainsNoChineseMetadata(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "en_US")
+
+	mods := modules.AllModules()
+	var selected []modules.Module
+	for _, mod := range mods {
+		if mod.ID == "docker" || mod.ID == "go" || mod.ID == "neovim" || mod.ID == "mihomo" {
+			selected = append(selected, mod)
+		}
+	}
+	model := newConfirmModelForSelection(
+		selected,
+		modeUninstall,
+		platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"},
+	)
+	view := model.View()
+	if containsHan(view) {
+		t.Fatalf("English confirmation view contains Chinese text: %q", view)
+	}
+	for _, want := range []string{"Review Changes", "Important affected paths", "only with PURGE_DATA=1", "Modules needing sudo"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("English confirmation view should contain %q, got %q", want, view)
+		}
+	}
+}
+
+func TestConfirmView_EnglishUsesSingularModule(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "en_US")
+
+	view := newConfirmModel(1, modeInstall).View()
+	if !strings.Contains(view, "Run 1 module in install mode?") {
+		t.Fatalf("English confirmation should use singular module, got %q", view)
+	}
+}
+
+func TestLocalizedExecutionLine_HidesLegacyChineseOutput(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "en_US")
+
+	for _, input := range []string{
+		"[Install] 写入 Docker daemon 配置",
+		"[Warning] 请重新登录",
+		"=== Mihomo 安装完成 ===",
+		"无法确定最新版本",
+	} {
+		got := localizedExecutionLine(input)
+		if containsHan(got) {
+			t.Fatalf("localized output still contains Chinese: input=%q output=%q", input, got)
+		}
+	}
+}
+
 func TestConfirmView_ShowsPlannedDependencyAdditions(t *testing.T) {
 	t.Setenv("OS_INIT_LANG", "zh_CN")
 
