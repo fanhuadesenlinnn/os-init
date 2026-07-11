@@ -150,7 +150,9 @@ restore_state() {
                 ;;
             ring)
                 [[ "$first" =~ ^[A-Za-z0-9_.:-]+$ && "$second" =~ ^[0-9]+$ && "$third" =~ ^[0-9]+$ ]] || continue
-                command -v ethtool >/dev/null 2>&1 && ethtool -G "$first" rx "$second" tx "$third" >/dev/null 2>&1 || true
+                if command -v ethtool >/dev/null 2>&1; then
+                    ethtool -G "$first" rx "$second" tx "$third" >/dev/null 2>&1 || true
+                fi
                 ;;
             sysctl)
                 [[ "$first" == "net.core.rps_sock_flow_entries" && "$second" =~ ^[0-9]+$ ]] || continue
