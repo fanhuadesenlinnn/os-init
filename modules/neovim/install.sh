@@ -47,45 +47,54 @@ echo "=== Neovim + LazyVim $TITLE ==="
 echo ""
 
 if [[ "$UNINSTALL" == true ]]; then
-    # neovim
-    if command -v nvim &>/dev/null; then
-        remove "removing neovim"
-        if tool_prefers_package_manager; then
-            pkg_remove neovim 2>/dev/null || true
-        else
-            sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
-        fi
+	# neovim
+	if command -v nvim &>/dev/null; then
+		if tool_prefers_package_manager && os_init_package_owned "neovim-package"; then
+			remove "卸载由 OS Init 安装的 Neovim 软件包"
+			pkg_remove neovim 2>/dev/null || true
+			os_init_forget_package_ownership "neovim-package"
+		elif tool_prefers_package_manager; then
+			warn "Neovim 软件包不是由 OS Init 安装，予以保留"
+		else
+			os_init_restore_owned_path "neovim-install-dir" "$NVIM_INSTALL_DIR" || true
+			os_init_restore_owned_path "neovim-bin-link" /usr/local/bin/nvim || true
+		fi
     else
         skip "neovim not installed"
     fi
 
     # lazygit
-    if command -v lazygit &>/dev/null; then
-        remove "removing lazygit"
-        if tool_prefers_package_manager; then
-            pkg_remove lazygit 2>/dev/null || true
-        else
-            sudo rm -f /usr/local/bin/lazygit
-        fi
+	if command -v lazygit &>/dev/null; then
+		if tool_prefers_package_manager && os_init_package_owned "lazygit-package"; then
+			remove "卸载由 OS Init 安装的 lazygit 软件包"
+			pkg_remove lazygit 2>/dev/null || true
+			os_init_forget_package_ownership "lazygit-package"
+		elif tool_prefers_package_manager; then
+			warn "lazygit 软件包不是由 OS Init 安装，予以保留"
+		else
+			os_init_restore_owned_path "lazygit-bin" /usr/local/bin/lazygit || true
+		fi
     else
         skip "lazygit not installed"
     fi
 
     # ripgrep + fd
-    command -v rg &>/dev/null && { remove "removing ripgrep"; pkg_remove ripgrep 2>/dev/null || true; }
-    (command -v fdfind &>/dev/null || command -v fd &>/dev/null) && { remove "removing fd"; pkg_remove "$(fd_package_name)" 2>/dev/null || true; }
+	if os_init_package_owned "neovim-ripgrep-package"; then
+		pkg_remove ripgrep 2>/dev/null || true
+		os_init_forget_package_ownership "neovim-ripgrep-package"
+	fi
+	if os_init_package_owned "neovim-fd-package"; then
+		pkg_remove "$(fd_package_name)" 2>/dev/null || true
+		os_init_forget_package_ownership "neovim-fd-package"
+	fi
 
     # nvim config
-    if [[ -d "$HOME/.config/nvim" ]]; then
-        remove "removing ~/.config/nvim"
-        rm -rf "$HOME/.config/nvim"
-    fi
-
-    # nvim data
-    if [[ -d "$HOME/.local/share/nvim" ]]; then
-        remove "removing ~/.local/share/nvim"
-        rm -rf "$HOME/.local/share/nvim"
-    fi
+	if [[ "${PURGE_CONFIG:-0}" == "1" ]]; then
+		warn "PURGE_CONFIG=1，将删除 Neovim 配置和数据目录"
+		rm -rf "$HOME/.config/nvim" "$HOME/.local/share/nvim"
+	else
+		skip "保留 ~/.config/nvim 和 ~/.local/share/nvim；如需清理请设置 PURGE_CONFIG=1"
+	fi
     os_init_remove_shell_block "neovim"
 
     echo ""
@@ -102,9 +111,11 @@ install_nvim_linux() {
     TMP_DIR=$(mktemp -d /tmp/nvim-XXXXXX)
     NVIM_URL="$(resource_url NVIM_DOWNLOAD_URL "${NVIM_DOWNLOAD_BASE%/}/${NVIM_ARCH_DIR}.tar.gz")"
     echo "  获取: $NVIM_URL"
-    download_file "$NVIM_URL" "$TMP_DIR/nvim.tar.gz"
+	download_file_verified "$NVIM_URL" "$TMP_DIR/nvim.tar.gz" "${NVIM_DOWNLOAD_SHA256:-}"
     tar -xzf "$TMP_DIR/nvim.tar.gz" -C "$TMP_DIR"
-    sudo rm -rf "$NVIM_INSTALL_DIR"
+	os_init_prepare_owned_path "neovim-install-dir" "$NVIM_INSTALL_DIR"
+	os_init_prepare_owned_path "neovim-bin-link" /usr/local/bin/nvim
+	sudo rm -rf "$NVIM_INSTALL_DIR"
     sudo mv "$TMP_DIR/$NVIM_ARCH_DIR" "$NVIM_INSTALL_DIR"
     sudo ln -sf "$NVIM_INSTALL_DIR/bin/nvim" /usr/local/bin/nvim
     rm -rf "$TMP_DIR"
@@ -118,7 +129,8 @@ install_nvim_package() {
     else
         $label "通过 pacman/AUR 安装 Neovim"
     fi
-    pkg_install neovim
+	pkg_install neovim
+	[[ "$label" == "install" ]] && os_init_mark_package_ownership "neovim-package"
 }
 
 if command -v nvim &>/dev/null && nvim --version &>/dev/null; then
@@ -158,8 +170,14 @@ else
 fi
 
 if [[ ${#PKGS_TO_INSTALL[@]} -gt 0 ]]; then
-    install "installing ${PKGS_TO_INSTALL[*]}"
-    pkg_install "${PKGS_TO_INSTALL[@]}"
+	install "installing ${PKGS_TO_INSTALL[*]}"
+	pkg_install "${PKGS_TO_INSTALL[@]}"
+	for package in "${PKGS_TO_INSTALL[@]}"; do
+		case "$package" in
+			ripgrep) os_init_mark_package_ownership "neovim-ripgrep-package" ;;
+			fd|fd-find) os_init_mark_package_ownership "neovim-fd-package" ;;
+		esac
+	done
 fi
 
 # [3/4] lazygit
@@ -173,9 +191,10 @@ install_lazygit_linux() {
     TMP_DIR=$(mktemp -d /tmp/lazygit-XXXXXX)
     LAZYGIT_URL="$(resource_url LAZYGIT_DOWNLOAD_URL "${LAZYGIT_DOWNLOAD_BASE%/}/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LAZYGIT_ARCH}.tar.gz")"
     echo "  获取: $LAZYGIT_URL"
-    download_file "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz"
+	download_file_verified "$LAZYGIT_URL" "$TMP_DIR/lazygit.tar.gz" "${LAZYGIT_DOWNLOAD_SHA256:-}"
     tar -xzf "$TMP_DIR/lazygit.tar.gz" -C "$TMP_DIR"
-    sudo mv "$TMP_DIR/lazygit" /usr/local/bin/lazygit
+	os_init_prepare_owned_path "lazygit-bin" /usr/local/bin/lazygit
+	sudo mv "$TMP_DIR/lazygit" /usr/local/bin/lazygit
     sudo chmod +x /usr/local/bin/lazygit
     rm -rf "$TMP_DIR"
     echo "  installed: lazygit $LAZYGIT_VERSION"
@@ -188,7 +207,8 @@ install_lazygit_package() {
     else
         $label "通过 pacman/AUR 安装 lazygit"
     fi
-    pkg_install lazygit
+	pkg_install lazygit
+	[[ "$label" == "install" ]] && os_init_mark_package_ownership "lazygit-package"
 }
 
 if command -v lazygit &>/dev/null; then

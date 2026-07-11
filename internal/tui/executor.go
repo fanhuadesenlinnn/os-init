@@ -28,6 +28,7 @@ type executorModel struct {
 	spinner        spinner.Model
 	progress       progress.Model
 	done           bool
+	canceling      bool
 
 	// Execution context
 	tmpDir     string
@@ -35,6 +36,7 @@ type executorModel struct {
 	env        map[string]string
 	webhookURL string
 	program    *tea.Program
+	ctx        context.Context
 }
 
 func newExecutorModel(
@@ -43,6 +45,7 @@ func newExecutorModel(
 	modeFlag string,
 	env map[string]string,
 	webhookURL string,
+	ctx context.Context,
 ) executorModel {
 	groups := modules.GroupByScript(selected)
 
@@ -62,6 +65,7 @@ func newExecutorModel(
 		mode:           modeFlag,
 		env:            env,
 		webhookURL:     webhookURL,
+		ctx:            ctx,
 	}
 }
 
@@ -101,6 +105,10 @@ func (m executorModel) Update(msg tea.Msg) (executorModel, tea.Cmd) {
 		m.summaryResults = append(m.summaryResults, expandGroupResult(group, msg.result)...)
 		m.current++
 		m.output = nil
+		if m.ctx != nil && m.ctx.Err() != nil {
+			m.done = true
+			return m, func() tea.Msg { return allDoneMsg{} }
+		}
 
 		if m.current >= len(m.groups) {
 			m.done = true
@@ -124,6 +132,9 @@ func (m executorModel) View() string {
 
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(ColorAccent)
 	b.WriteString(titleStyle.Render(text("  正在执行模块...", "  Running Modules...")) + "\n\n")
+	if m.canceling {
+		b.WriteString(ErrorStyle.Render(text("  正在取消，等待当前进程安全退出...", "  Canceling; waiting for the active process to exit safely...")) + "\n\n")
+	}
 
 	for i, g := range m.groups {
 		var icon string
@@ -190,7 +201,11 @@ func (m executorModel) runCurrent() tea.Cmd {
 	timeout := scriptTimeoutFromEnv()
 
 	return func() tea.Msg {
-		ctx := context.Background()
+		parent := m.ctx
+		if parent == nil {
+			parent = context.Background()
+		}
+		ctx := parent
 		var cancel context.CancelFunc
 		if timeout > 0 {
 			ctx, cancel = context.WithTimeout(ctx, timeout)
@@ -214,6 +229,13 @@ func (m executorModel) runCurrent() tea.Cmd {
 				}
 			},
 		})
+		if parent.Err() == context.Canceled {
+			note := text("用户已取消执行，当前模块进程组已终止。", "Execution canceled; the active module process group was terminated.")
+			result.ExitCode = -1
+			result.Output = appendResultNote(result.Output, note)
+			appendLogNote(result.LogFile, note)
+			return scriptDoneMsg{result: result}
+		}
 		if ctx.Err() == context.DeadlineExceeded {
 			note := fmt.Sprintf(text("模块执行超过 %s，已终止。", "module exceeded %s and was stopped."), formatDuration(timeout))
 			result.ExitCode = -1

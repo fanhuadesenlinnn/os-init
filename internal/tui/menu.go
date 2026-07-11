@@ -34,7 +34,6 @@ type menuModel struct {
 	filtering bool
 	filter    string
 	visible   []int // indices of visible items when filtering
-	ready     bool  // true after first navigation key — blocks phantom space on startup
 	notice    string
 }
 
@@ -180,8 +179,8 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 				m.fixScroll()
 				return m, nil
 			case "backspace":
-				if len(m.filter) > 0 {
-					m.filter = m.filter[:len(m.filter)-1]
+				if runes := []rune(m.filter); len(runes) > 0 {
+					m.filter = string(runes[:len(runes)-1])
 					m.applyFilter()
 				}
 				return m, nil
@@ -189,8 +188,8 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 				m.filtering = false
 				return m, nil
 			default:
-				if len(msg.String()) == 1 {
-					m.filter += msg.String()
+				if msg.Type == tea.KeyRunes && len(msg.Runes) > 0 {
+					m.filter += string(msg.Runes)
 					m.applyFilter()
 				}
 				return m, nil
@@ -199,18 +198,13 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 
 		switch msg.String() {
 		case "up", "k":
-			m.ready = true
 			m.cursor = m.prevSelectable(m.cursor)
 			m.fixScroll()
 		case "down", "j":
-			m.ready = true
 			m.cursor = m.nextSelectable(m.cursor)
 			m.fixScroll()
 		case " ":
-			if !m.ready {
-				return m, nil
-			}
-			if !m.items[m.cursor].separator {
+			if m.isVisibleSelectable(m.cursor) {
 				if m.selected[m.cursor] {
 					delete(m.selected, m.cursor)
 				} else {
@@ -218,21 +212,24 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 				}
 			}
 		case "ctrl+a":
-			if !m.ready {
-				return m, nil
+			indices := m.selectableIndices()
+			allSelected := len(indices) > 0
+			for _, i := range indices {
+				if !m.selected[i] {
+					allSelected = false
+					break
+				}
 			}
-			allSelected := len(m.selected) == m.selectableCount()
 			if allSelected {
-				m.selected = make(map[int]bool)
+				for _, i := range indices {
+					delete(m.selected, i)
+				}
 			} else {
-				for i, item := range m.items {
-					if !item.separator {
-						m.selected[i] = true
-					}
+				for _, i := range indices {
+					m.selected[i] = true
 				}
 			}
 		case "/":
-			m.ready = true
 			m.filtering = true
 			m.filter = ""
 			return m, nil
@@ -296,16 +293,32 @@ func (m *menuModel) applyFilter() {
 	// Move cursor to first visible item
 	if len(m.visible) > 0 {
 		m.cursor = m.visible[0]
-		m.offset = 0
 	}
+	m.offset = 0
 }
 
 func (m *menuModel) fixScroll() {
+	cursorLine := m.cursor
+	if m.filter != "" {
+		cursorLine = 0
+		found := false
+		for pos, idx := range m.visible {
+			if idx == m.cursor {
+				cursorLine = pos
+				found = true
+				break
+			}
+		}
+		if !found {
+			m.offset = 0
+			return
+		}
+	}
 	// Scroll by 1 to keep cursor visible
-	for m.cursor < m.offset {
+	for cursorLine < m.offset {
 		m.offset--
 	}
-	for m.cursor >= m.offset+m.height {
+	for cursorLine >= m.offset+m.height {
 		m.offset++
 	}
 
@@ -313,13 +326,39 @@ func (m *menuModel) fixScroll() {
 	if m.offset < 0 {
 		m.offset = 0
 	}
-	max := len(m.items) - m.height
+	lineCount := len(m.items)
+	if m.filter != "" {
+		lineCount = len(m.visible)
+	}
+	max := lineCount - m.height
 	if max < 0 {
 		max = 0
 	}
 	if m.offset > max {
 		m.offset = max
 	}
+}
+
+func (m menuModel) selectableIndices() []int {
+	if m.filter != "" {
+		return append([]int(nil), m.visible...)
+	}
+	indices := make([]int, 0, m.selectableCount())
+	for i, item := range m.items {
+		if !item.separator {
+			indices = append(indices, i)
+		}
+	}
+	return indices
+}
+
+func (m menuModel) isVisibleSelectable(index int) bool {
+	for _, candidate := range m.selectableIndices() {
+		if candidate == index {
+			return true
+		}
+	}
+	return false
 }
 
 func (m menuModel) selectableCount() int {
@@ -385,9 +424,13 @@ func (m menuModel) View() string {
 	b.WriteString("\n")
 	// ── List ────────────────────────────────────────────────────
 	var lines []string
-	if m.filter != "" && m.visible != nil {
-		for _, idx := range m.visible {
-			lines = append(lines, m.renderItem(idx, m.items[idx]))
+	if m.filter != "" {
+		if len(m.visible) == 0 {
+			lines = append(lines, MutedStyle.Render(text("  没有匹配的模块", "  No matching modules")))
+		} else {
+			for _, idx := range m.visible {
+				lines = append(lines, m.renderItem(idx, m.items[idx]))
+			}
 		}
 	} else {
 		for i, item := range m.items {
@@ -430,7 +473,8 @@ func (m menuModel) View() string {
 
 	// Show scroll indicator or pad
 	if end < len(lines) {
-		b.WriteString(MutedStyle.Render(fmt.Sprintf(text("  ▼ 还有 %d 项", "  ▼ %d more items"), len(lines)-end)) + "\n")
+		remaining := m.remainingModuleCount(end)
+		b.WriteString(MutedStyle.Render(fmt.Sprintf(text("  ▼ 还有 %d 个模块", "  ▼ %d more modules"), remaining)) + "\n")
 		rendered++
 	}
 
@@ -498,8 +542,6 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 	checkbox := "[ ]"
 	if m.selected[i] {
 		checkbox = lipgloss.NewStyle().Foreground(ColorOK).Render("[✓]")
-	} else if isInstalledStatus(item.Status) {
-		checkbox = lipgloss.NewStyle().Foreground(ColorMuted).Render("[✓]")
 	}
 
 	label := moduleLabel(item.module.ID, item.module.Label)
@@ -528,39 +570,45 @@ func (m menuModel) renderItem(i int, item menuItem) string {
 }
 
 func (m menuModel) prevSelectable(from int) int {
-	i := from - 1
-	for i >= 0 {
-		if !m.items[i].separator {
-			return i
-		}
-		i--
+	indices := m.selectableIndices()
+	if len(indices) == 0 {
+		return from
 	}
-	i = len(m.items) - 1
-	for i > from {
-		if !m.items[i].separator {
-			return i
+	for pos, idx := range indices {
+		if idx == from {
+			return indices[(pos-1+len(indices))%len(indices)]
 		}
-		i--
 	}
-	return from
+	return indices[len(indices)-1]
 }
 
 func (m menuModel) nextSelectable(from int) int {
-	i := from + 1
-	for i < len(m.items) {
-		if !m.items[i].separator {
-			return i
-		}
-		i++
+	indices := m.selectableIndices()
+	if len(indices) == 0 {
+		return from
 	}
-	i = 0
-	for i < from {
-		if !m.items[i].separator {
-			return i
+	for pos, idx := range indices {
+		if idx == from {
+			return indices[(pos+1)%len(indices)]
 		}
-		i++
 	}
-	return from
+	return indices[0]
+}
+
+func (m menuModel) remainingModuleCount(end int) int {
+	if m.filter != "" {
+		if end >= len(m.visible) {
+			return 0
+		}
+		return len(m.visible) - end
+	}
+	remaining := 0
+	for i := end; i < len(m.items); i++ {
+		if !m.items[i].separator {
+			remaining++
+		}
+	}
+	return remaining
 }
 
 func (m menuModel) getSelected() []modules.Module {

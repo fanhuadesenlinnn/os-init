@@ -18,21 +18,33 @@ echo "=== Yazi $(os_init_text "终端文件管理器" "Terminal File Manager") (
 echo ""
 
 if [[ "$UNINSTALL" == true ]]; then
-    if command -v yazi &>/dev/null; then
-        remove "删除 yazi 二进制"
-        if is_macos || is_arch; then
-            pkg_remove yazi 2>/dev/null || true
-        fi
-        if ! is_macos; then
-            sudo rm -f /usr/local/bin/yazi /usr/local/bin/ya
-        fi
-    else
-        skip "yazi 未安装"
-    fi
-    if [[ -d "$HOME/.config/yazi" ]]; then
-        remove "删除 ~/.config/yazi"
-        rm -rf "$HOME/.config/yazi"
-    fi
+	if command -v yazi &>/dev/null; then
+		if (is_macos || is_arch) && os_init_package_owned "yazi-package"; then
+			remove "卸载由 OS Init 安装的 yazi 软件包"
+			pkg_remove yazi 2>/dev/null || true
+			os_init_forget_package_ownership "yazi-package"
+		elif is_macos || is_arch; then
+			warn "yazi 软件包不是由 OS Init 安装，予以保留"
+		else
+			os_init_restore_owned_path "yazi-bin" /usr/local/bin/yazi || true
+			os_init_restore_owned_path "yazi-ya-bin" /usr/local/bin/ya || true
+		fi
+	else
+		skip "yazi 未安装"
+	fi
+	if [[ -d "$HOME/.config/yazi" ]]; then
+		if [[ "${PURGE_CONFIG:-0}" == "1" ]]; then
+			warn "PURGE_CONFIG=1，将删除整个 ~/.config/yazi"
+			rm -rf "$HOME/.config/yazi"
+		else
+			if grep -Fq '# Managed by OS Init' "$HOME/.config/yazi/ya.sh" 2>/dev/null; then
+				rm -f "$HOME/.config/yazi/ya.sh"
+				remove "删除 OS Init 创建的 ya.sh"
+			fi
+			rm -f "$HOME/.config/yazi/.os-init-directory-owned"
+			rmdir "$HOME/.config/yazi" 2>/dev/null || warn "保留现有 Yazi 配置目录"
+		fi
+	fi
     os_init_remove_shell_block "yazi"
     echo ""
     echo "=== Yazi $(os_init_text "卸载完成" "uninstall complete") ==="
@@ -75,7 +87,8 @@ install_yazi_from_homebrew() {
         brew_upgrade yazi 2>/dev/null || skip "yazi 已是最新"
     else
         log_yazi_action "$action" "通过 Homebrew 安装 yazi"
-        pkg_install yazi
+	pkg_install yazi
+	[[ "$action" == "install" ]] && os_init_mark_package_ownership "yazi-package"
     fi
 }
 
@@ -83,7 +96,8 @@ install_yazi_from_arch_package() {
     local action="$1"
     echo "  $(os_init_text "安装器: pacman/AUR 包 yazi" "Installer: pacman/AUR package yazi")"
     log_yazi_action "$action" "通过 pacman/AUR 安装 yazi"
-    pkg_install yazi
+	pkg_install yazi
+	[[ "$action" == "install" ]] && os_init_mark_package_ownership "yazi-package"
 }
 
 prefer_arch_package() {
@@ -111,11 +125,13 @@ install_yazi_from_zip() {
     echo "  $(os_init_text "安装器: GitHub release zip" "Installer: GitHub release zip")"
     echo "  $(os_init_text "获取" "Fetch"): $ZIP_URL"
     echo "  $(os_init_text "如果长时间停在这里，请配置 GITHUB_PROXY 或 YAZI_DOWNLOAD_URL。" "If it stays here for a long time, configure GITHUB_PROXY or YAZI_DOWNLOAD_URL.")"
-    download_file "$ZIP_URL" "$TMP_DIR/yazi.zip"
+	download_file_verified "$ZIP_URL" "$TMP_DIR/yazi.zip" "${YAZI_DOWNLOAD_SHA256:-}"
     unzip -q "$TMP_DIR/yazi.zip" -d "$TMP_DIR"
 
-    sudo install -m 755 "$TMP_DIR"/yazi-*/yazi /usr/local/bin/yazi
-    sudo install -m 755 "$TMP_DIR"/yazi-*/ya   /usr/local/bin/ya
+	os_init_prepare_owned_path "yazi-bin" /usr/local/bin/yazi
+	os_init_prepare_owned_path "yazi-ya-bin" /usr/local/bin/ya
+	sudo install -m 755 "$TMP_DIR"/yazi-*/yazi /usr/local/bin/yazi
+	sudo install -m 755 "$TMP_DIR"/yazi-*/ya /usr/local/bin/ya
 
     rm -rf "$TMP_DIR"
     echo "  $(os_init_text "已安装" "installed"): yazi"
@@ -159,8 +175,9 @@ YAZI_CONFIG="$HOME/.config/yazi"
 if [[ -d "$YAZI_CONFIG" ]]; then
     skip "$HOME/.config/yazi/ 已存在"
 else
-    install "创建 ~/.config/yazi/"
-    mkdir -p "$YAZI_CONFIG"
+	install "创建 ~/.config/yazi/"
+	mkdir -p "$YAZI_CONFIG"
+	touch "$YAZI_CONFIG/.os-init-directory-owned"
 fi
 
 # [3/3] Shell wrapper for cd-on-exit behavior
@@ -170,8 +187,9 @@ if [[ -f "$WRAPPER_FILE" ]]; then
     skip "ya.sh wrapper 已存在"
 else
     install "创建 ya.sh cd-on-exit wrapper"
-    cat > "$WRAPPER_FILE" << 'WRAPPER'
+cat > "$WRAPPER_FILE" << 'WRAPPER'
 #!/bin/bash
+# Managed by OS Init
 # Yazi wrapper: cd into the directory yazi was in when it exited
 # Usage: source this file, then use `ya` instead of `yazi`
 # Or add to .zshrc/.bashrc:  function ya() { ... }

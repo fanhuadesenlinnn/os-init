@@ -70,6 +70,7 @@ log_line() {
 }
 
 skip()    { log_line "$GREEN" "跳过" "Skip" "$1"; }
+# shellcheck disable=SC2032
 install() { log_line "$YELLOW" "安装" "Install" "$1"; }
 update()  { log_line "$CYAN" "更新" "Update" "$1"; }
 remove()  { log_line "$RED" "删除" "Remove" "$1"; }
@@ -99,27 +100,27 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_SCRIPT_TIMEOUT
     OS_INIT_TERMINAL_STYLE OS_INIT_TERMINAL_ENABLE_ALIASES OS_INIT_TERMINAL_BAT_THEME
-    DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
-    HOMEBREW_INSTALL_URL HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
+	DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY OS_INIT_ALLOW_UNVERIFIED_PROXY
+	HOMEBREW_INSTALL_URL HOMEBREW_INSTALL_SHA256 HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
-    OH_MY_ZSH_REPO STARSHIP_INSTALL_URL DIRENV_PACKAGE
+	OH_MY_ZSH_REPO STARSHIP_INSTALL_URL STARSHIP_INSTALL_SHA256 DIRENV_PACKAGE
     ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
-    NVM_VERSION NVM_INSTALL_BASE NVM_INSTALL_URL FNM_INSTALL_URL
+	NVM_VERSION NVM_INSTALL_BASE NVM_INSTALL_URL NVM_INSTALL_SHA256 FNM_INSTALL_URL FNM_INSTALL_SHA256
     DOCKER_DOWNLOAD_BASE DOCKER_CHANNEL DOCKER_VERSION DOCKER_COMPOSE_VERSION DOCKER_COMPOSE_DOWNLOAD_BASE
-    DOCKER_TGZ_URL DOCKER_COMPOSE_DOWNLOAD_URL
+	DOCKER_TGZ_URL DOCKER_TGZ_SHA256 DOCKER_COMPOSE_DOWNLOAD_URL DOCKER_COMPOSE_SHA256
     DOCKER_REGISTRY_MIRRORS DOCKER_INSECURE_REGISTRIES DOCKER_DATA_ROOT
     MIHOMO_PACKAGE MIHOMO_VERSION MIHOMO_DOWNLOAD_BASE MIHOMO_BINARY_SOURCE
-    MIHOMO_DOWNLOAD_URL
+	MIHOMO_DOWNLOAD_URL MIHOMO_DOWNLOAD_SHA256
     MIHOMO_SERVICE_NAME MIHOMO_CONFIG_DIR MIHOMO_CONFIG_FILE MIHOMO_CONFIG_SOURCE
     MIHOMO_MIXED_PORT MIHOMO_ALLOW_LAN MIHOMO_BIND_ADDRESS
     MIHOMO_CONTROLLER_HOST MIHOMO_CONTROLLER_PORT MIHOMO_DNS_LISTEN MIHOMO_SECRET
     MIHOMO_STATE_DIR MIHOMO_EXTERNAL_UI_DIR MIHOMO_AUTO_ENABLE_SERVICE
-    ENABLE_METACUBEXD METACUBEXD_SOURCE METACUBEXD_REPO
-    GO_VERSION GO_DOWNLOAD_BASE GO_VERSION_URL GO_DOWNLOAD_URL
-    NVIM_DOWNLOAD_BASE NVIM_DOWNLOAD_URL
-    LAZYGIT_VERSION LAZYGIT_DOWNLOAD_BASE LAZYGIT_DOWNLOAD_URL
+	ENABLE_METACUBEXD METACUBEXD_SOURCE METACUBEXD_SHA256 METACUBEXD_REPO
+	GO_VERSION GO_DOWNLOAD_BASE GO_VERSION_URL GO_DOWNLOAD_URL GO_DOWNLOAD_SHA256
+	NVIM_DOWNLOAD_BASE NVIM_DOWNLOAD_URL NVIM_DOWNLOAD_SHA256
+	LAZYGIT_VERSION LAZYGIT_DOWNLOAD_BASE LAZYGIT_DOWNLOAD_URL LAZYGIT_DOWNLOAD_SHA256
     LAZYVIM_STARTER_REPO
-    YAZI_DOWNLOAD_BASE YAZI_DOWNLOAD_URL
+	YAZI_DOWNLOAD_BASE YAZI_DOWNLOAD_URL YAZI_DOWNLOAD_SHA256
 )
 
 # Action flags: --update refreshes to latest, --uninstall removes
@@ -340,7 +341,7 @@ ensure_brew() {
     install "安装 Homebrew"
     local tmp
     tmp="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
-    download_file "$(resource_url HOMEBREW_INSTALL_URL "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh")" "$tmp"
+	download_file_verified "$(resource_url HOMEBREW_INSTALL_URL "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh")" "$tmp" "${HOMEBREW_INSTALL_SHA256:-}"
     NONINTERACTIVE=1 /bin/bash "$tmp"
     rm -f "$tmp"
     eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
@@ -666,7 +667,19 @@ rewrite_download_url() {
 }
 
 git_with_proxy() {
-    GIT_TERMINAL_PROMPT=0 command git "$@"
+	GIT_TERMINAL_PROMPT=0 command git "$@"
+}
+
+assert_git_remote_secure() {
+	local dir="$1" remote_url proxy_prefix
+	remote_url="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
+	proxy_prefix=""
+	if [[ -n "${GITHUB_PROXY:-}" ]]; then
+		proxy_prefix="$(render_url_proxy "$GITHUB_PROXY" "https://github.com/")"
+	fi
+	if [[ -n "$proxy_prefix" && "$remote_url" == "$proxy_prefix"/* && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
+		die "拒绝从未验证的 GitHub 代理更新可执行配置；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
+	fi
 }
 
 github_latest_version() {
@@ -690,13 +703,21 @@ github_latest_version() {
 }
 
 git_clone_depth() {
-    local depth="$1" url="$2" dest="$3"
-    git_with_proxy clone --depth="$depth" "$(rewrite_download_url "$url")" "$dest"
+	local depth="$1" url="$2" dest="$3" final_url
+	final_url="$(rewrite_download_url "$url")"
+	if [[ "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
+		die "经 GitHub 代理克隆可执行配置缺少可验证完整性，已拒绝；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
+	fi
+	git_with_proxy clone --depth="$depth" "$final_url" "$dest"
 }
 
 git_clone_depth_branch() {
-    local depth="$1" branch="$2" url="$3" dest="$4"
-    git_with_proxy clone --depth="$depth" -b "$branch" "$(rewrite_download_url "$url")" "$dest"
+	local depth="$1" branch="$2" url="$3" dest="$4" final_url
+	final_url="$(rewrite_download_url "$url")"
+	if [[ "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
+		die "经 GitHub 代理克隆可执行配置缺少可验证完整性，已拒绝；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
+	fi
+	git_with_proxy clone --depth="$depth" -b "$branch" "$final_url" "$dest"
 }
 
 download_file() {
@@ -719,6 +740,40 @@ download_file() {
     fi
 }
 
+sha256_file() {
+	local file="$1"
+	if command -v sha256sum &>/dev/null; then
+		sha256sum "$file" | awk '{print $1}'
+	elif command -v shasum &>/dev/null; then
+		shasum -a 256 "$file" | awk '{print $1}'
+	else
+		die "校验下载需要 sha256sum 或 shasum"
+	fi
+}
+
+# Download content that will be executed or installed as a binary. Direct
+# official HTTPS remains supported. If a GitHub proxy rewrites the transport,
+# an out-of-band expected SHA-256 is required unless the user explicitly opts
+# into the legacy insecure behavior.
+download_file_verified() {
+	local url="$1" dest="$2" expected="${3:-}" final_url actual
+	final_url="$(rewrite_download_url "$url")"
+	if [[ -z "$expected" && "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
+		die "经 GitHub 代理下载可执行内容时必须配置对应的 SHA-256；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
+	fi
+	download_file "$url" "$dest"
+	if [[ -z "$expected" ]]; then
+		return 0
+	fi
+	expected="$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')"
+	[[ "$expected" =~ ^[0-9a-f]{64}$ ]] || die "无效的 SHA-256: $expected"
+	actual="$(sha256_file "$dest")"
+	if [[ "$actual" != "$expected" ]]; then
+		rm -f "$dest"
+		die "下载内容 SHA-256 不匹配，已拒绝使用: $url"
+	fi
+}
+
 backup_file() {
     local file="$1"
     if [[ -e "$file" ]]; then
@@ -727,6 +782,188 @@ backup_file() {
         sudo cp -a "$file" "$backup"
         echo "$backup"
     fi
+}
+
+os_init_validate_ownership_key() {
+    [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || die "无效的资源所有权键: $1"
+}
+
+os_init_system_state_dir() {
+    echo "${OS_INIT_SYSTEM_STATE_DIR:-/var/lib/os-init}"
+}
+
+# Record the pre-existing value of a system path before OS Init first takes
+# ownership. Repeated updates keep the original backup instead of replacing it.
+os_init_prepare_owned_path() {
+    local key="$1" target="$2" state_dir marker backup tmp
+    os_init_validate_ownership_key "$key"
+    state_dir="$(os_init_system_state_dir)"
+    marker="${state_dir}/ownership/${key}"
+    backup="${state_dir}/backups/${key}"
+    if sudo test -f "$marker"; then
+        return 0
+    fi
+
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-owned.XXXXXX")"
+    if sudo test -e "$target" || sudo test -L "$target"; then
+        # shellcheck disable=SC2033
+        sudo install -d -m 0700 "${state_dir}/backups"
+        sudo rm -rf "$backup"
+        sudo cp -a "$target" "$backup"
+        printf 'backup\n' > "$tmp"
+    else
+        printf 'created\n' > "$tmp"
+    fi
+    # shellcheck disable=SC2033
+    sudo install -d -m 0700 "${state_dir}/ownership"
+    # shellcheck disable=SC2033
+    sudo install -m 0600 "$tmp" "$marker"
+    rm -f "$tmp"
+}
+
+os_init_owned_path() {
+    local key="$1"
+    os_init_validate_ownership_key "$key"
+    sudo test -f "$(os_init_system_state_dir)/ownership/${key}"
+}
+
+os_init_mark_ownership() {
+    local key="$1" state_dir tmp
+    os_init_validate_ownership_key "$key"
+    state_dir="$(os_init_system_state_dir)"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-owned.XXXXXX")"
+    printf 'created\n' > "$tmp"
+    # shellcheck disable=SC2033
+    sudo install -d -m 0700 "${state_dir}/ownership"
+    # shellcheck disable=SC2033
+    sudo install -m 0600 "$tmp" "${state_dir}/ownership/${key}"
+    rm -f "$tmp"
+}
+
+os_init_forget_ownership() {
+    local key="$1"
+    os_init_validate_ownership_key "$key"
+    sudo rm -f "$(os_init_system_state_dir)/ownership/${key}"
+}
+
+os_init_user_state_dir() {
+    local home
+    home="$(real_home)"
+    echo "${OS_INIT_USER_STATE_DIR:-${home}/.local/state/os-init}"
+}
+
+os_init_mark_user_ownership() {
+    local key="$1" dir
+    os_init_validate_ownership_key "$key"
+    dir="$(os_init_user_state_dir)/ownership"
+    mkdir -p "$dir"
+    chmod 700 "$(os_init_user_state_dir)" "$dir" 2>/dev/null || true
+    printf 'created\n' > "${dir}/${key}"
+    chmod 600 "${dir}/${key}" 2>/dev/null || true
+}
+
+os_init_user_owned() {
+    local key="$1"
+    os_init_validate_ownership_key "$key"
+    [[ -f "$(os_init_user_state_dir)/ownership/${key}" ]]
+}
+
+os_init_forget_user_ownership() {
+    local key="$1"
+    os_init_validate_ownership_key "$key"
+    rm -f "$(os_init_user_state_dir)/ownership/${key}"
+}
+
+os_init_mark_package_ownership() {
+    if is_macos; then
+        os_init_mark_user_ownership "$1"
+    else
+        os_init_mark_ownership "$1"
+    fi
+}
+
+os_init_package_owned() {
+    if is_macos; then
+        os_init_user_owned "$1"
+    else
+        os_init_owned_path "$1"
+    fi
+}
+
+os_init_forget_package_ownership() {
+    if is_macos; then
+        os_init_forget_user_ownership "$1"
+    else
+        os_init_forget_ownership "$1"
+    fi
+}
+
+os_init_prepare_owned_user_path() {
+    local key="$1" target="$2" state_dir marker backup
+    os_init_validate_ownership_key "$key"
+    state_dir="$(os_init_user_state_dir)"
+    marker="${state_dir}/ownership/user-path-${key}"
+    backup="${state_dir}/backups/${key}"
+    [[ -f "$marker" ]] && return 0
+    mkdir -p "${state_dir}/ownership" "${state_dir}/backups"
+    chmod 700 "$state_dir" "${state_dir}/ownership" "${state_dir}/backups" 2>/dev/null || true
+    if [[ -e "$target" || -L "$target" ]]; then
+        rm -rf "$backup"
+        cp -a "$target" "$backup"
+        printf 'backup\n' > "$marker"
+    else
+        printf 'created\n' > "$marker"
+    fi
+    chmod 600 "$marker" 2>/dev/null || true
+}
+
+os_init_restore_owned_user_path() {
+    local key="$1" target="$2" state_dir marker backup state
+    os_init_validate_ownership_key "$key"
+    state_dir="$(os_init_user_state_dir)"
+    marker="${state_dir}/ownership/user-path-${key}"
+    backup="${state_dir}/backups/${key}"
+    if [[ ! -f "$marker" ]]; then
+        warn "保留未记录为 OS Init 所有的路径: $target"
+        return 1
+    fi
+    state="$(cat "$marker")"
+    rm -rf "$target"
+    if [[ "$state" == "backup" && -e "$backup" ]]; then
+        mkdir -p "$(dirname "$target")"
+        cp -a "$backup" "$target"
+        rm -rf "$backup"
+        remove "恢复安装前路径: $target"
+    else
+        remove "删除 OS Init 创建的路径: $target"
+    fi
+    rm -f "$marker"
+}
+
+# Remove a path created by OS Init or restore the value that existed before OS
+# Init first managed it. Unknown paths are deliberately preserved.
+os_init_restore_owned_path() {
+    local key="$1" target="$2" state_dir marker backup state
+    os_init_validate_ownership_key "$key"
+    state_dir="$(os_init_system_state_dir)"
+    marker="${state_dir}/ownership/${key}"
+    backup="${state_dir}/backups/${key}"
+    if ! sudo test -f "$marker"; then
+        warn "保留未记录为 OS Init 所有的路径: $target"
+        return 1
+    fi
+
+    state="$(sudo cat "$marker")"
+    sudo rm -rf "$target"
+    if [[ "$state" == "backup" ]] && sudo test -e "$backup"; then
+        sudo mkdir -p "$(dirname "$target")"
+        sudo cp -a "$backup" "$target"
+        sudo rm -rf "$backup"
+        remove "恢复安装前路径: $target"
+    else
+        remove "删除 OS Init 创建的路径: $target"
+    fi
+    sudo rm -f "$marker"
 }
 
 os_init_reown_user_file() {
@@ -1023,8 +1260,9 @@ load_os_init_config
 
 # Reliable update for shallow git clones (git pull often fails with divergent branches)
 git_update_shallow() {
-    local dir="$1"
-    local branch
+	local dir="$1"
+	local branch
+	assert_git_remote_secure "$dir"
     branch=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null) || branch="master"
     git_with_proxy -C "$dir" fetch origin --depth=1 -q
     git_with_proxy -C "$dir" reset --hard "origin/$branch"

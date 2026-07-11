@@ -63,3 +63,12 @@ func TestSummaryView_HidesNextStepsForFailedModules(t *testing.T) {
 		t.Fatalf("failed module should not show next steps, got %q", view)
 	}
 }
+
+func TestSummaryShowsFailureReasonWithoutLog(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "zh_CN")
+	model := newSummaryModel([]runner.Result{{Module: "启动执行", ExitCode: -1, Output: "资源解压失败\nmore"}}, nil)
+	view := model.View()
+	if !strings.Contains(view, "原因: 资源解压失败") {
+		t.Fatalf("failure reason missing from summary: %s", view)
+	}
+}

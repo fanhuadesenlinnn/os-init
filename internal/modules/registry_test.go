@@ -142,8 +142,11 @@ func TestPrivilegeNeeds_ArePlatformAware(t *testing.T) {
 	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["docker"]}, linux) {
 		t.Fatal("Docker systemd install should require privilege")
 	}
-	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["go"]}, darwin) {
-		t.Fatal("Go tarball install writes /usr/local/go and should require privilege")
+	if modules.SelectionNeedsPrivilege([]modules.Module{byID["go"]}, darwin) {
+		t.Fatal("macOS Go uses Homebrew and should not pre-prime sudo")
+	}
+	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["go"]}, linux) {
+		t.Fatal("Linux Go tarball install writes /usr/local/go and should require privilege")
 	}
 }
 

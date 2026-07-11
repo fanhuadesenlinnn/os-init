@@ -11,7 +11,10 @@
 下载发布包，下面是 Linux amd64 示例：
 
 ```bash
-curl -sSL https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/os-init_linux_amd64.tar.gz | tar xz
+curl -fLO https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/os-init_linux_amd64.tar.gz
+curl -fLO https://github.com/fanhuadesenlinnn/os-init/releases/latest/download/checksums.txt
+grep 'os-init_linux_amd64.tar.gz$' checksums.txt | sha256sum -c -
+tar xzf os-init_linux_amd64.tar.gz
 ./os-init
 ```
 
@@ -166,6 +169,7 @@ OS_INIT_CONFIG_PROMPT=0
 资源下载可以按两种方式覆盖：
 
 - 设置 GitHub 代理：`GITHUB_PROXY` 只改写 GitHub、raw.githubusercontent.com、objects.githubusercontent.com 和 github-releases.githubusercontent.com。
+- 经 `GITHUB_PROXY` 获取将被执行或安装的内容时，默认要求配置对应的 `*_SHA256`；未提供校验值会拒绝执行。`OS_INIT_ALLOW_UNVERIFIED_PROXY=1` 仅用于明确接受旧版风险的兼容场景。
 - 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。这些主要用于非 Arch Linux 的二进制安装路径；macOS/Arch 默认优先包管理器。
 - 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
 - 设置 Homebrew 下载和元数据地址：例如 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_ARTIFACT_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`。
@@ -235,6 +239,9 @@ make run
 - macOS GUI 应用只负责安装；OrbStack、Clash、Royal TSX、Seafile、Bitwarden 等私有配置仍由用户在应用内完成。
 - Neovim 配置安装前会备份已有目录。
 - Docker 卸载时保留 `/var/lib/docker` 数据。
+- OS Init 会在 `/var/lib/os-init/ownership` 和 `~/.local/state/os-init` 记录自己接管的资源；卸载只删除有所有权记录的内容，并恢复首次接管前的备份。
+- Neovim、Yazi 等用户配置默认保留；只有显式设置 `PURGE_CONFIG=1` 或 `PURGE_DATA=1` 才会删除对应数据目录。
+- 通过 GitHub 代理下载的可执行脚本和二进制必须通过预期 SHA-256 校验；Git 克隆的可执行配置默认不允许走无法验证的代理。
 - 系统配置优先写入 drop-in 文件，降低对发行版默认配置的破坏。
 
 ## License

@@ -97,6 +97,24 @@ func TestConfirmView_ShowsSoftAssociations(t *testing.T) {
 	}
 }
 
+func TestConfirmViewShowsAffectedAndDestructivePaths(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "zh_CN")
+	mod := modules.Module{
+		ID:               "danger",
+		Label:            "Danger",
+		AffectedPaths:    []string{"/etc/example"},
+		DestructivePaths: []string{"/var/lib/example (PURGE_DATA=1)"},
+	}
+	model := newConfirmModelForPlan(planner.Plan{Modules: []modules.Module{mod}}, modeUninstall, platform.Target{})
+	view := model.View()
+	if !strings.Contains(view, "重要影响路径") || !strings.Contains(view, "/etc/example") {
+		t.Fatalf("affected paths missing from confirm view: %s", view)
+	}
+	if !strings.Contains(view, "显式清理开关可能删除") || !strings.Contains(view, "/var/lib/example") {
+		t.Fatalf("destructive paths missing from uninstall confirm view: %s", view)
+	}
+}
+
 func TestSelectionNeedsSudoPrime_IsPlatformAware(t *testing.T) {
 	mods := modules.AllModules()
 	byID := map[string]modules.Module{}
@@ -109,6 +127,9 @@ func TestSelectionNeedsSudoPrime_IsPlatformAware(t *testing.T) {
 
 	if selectionNeedsSudoPrime([]modules.Module{byID["yazi"]}, darwin) {
 		t.Fatal("macOS Yazi should not trigger sudo prime")
+	}
+	if selectionNeedsSudoPrime([]modules.Module{byID["go"]}, darwin) {
+		t.Fatal("macOS Go uses Homebrew and should not trigger sudo prime")
 	}
 	if !selectionNeedsSudoPrime([]modules.Module{byID["yazi"]}, linux) {
 		t.Fatal("Linux Yazi should trigger sudo prime")

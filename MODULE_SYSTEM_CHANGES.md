@@ -9,6 +9,8 @@
 - 脚本内部使用非交互式 sudo；如果 sudo 缓存失效，会失败并提示，而不是卡在不可见的密码输入处。
 - 单个脚本执行默认最多运行 `45m`，可通过 `OS_INIT_SCRIPT_TIMEOUT` 调整；设置为 `0` 可关闭该限制。
 - Homebrew 命令统一读取 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`、`HOMEBREW_PIP_INDEX_URL` 等环境变量。os-init 不会执行 `sudo brew`。
+- 系统资源所有权和首次接管前的备份记录在 `/var/lib/os-init`，用户资源记录在 `~/.local/state/os-init`；没有所有权记录的路径和软件包在卸载时默认保留。
+- 经 `GITHUB_PROXY` 下载的可执行内容要求对应的 SHA-256；无法校验的 Git 代理克隆默认拒绝。
 
 ## 系统优化
 
@@ -54,7 +56,7 @@
   - `/etc/systemd/system.conf.d/99-os-init.conf`
   - `/etc/systemd/user.conf.d/99-os-init.conf`
 - 执行 `systemctl daemon-reexec`。
-- 卸载时删除上述 os-init drop-in 文件；PAM 追加行当前不自动删除。
+- 卸载时删除上述 os-init drop-in 文件，并只删除带 `# os-init -- enable pam_limits` 标记的 PAM 追加行。
 
 ### I/O 调度器
 
@@ -101,7 +103,8 @@
   - 如果系统存在 `ethtool`，尝试把网卡 RX/TX ring buffer 调到硬件上限。
   - 如果系统存在 `iptables`，添加 mangle 表规则：
     - `POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu`
-- 卸载时停止并禁用 service，删除脚本和 service，清理 MSS 规则，重置 RPS 配置。
+- 首次应用前把 RPS、flow count、ring buffer、sysctl 和已有 MSS 规则快照保存到 `/var/lib/os-init/network-tune.state`。
+- 卸载时停止并禁用 service，删除脚本和 service，并恢复安装前快照；旧版本没有快照时保留当前运行时设置，避免用全零配置覆盖用户设置。
 
 ## 软件安装
 

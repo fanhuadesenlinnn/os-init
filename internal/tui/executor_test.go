@@ -1,10 +1,15 @@
 package tui
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 )
@@ -34,6 +39,47 @@ func TestExpandGroupResult_ReturnsOneSummaryResultPerModule(t *testing.T) {
 		if item.ExitCode != result.ExitCode || item.LogFile != result.LogFile {
 			t.Fatalf("summary item did not preserve script result: %+v", item)
 		}
+	}
+}
+
+func TestExecutorCancellationStopsCurrentGroupAndDoesNotContinue(t *testing.T) {
+	tmp := t.TempDir()
+	script := filepath.Join(tmp, "modules", "test", "run.sh")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(script, []byte("#!/bin/bash\necho started\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := newExecutorModel([]modules.Module{{
+		ID: "slow", Script: "test/run.sh", Label: "slow",
+	}}, tmp, "", nil, "", ctx)
+
+	done := make(chan tea.Msg, 1)
+	go func() { done <- m.runCurrent()() }()
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	select {
+	case raw := <-done:
+		msg, ok := raw.(scriptDoneMsg)
+		if !ok {
+			t.Fatalf("message = %T, want scriptDoneMsg", raw)
+		}
+		if msg.result.ExitCode == 0 || !strings.Contains(msg.result.Output, "取消") {
+			t.Fatalf("canceled result = %+v", msg.result)
+		}
+		updated, cmd := m.Update(msg)
+		if !updated.done || cmd == nil {
+			t.Fatal("canceled executor should finish without starting another group")
+		}
+		if _, ok := cmd().(allDoneMsg); !ok {
+			t.Fatalf("completion message = %T", cmd())
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("canceled process group did not stop promptly")
 	}
 }
 

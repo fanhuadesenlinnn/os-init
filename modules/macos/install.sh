@@ -149,24 +149,32 @@ install_cask() {
         else
             skip "$label 已安装"
         fi
-    else
-        install "安装 $label"
-        brew_install --cask "$cask"
-    fi
+	else
+		install "安装 $label"
+		brew_install --cask "$cask"
+		os_init_mark_user_ownership "macos-cask-${cask//[^A-Za-z0-9._-]/-}"
+	fi
 }
 
 uninstall_cask() {
     local cask="$1" label
     label="$(cask_label "$cask")"
-    if cask_installed "$cask"; then
-        remove "卸载 $label"
-        brew_uninstall --cask "$cask" 2>/dev/null || true
+	if cask_installed "$cask" && os_init_user_owned "macos-cask-${cask//[^A-Za-z0-9._-]/-}"; then
+		remove "卸载 $label"
+		brew_uninstall --cask "$cask" 2>/dev/null || true
+		os_init_forget_user_ownership "macos-cask-${cask//[^A-Za-z0-9._-]/-}"
+	elif cask_installed "$cask"; then
+		warn "保留非 OS Init 安装的 $label"
     else
         skip "$label 未安装"
     fi
 }
 
 require_macos
+if [[ "$UNINSTALL" == true ]] && ! command -v brew &>/dev/null; then
+	warn "未安装 Homebrew，无法卸载 cask；不会为了卸载而安装 Homebrew"
+	exit 0
+fi
 ensure_brew
 
 for c in "${COMPONENTS[@]}"; do

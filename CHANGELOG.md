@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- Track ownership and original backups for system paths and packages managed by OS Init, so uninstall restores pre-existing resources and preserves unknown ones.
+- Require an expected SHA-256 for executable downloads routed through `GITHUB_PROXY`, with an explicit legacy compatibility override.
+- Show important affected paths and purge-only destructive paths on the confirmation page.
+
+### Changed
+
+- Cancel the active installer process group and wait for it to stop before cleaning temporary files or exiting the TUI.
+- Preserve Neovim, Yazi, Byobu, Mihomo, Docker, Go, shell-tool, Homebrew cask/formula, and other pre-existing user/system resources during uninstall.
+- Snapshot network queue, ring-buffer, sysctl, and MSS state before tuning and restore that snapshot on uninstall.
+
+### Fixed
+
+- Keep filtered navigation and selection inside visible results, accept pasted and Unicode search text, and make the first Space key select immediately.
+- Distinguish installed status from current selection and report remaining module counts accurately.
+- Report embedded-asset extraction failures instead of showing an empty successful summary.
+- Bound captured installer output, handle oversized lines without deadlock, and write private logs with mode `0600`.
+- Remove the PAM lines added by the limits module when reverting it.
+
 ## v0.13.0 - 2026-06-06
 
 ### Added

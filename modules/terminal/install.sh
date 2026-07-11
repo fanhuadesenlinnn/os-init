@@ -45,9 +45,12 @@ echo ""
 if [[ "$UNINSTALL" == true ]]; then
     if want "ncdu"; then
         echo "$(os_init_text "[删除]" "[REMOVE]") ncdu..."
-        if command -v ncdu &>/dev/null; then
-            remove "removing ncdu"
-            pkg_remove ncdu 2>/dev/null || true
+		if command -v ncdu &>/dev/null && os_init_package_owned "ncdu-package"; then
+			remove "removing ncdu"
+			pkg_remove ncdu 2>/dev/null || true
+			os_init_forget_package_ownership "ncdu-package"
+		elif command -v ncdu &>/dev/null; then
+			warn "保留非 OS Init 安装的 ncdu"
         else
             skip "ncdu not installed"
         fi
@@ -64,8 +67,9 @@ if want "ncdu"; then
     if command -v ncdu &>/dev/null; then
         skip "ncdu $(ncdu --version 2>/dev/null | head -1 || echo '?') already installed"
     else
-        install "installing ncdu"
-        pkg_install ncdu
+		install "installing ncdu"
+		pkg_install ncdu
+		os_init_mark_package_ownership "ncdu-package"
     fi
 fi
 

@@ -116,15 +116,20 @@ install_prerequisites() {
 }
 
 install_docker_binaries() {
-    local url file_name tmp
+	local url file_name tmp source target binary
     url="$(docker_archive_url)"
     file_name="$(basename "${url%%\?*}")"
     tmp="$(mktemp -d /tmp/docker-bin-XXXXXX)"
 
     install "获取 Docker 静态二进制: $file_name"
-    download_file "$url" "$tmp/$file_name"
+	download_file_verified "$url" "$tmp/$file_name" "${DOCKER_TGZ_SHA256:-}"
     tar -xzf "$tmp/$file_name" -C "$tmp"
-    sudo install -m 0755 "$tmp/docker/"* /usr/local/bin/
+	for source in "$tmp/docker/"*; do
+		binary="$(basename "$source")"
+		target="/usr/local/bin/${binary}"
+		os_init_prepare_owned_path "docker-bin-${binary}" "$target"
+		sudo install -m 0755 "$source" "$target"
+	done
     rm -rf "$tmp"
     docker --version || true
 }
@@ -135,15 +140,17 @@ install_compose_plugin() {
     file_name="$(basename "${url%%\?*}")"
     tmp="$(mktemp -d /tmp/docker-compose-XXXXXX)"
 
-    install "安装 Docker Compose CLI 插件: $file_name"
-    download_file "$url" "$tmp/docker-compose"
-    sudo install -m 0755 -D "$tmp/docker-compose" "$COMPOSE_PLUGIN"
+	install "安装 Docker Compose CLI 插件: $file_name"
+	download_file_verified "$url" "$tmp/docker-compose" "${DOCKER_COMPOSE_SHA256:-}"
+	os_init_prepare_owned_path "docker-compose-plugin" "$COMPOSE_PLUGIN"
+	sudo install -m 0755 -D "$tmp/docker-compose" "$COMPOSE_PLUGIN"
     rm -rf "$tmp"
 }
 
 install_docker_arch_packages() {
-    install "通过 pacman/AUR 安装 Docker 组件"
-    pkg_install docker docker-compose docker-buildx
+	install "通过 pacman/AUR 安装 Docker 组件"
+	pkg_install docker docker-compose docker-buildx
+	os_init_mark_ownership "docker-arch-packages"
     docker --version || true
     docker compose version || true
 }
@@ -183,14 +190,15 @@ write_daemon_config() {
     fi
 
     printf '\n}\n' >> "$tmp"
-    install "写入 Docker daemon 配置: $DAEMON_CFG"
-    backup_file "$DAEMON_CFG" >/dev/null || true
-    sudo install -m 0644 -D "$tmp" "$DAEMON_CFG"
+	install "写入 Docker daemon 配置: $DAEMON_CFG"
+	os_init_prepare_owned_path "docker-daemon-config" "$DAEMON_CFG"
+	sudo install -m 0644 -D "$tmp" "$DAEMON_CFG"
     rm -f "$tmp"
 }
 
 write_systemd_units() {
-    install "写入 containerd.service"
+	install "写入 containerd.service"
+	os_init_prepare_owned_path "docker-containerd-service" "$CONTAINERD_SERVICE"
     sudo tee "$CONTAINERD_SERVICE" >/dev/null <<'EOF'
 [Unit]
 Description=containerd container runtime
@@ -212,7 +220,8 @@ LimitCORE=infinity
 WantedBy=multi-user.target
 EOF
 
-    install "写入 docker.service"
+	install "写入 docker.service"
+	os_init_prepare_owned_path "docker-service" "$DOCKER_SERVICE"
     sudo tee "$DOCKER_SERVICE" >/dev/null <<'EOF'
 [Unit]
 Description=Docker Application Container Engine
@@ -294,32 +303,37 @@ verify_docker() {
 }
 
 uninstall_docker() {
-    require_systemd
-    remove "停止 Docker 服务"
-    sudo systemctl disable --now docker.service 2>/dev/null || true
-    sudo systemctl disable --now containerd.service 2>/dev/null || true
-    sudo systemctl reset-failed docker.service containerd.service 2>/dev/null || true
+	require_systemd
 
-    if is_arch; then
-        remove "通过 pacman/AUR 卸载 Docker 组件"
-        pkg_remove docker-buildx docker-compose docker 2>/dev/null || true
-    else
-        remove "删除 systemd unit 和 Compose 插件"
-        sudo rm -f "$DOCKER_SERVICE" "$CONTAINERD_SERVICE" "$COMPOSE_PLUGIN"
-        sudo systemctl daemon-reload
+	if is_arch; then
+		if os_init_owned_path "docker-arch-packages"; then
+			remove "停止并卸载由 OS Init 安装的 Docker 组件"
+			sudo systemctl disable --now docker.service 2>/dev/null || true
+			sudo systemctl disable --now containerd.service 2>/dev/null || true
+			pkg_remove docker-buildx docker-compose docker 2>/dev/null || true
+			os_init_forget_ownership "docker-arch-packages"
+			os_init_restore_owned_path "docker-daemon-config" "$DAEMON_CFG" || true
+		else
+			warn "未找到 Docker 包所有权记录，保留软件包和服务"
+		fi
+	else
+		if os_init_owned_path "docker-service" || os_init_owned_path "docker-containerd-service"; then
+			remove "停止由 OS Init 管理的 Docker 服务"
+			sudo systemctl disable --now docker.service 2>/dev/null || true
+			sudo systemctl disable --now containerd.service 2>/dev/null || true
+			sudo systemctl reset-failed docker.service containerd.service 2>/dev/null || true
+		fi
+		os_init_restore_owned_path "docker-service" "$DOCKER_SERVICE" || true
+		os_init_restore_owned_path "docker-containerd-service" "$CONTAINERD_SERVICE" || true
+		os_init_restore_owned_path "docker-compose-plugin" "$COMPOSE_PLUGIN" || true
+		os_init_restore_owned_path "docker-daemon-config" "$DAEMON_CFG" || true
+		sudo systemctl daemon-reload
 
-        remove "删除 Docker 静态二进制"
-        sudo rm -f \
-            /usr/local/bin/containerd \
-            /usr/local/bin/containerd-shim \
-            /usr/local/bin/containerd-shim-runc-v2 \
-            /usr/local/bin/ctr \
-            /usr/local/bin/docker \
-            /usr/local/bin/dockerd \
-            /usr/local/bin/docker-init \
-            /usr/local/bin/docker-proxy \
-            /usr/local/bin/runc
-    fi
+		local binary
+		for binary in containerd containerd-shim containerd-shim-runc-v2 ctr docker dockerd docker-init docker-proxy runc; do
+			os_init_restore_owned_path "docker-bin-${binary}" "/usr/local/bin/${binary}" || true
+		done
+	fi
 
     if [[ "${PURGE_DATA:-0}" == "1" ]]; then
         warn "PURGE_DATA=1，将删除 Docker 数据目录"

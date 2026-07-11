@@ -17,6 +17,11 @@ import (
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+const (
+	maxScannerTokenBytes   = 1024 * 1024
+	maxCapturedOutputBytes = 1024 * 1024
+)
+
 // StripANSI removes ANSI escape codes from a string.
 func StripANSI(s string) string {
 	return ansiRe.ReplaceAllString(s, "")
@@ -92,7 +97,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 	var logFile *os.File
 	var logPath string
 	if p.LogDir != "" {
-		if err := os.MkdirAll(p.LogDir, 0o755); err != nil {
+		if err := os.MkdirAll(p.LogDir, 0o700); err != nil {
 			return Result{}, fmt.Errorf("create log dir: %w", err)
 		}
 		name := strings.ReplaceAll(p.Script, "/", "-")
@@ -102,7 +107,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 			fmt.Sprintf("%s-%s.log", name, time.Now().Format("20060102-150405")),
 		)
 		var err error
-		logFile, err = os.Create(logPath)
+		logFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
 			return Result{}, fmt.Errorf("create log file: %w", err)
 		}
@@ -117,13 +122,36 @@ func Run(ctx context.Context, p Params) (Result, error) {
 
 	// Read output line by line
 	var output strings.Builder
+	capturedBytes := 0
+	outputTruncated := false
+	appendOutput := func(value string) {
+		if outputTruncated {
+			return
+		}
+		remaining := maxCapturedOutputBytes - capturedBytes
+		if remaining <= 0 {
+			output.WriteString("[os-init] captured output truncated; see the log file for full output\n")
+			outputTruncated = true
+			return
+		}
+		if len(value) > remaining {
+			output.WriteString(value[:remaining])
+			output.WriteString("\n[os-init] captured output truncated; see the log file for full output\n")
+			capturedBytes += remaining
+			outputTruncated = true
+			return
+		}
+		output.WriteString(value)
+		capturedBytes += len(value)
+	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		scanner := bufio.NewScanner(pr)
+		scanner.Buffer(make([]byte, 64*1024), maxScannerTokenBytes)
 		for scanner.Scan() {
 			raw := scanner.Text()
-			output.WriteString(raw + "\n")
+			appendOutput(raw + "\n")
 			clean := StripANSI(raw)
 
 			if logFile != nil {
@@ -132,6 +160,19 @@ func Run(ctx context.Context, p Params) (Result, error) {
 			if p.OnLine != nil {
 				p.OnLine(clean)
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			note := fmt.Sprintf("[os-init] output reader error: %v", err)
+			appendOutput(note + "\n")
+			if logFile != nil {
+				_, _ = logFile.WriteString(note + "\n")
+			}
+			if p.OnLine != nil {
+				p.OnLine(note)
+			}
+			// Continue draining the pipe so an oversized line cannot block the
+			// installer process while it is trying to write more output.
+			_, _ = io.Copy(io.Discard, pr)
 		}
 	}()
 

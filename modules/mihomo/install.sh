@@ -136,19 +136,20 @@ install_mihomo_binary() {
     install "获取 Mihomo 核心: $file_name"
     case "$url" in
         http://*|https://*)
-            download_file "$url" "$gz"
+			download_file_verified "$url" "$gz" "${MIHOMO_DOWNLOAD_SHA256:-}"
             ;;
         *)
             [[ -f "$url" ]] || die "Mihomo 二进制来源不存在: $url"
             cp -a "$url" "$gz"
             ;;
     esac
-    if [[ "$file_name" == *.gz ]]; then
+	if [[ "$file_name" == *.gz ]]; then
         gzip -dc "$gz" > "$tmp/mihomo"
     else
         cp -a "$gz" "$tmp/mihomo"
-    fi
-    sudo install -m 0755 "$tmp/mihomo" "$MIHOMO_BIN"
+	fi
+	os_init_prepare_owned_path "mihomo-bin" "$MIHOMO_BIN"
+	sudo install -m 0755 "$tmp/mihomo" "$MIHOMO_BIN"
     rm -rf "$tmp"
     "$MIHOMO_BIN" -v || true
 }
@@ -173,17 +174,20 @@ package_available() {
 }
 
 install_mihomo_core() {
-    local package="${MIHOMO_PACKAGE:-mihomo}"
+	local package="${MIHOMO_PACKAGE:-mihomo}" was_installed=0
+	command -v mihomo &>/dev/null && was_installed=1
 
-    if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && is_arch; then
-        install "通过 pacman/AUR 安装 Mihomo: $package"
-        pkg_install "$package"
+	if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && is_arch; then
+		install "通过 pacman/AUR 安装 Mihomo: $package"
+		pkg_install "$package"
+		[[ "$was_installed" == "0" ]] && os_init_mark_package_ownership "mihomo-package"
         return
     fi
 
     if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && package_available "$package"; then
-        install "通过发行版仓库安装 Mihomo: $package"
-        pkg_install "$package"
+		install "通过发行版仓库安装 Mihomo: $package"
+		pkg_install "$package"
+		[[ "$was_installed" == "0" ]] && os_init_mark_package_ownership "mihomo-package"
         return
     fi
 
@@ -208,7 +212,8 @@ config_source_to_root_file() {
 }
 
 configure_mihomo() {
-    install "写入 Mihomo 配置: $MIHOMO_CONFIG_FILE"
+	install "写入 Mihomo 配置: $MIHOMO_CONFIG_FILE"
+	os_init_prepare_owned_path "mihomo-config" "$MIHOMO_CONFIG_FILE"
     sudo mkdir -p "$MIHOMO_CONFIG_DIR" "$MIHOMO_CONFIG_DIR/providers" "$MIHOMO_CONFIG_DIR/ruleset" "$MIHOMO_STATE_DIR"
 
     if [[ -z "${MIHOMO_CONFIG_SOURCE:-}" ]]; then
@@ -232,7 +237,8 @@ write_mihomo_service() {
         return
     fi
 
-    install "写入 systemd unit: /etc/systemd/system/$MIHOMO_SERVICE_NAME"
+	install "写入 systemd unit: /etc/systemd/system/$MIHOMO_SERVICE_NAME"
+	os_init_prepare_owned_path "mihomo-service" "/etc/systemd/system/$MIHOMO_SERVICE_NAME"
     sudo tee "/etc/systemd/system/$MIHOMO_SERVICE_NAME" >/dev/null <<EOF
 [Unit]
 Description=Mihomo proxy service
@@ -296,11 +302,12 @@ install_metacubexd() {
     source="${METACUBEXD_SOURCE:-}"
     tmp="$(mktemp -d /tmp/metacubexd-XXXXXX)"
 
-    install "安装 MetaCubeXD 面板到 $target"
+	install "安装 MetaCubeXD 面板到 $target"
+	os_init_prepare_owned_path "mihomo-ui" "$target"
     if [[ -n "$source" ]]; then
         case "$source" in
             http://*|https://*)
-                download_file "$source" "$tmp/metacubexd.tar.gz"
+				download_file_verified "$source" "$tmp/metacubexd.tar.gz" "${METACUBEXD_SHA256:-}"
                 tar -xzf "$tmp/metacubexd.tar.gz" -C "$tmp"
                 source="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
                 ;;
@@ -375,16 +382,22 @@ verify_mihomo() {
 }
 
 uninstall_mihomo() {
-    require_systemd
-    remove "停止 Mihomo 服务"
-    stop_failed_service
-    sudo rm -f "/etc/systemd/system/$MIHOMO_SERVICE_NAME"
-    sudo systemctl daemon-reload
+	require_systemd
+	if os_init_owned_path "mihomo-service"; then
+		remove "停止由 OS Init 管理的 Mihomo 服务"
+		stop_failed_service
+	fi
+	os_init_restore_owned_path "mihomo-service" "/etc/systemd/system/$MIHOMO_SERVICE_NAME" || true
+	sudo systemctl daemon-reload
 
-    if [[ -x "$MIHOMO_BIN" ]]; then
-        remove "删除 Mihomo 二进制"
-        sudo rm -f "$MIHOMO_BIN"
-    fi
+	if os_init_package_owned "mihomo-package"; then
+		pkg_remove "${MIHOMO_PACKAGE:-mihomo}" 2>/dev/null || true
+		os_init_forget_package_ownership "mihomo-package"
+	else
+		os_init_restore_owned_path "mihomo-bin" /usr/local/bin/mihomo || true
+	fi
+	os_init_restore_owned_path "mihomo-config" "$MIHOMO_CONFIG_FILE" || true
+	os_init_restore_owned_path "mihomo-ui" "$(mihomo_safe_external_ui_dir)" || true
 
     if [[ "${PURGE_DATA:-0}" == "1" ]]; then
         remove "清理 Mihomo 配置和状态目录"

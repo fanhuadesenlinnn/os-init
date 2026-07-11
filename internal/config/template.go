@@ -152,6 +152,7 @@ func githubConfigSection() configSection {
 				CommentZ: "GitHub 专用代理。只改写 github.com、raw.githubusercontent.com 和 GitHub release 资源；不设置全局 HTTP 代理。",
 				CommentE: "GitHub-only proxy. Rewrites github.com, raw.githubusercontent.com, and GitHub release assets; it does not set a global HTTP proxy.",
 			},
+			{Key: "OS_INIT_ALLOW_UNVERIFIED_PROXY", Value: "0", CommentZ: "是否允许经 GitHub 代理获取未经校验的可执行内容；默认拒绝。", CommentE: "Allow unverified executable content through a GitHub proxy; rejected by default."},
 		},
 	}
 }
@@ -163,6 +164,7 @@ func macOSConfigSections() []configSection {
 			TitleE: "macOS / Homebrew",
 			Entries: []configEntry{
 				{Key: "HOMEBREW_INSTALL_URL", Value: "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh", CommentZ: "Homebrew 安装脚本地址。", CommentE: "Homebrew install script URL."},
+				{Key: "HOMEBREW_INSTALL_SHA256", Value: "", CommentZ: "经代理下载 Homebrew 安装脚本时要求的 SHA-256。", CommentE: "Expected SHA-256 for a proxied Homebrew installer."},
 				{Key: "HOMEBREW_API_DOMAIN", Value: "", CommentZ: "Homebrew 元数据 API 镜像；留空使用官方。", CommentE: "Homebrew metadata API mirror; leave empty for upstream."},
 				{Key: "HOMEBREW_BOTTLE_DOMAIN", Value: "", CommentZ: "Homebrew bottle 下载镜像；留空使用官方。", CommentE: "Homebrew bottle mirror; leave empty for upstream."},
 				{Key: "HOMEBREW_ARTIFACT_DOMAIN", Value: "", CommentZ: "Homebrew artifact 下载代理前缀；只使用可信来源。", CommentE: "Homebrew artifact proxy prefix; use trusted sources only."},
@@ -192,12 +194,15 @@ func shellResourceSection() configSection {
 		Entries: []configEntry{
 			{Key: "OH_MY_ZSH_REPO", Value: "https://github.com/ohmyzsh/ohmyzsh.git", CommentZ: "oh-my-zsh 仓库地址，可替换为镜像或内网仓库。", CommentE: "oh-my-zsh repository URL; can be replaced with a mirror or internal repository."},
 			{Key: "STARSHIP_INSTALL_URL", Value: "https://starship.rs/install.sh", CommentZ: "starship 安装脚本地址。", CommentE: "starship install script URL."},
+			{Key: "STARSHIP_INSTALL_SHA256", Value: "", CommentZ: "starship 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the starship installer."},
 			{Key: "ZSH_AUTOSUGGESTIONS_REPO", Value: "https://github.com/zsh-users/zsh-autosuggestions.git", CommentZ: "zsh-autosuggestions 插件仓库地址。", CommentE: "zsh-autosuggestions plugin repository URL."},
 			{Key: "ZSH_SYNTAX_HIGHLIGHTING_REPO", Value: "https://github.com/zsh-users/zsh-syntax-highlighting.git", CommentZ: "zsh-syntax-highlighting 插件仓库地址。", CommentE: "zsh-syntax-highlighting plugin repository URL."},
 			{Key: "NVM_VERSION", Value: "", CommentZ: "nvm 版本。留空时从 GitHub 查询最新版本。", CommentE: "nvm version. Empty means query the latest version from GitHub."},
 			{Key: "NVM_INSTALL_BASE", Value: "https://raw.githubusercontent.com/nvm-sh/nvm", CommentZ: "nvm 安装脚本基础地址。", CommentE: "Base URL for the nvm install script."},
 			{Key: "NVM_INSTALL_URL", Value: "", CommentZ: "nvm 完整安装脚本地址；设置后优先于 NVM_INSTALL_BASE。", CommentE: "Full nvm install script URL; overrides NVM_INSTALL_BASE when set."},
+			{Key: "NVM_INSTALL_SHA256", Value: "", CommentZ: "nvm 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the nvm installer."},
 			{Key: "FNM_INSTALL_URL", Value: "https://fnm.vercel.app/install", CommentZ: "fnm 安装脚本地址。", CommentE: "fnm install script URL."},
+			{Key: "FNM_INSTALL_SHA256", Value: "", CommentZ: "fnm 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the fnm installer."},
 		},
 	}
 }
@@ -208,17 +213,21 @@ func developmentResourceSection(includeLinuxBinaries bool) configSection {
 		{Key: "GO_VERSION_URL", Value: "https://go.dev/VERSION?m=text", CommentZ: "Go 最新版本查询地址。", CommentE: "URL used to query the latest Go version."},
 		{Key: "GO_DOWNLOAD_BASE", Value: "https://go.dev/dl", CommentZ: "Go 安装包下载基础地址。主要用于非 macOS/Arch 的二进制安装路径。", CommentE: "Base URL for Go archive downloads. Mainly used by the non-macOS/non-Arch binary install path."},
 		{Key: "GO_DOWNLOAD_URL", Value: "", CommentZ: "Go 完整安装包地址；设置后优先。macOS/Arch 默认优先包管理器。", CommentE: "Full Go archive URL; overrides the base URL when set. macOS/Arch default to package managers."},
+		{Key: "GO_DOWNLOAD_SHA256", Value: "", CommentZ: "Go 安装包 SHA-256。", CommentE: "Expected SHA-256 for the Go archive."},
 		{Key: "LAZYVIM_STARTER_REPO", Value: "https://github.com/LazyVim/starter", CommentZ: "LazyVim starter 仓库地址，可替换为镜像或个人模板仓库。", CommentE: "LazyVim starter repository URL; can be replaced with a mirror or personal template repository."},
 	}
 	if includeLinuxBinaries {
 		entries = append(entries,
 			configEntry{Key: "NVIM_DOWNLOAD_BASE", Value: "https://github.com/neovim/neovim/releases/latest/download", CommentZ: "Linux Neovim 二进制下载基础地址。Arch 默认优先 pacman/AUR。", CommentE: "Base URL for Linux Neovim binary downloads. Arch defaults to pacman/AUR."},
 			configEntry{Key: "NVIM_DOWNLOAD_URL", Value: "", CommentZ: "Neovim 完整下载地址；设置后优先。Arch 默认优先包管理器。", CommentE: "Full Neovim download URL; overrides the base URL when set. Arch defaults to package managers."},
+			configEntry{Key: "NVIM_DOWNLOAD_SHA256", Value: "", CommentZ: "Neovim 安装包 SHA-256。", CommentE: "Expected SHA-256 for the Neovim archive."},
 			configEntry{Key: "LAZYGIT_VERSION", Value: "", CommentZ: "lazygit 版本。留空时从 GitHub 查询最新版本。", CommentE: "lazygit version. Empty means query the latest version from GitHub."},
 			configEntry{Key: "LAZYGIT_DOWNLOAD_BASE", Value: "https://github.com/jesseduffield/lazygit/releases/download", CommentZ: "lazygit Linux 二进制下载基础地址。macOS/Arch 默认优先包管理器。", CommentE: "Base URL for lazygit Linux binary downloads. macOS/Arch default to package managers."},
 			configEntry{Key: "LAZYGIT_DOWNLOAD_URL", Value: "", CommentZ: "lazygit 完整下载地址；设置后优先。macOS/Arch 默认优先包管理器。", CommentE: "Full lazygit download URL; overrides the base URL when set. macOS/Arch default to package managers."},
+			configEntry{Key: "LAZYGIT_DOWNLOAD_SHA256", Value: "", CommentZ: "lazygit 安装包 SHA-256。", CommentE: "Expected SHA-256 for the lazygit archive."},
 			configEntry{Key: "YAZI_DOWNLOAD_BASE", Value: "https://github.com/sxyazi/yazi/releases/latest/download", CommentZ: "Linux Yazi 二进制下载基础地址。Arch 默认优先 pacman/AUR。", CommentE: "Base URL for Linux Yazi binary downloads. Arch defaults to pacman/AUR."},
 			configEntry{Key: "YAZI_DOWNLOAD_URL", Value: "", CommentZ: "Yazi 完整下载地址；设置后优先，并可在 Arch 上覆盖包管理器路径。", CommentE: "Full Yazi download URL; overrides the base URL and can override the Arch package-manager path."},
+			configEntry{Key: "YAZI_DOWNLOAD_SHA256", Value: "", CommentZ: "Yazi 安装包 SHA-256。", CommentE: "Expected SHA-256 for the Yazi archive."},
 		)
 	}
 	return configSection{TitleZ: "开发资源", TitleE: "Development Resources", Entries: entries}
@@ -233,9 +242,11 @@ func dockerConfigSection() configSection {
 			{Key: "DOCKER_CHANNEL", Value: "stable", CommentZ: "Docker 静态二进制下载通道：stable、test 或 nightly。", CommentE: "Docker static binary download channel: stable, test, or nightly."},
 			{Key: "DOCKER_VERSION", Value: "", CommentZ: "Docker 静态二进制版本。留空时从 DOCKER_DOWNLOAD_BASE 查询最新版本。", CommentE: "Docker static binary version. Empty means query the latest version from DOCKER_DOWNLOAD_BASE."},
 			{Key: "DOCKER_TGZ_URL", Value: "", CommentZ: "Docker 静态二进制完整下载地址；设置后优先。Arch 默认不使用。", CommentE: "Full Docker static archive URL; overrides the base URL when set. Arch does not use this by default."},
+			{Key: "DOCKER_TGZ_SHA256", Value: "", CommentZ: "Docker 静态包 SHA-256。", CommentE: "Expected SHA-256 for the Docker static archive."},
 			{Key: "DOCKER_COMPOSE_VERSION", Value: "", CommentZ: "Docker Compose 二进制版本。留空时从 GitHub 查询最新版本。Arch 默认使用包管理器。", CommentE: "Docker Compose binary version. Empty means query the latest version from GitHub. Arch defaults to package managers."},
 			{Key: "DOCKER_COMPOSE_DOWNLOAD_BASE", Value: "https://github.com/docker/compose/releases/download", CommentZ: "Docker Compose 二进制下载基础地址。", CommentE: "Base URL for Docker Compose binary downloads."},
 			{Key: "DOCKER_COMPOSE_DOWNLOAD_URL", Value: "", CommentZ: "Docker Compose 二进制完整下载地址；设置后优先。Arch 默认不使用。", CommentE: "Full Docker Compose binary download URL; overrides the base URL when set. Arch does not use this by default."},
+			{Key: "DOCKER_COMPOSE_SHA256", Value: "", CommentZ: "Docker Compose 二进制 SHA-256。", CommentE: "Expected SHA-256 for Docker Compose."},
 			{Key: "DOCKER_REGISTRY_MIRRORS", Value: "", CommentZ: "Docker 镜像加速器，多个用英文逗号分隔。", CommentE: "Docker registry mirrors, comma-separated."},
 			{Key: "DOCKER_DATA_ROOT", Value: "", CommentZ: "Docker 数据目录。留空使用 Docker 默认目录。", CommentE: "Docker data root. Empty means use Docker defaults."},
 		},
@@ -251,6 +262,7 @@ func mihomoConfigSection() configSection {
 			{Key: "MIHOMO_VERSION", Value: "", CommentZ: "Mihomo 版本。留空时从 GitHub 查询最新版本。", CommentE: "Mihomo version. Empty means query the latest version from GitHub."},
 			{Key: "MIHOMO_DOWNLOAD_BASE", Value: "", CommentZ: "Mihomo 下载基础地址；留空使用脚本内置规则。", CommentE: "Base URL for Mihomo downloads; empty uses script defaults."},
 			{Key: "MIHOMO_DOWNLOAD_URL", Value: "", CommentZ: "Mihomo 完整下载地址；设置后优先。", CommentE: "Full Mihomo download URL; overrides other download settings."},
+			{Key: "MIHOMO_DOWNLOAD_SHA256", Value: "", CommentZ: "Mihomo 二进制 SHA-256。", CommentE: "Expected SHA-256 for the Mihomo binary."},
 			{Key: "MIHOMO_CONFIG_SOURCE", Value: "", CommentZ: "Mihomo 配置来源：本地 config.yaml、本地模板或远程 URL。留空使用内置模板。", CommentE: "Mihomo config source: local config.yaml, local template, or remote URL. Empty uses the bundled template."},
 			{Key: "MIHOMO_MIXED_PORT", Value: "7890", CommentZ: "Mihomo mixed-port。", CommentE: "Mihomo mixed-port."},
 			{Key: "MIHOMO_ALLOW_LAN", Value: "0", CommentZ: "是否允许局域网访问：1 允许，0 只监听本机。", CommentE: "Allow LAN access: 1 enables it, 0 keeps local-only access."},
@@ -261,6 +273,7 @@ func mihomoConfigSection() configSection {
 			{Key: "MIHOMO_AUTO_ENABLE_SERVICE", Value: "1", CommentZ: "安装后是否自动启用并启动 mihomo.service。", CommentE: "Enable and start mihomo.service after installation."},
 			{Key: "ENABLE_METACUBEXD", Value: "1", CommentZ: "是否安装 MetaCubeXD 面板。", CommentE: "Install the MetaCubeXD dashboard."},
 			{Key: "METACUBEXD_SOURCE", Value: "", CommentZ: "MetaCubeXD 本地或远程压缩包来源；留空在线获取。", CommentE: "Local or remote MetaCubeXD archive source; empty means fetch online."},
+			{Key: "METACUBEXD_SHA256", Value: "", CommentZ: "远程 MetaCubeXD 压缩包 SHA-256。", CommentE: "Expected SHA-256 for a remote MetaCubeXD archive."},
 		},
 	}
 }

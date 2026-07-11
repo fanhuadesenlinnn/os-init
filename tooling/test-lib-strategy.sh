@@ -127,9 +127,80 @@ test_arch_helper_bootstrap_prefers_paru_and_adds_yay() (
     assert_call "aur:yay"
 )
 
+test_owned_path_restores_preexisting_content() (
+    local state_dir="$TEST_HOME/system-state"
+    local target="$TEST_HOME/owned-target"
+    OS_INIT_SYSTEM_STATE_DIR="$state_dir"
+    sudo() { command "$@"; }
+
+    printf 'before\n' > "$target"
+    os_init_prepare_owned_path test-resource "$target"
+    printf 'after\n' > "$target"
+    os_init_restore_owned_path test-resource "$target"
+    [[ "$(cat "$target")" == "before" ]] || fail "owned path did not restore original content"
+)
+
+test_unknown_owned_path_is_preserved() (
+    local state_dir="$TEST_HOME/unknown-state"
+    local target="$TEST_HOME/unknown-target"
+    OS_INIT_SYSTEM_STATE_DIR="$state_dir"
+    sudo() { command "$@"; }
+
+    printf 'user-data\n' > "$target"
+    os_init_restore_owned_path missing-resource "$target" >/dev/null 2>&1 && fail "unknown path should not report removal"
+    [[ "$(cat "$target")" == "user-data" ]] || fail "unknown path was modified"
+)
+
+test_verified_download_rejects_unchecked_proxy() (
+    local source_file="$TEST_HOME/download-source"
+    local target="$TEST_HOME/download-target"
+    printf 'payload\n' > "$source_file"
+    GITHUB_PROXY="https://proxy.invalid/"
+    OS_INIT_ALLOW_UNVERIFIED_PROXY=0
+    download_file() { cp "$source_file" "$2"; }
+
+    if (download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" "" >/dev/null 2>&1); then
+        fail "unchecked proxied executable download should be rejected"
+    fi
+    [[ ! -e "$target" ]] || fail "rejected download should not create a target"
+)
+
+test_verified_download_accepts_expected_digest() (
+    local source_file="$TEST_HOME/digest-source"
+    local target="$TEST_HOME/digest-target"
+    local digest
+    printf 'payload\n' > "$source_file"
+    GITHUB_PROXY="https://proxy.invalid/"
+    OS_INIT_ALLOW_UNVERIFIED_PROXY=0
+    download_file() { cp "$source_file" "$2"; }
+    digest="$(sha256_file "$source_file")"
+
+    download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" "$digest"
+    cmp -s "$source_file" "$target" || fail "verified payload was not preserved"
+)
+
+test_verified_download_rejects_wrong_digest() (
+    local source_file="$TEST_HOME/wrong-digest-source"
+    local target="$TEST_HOME/wrong-digest-target"
+    printf 'tampered\n' > "$source_file"
+    GITHUB_PROXY="https://proxy.invalid/"
+    OS_INIT_ALLOW_UNVERIFIED_PROXY=0
+    download_file() { cp "$source_file" "$2"; }
+
+    if (download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" >/dev/null 2>&1); then
+        fail "wrong executable digest should be rejected"
+    fi
+    [[ ! -e "$target" ]] || fail "digest mismatch should remove the downloaded target"
+)
+
 test_macos_pkg_remove_does_not_install_homebrew
 test_pkg_install_uses_arch_strategy
 test_arch_packages_split_between_pacman_and_aur
 test_arch_helper_bootstrap_prefers_paru_and_adds_yay
+test_owned_path_restores_preexisting_content
+test_unknown_owned_path_is_preserved
+test_verified_download_rejects_unchecked_proxy
+test_verified_download_accepts_expected_digest
+test_verified_download_rejects_wrong_digest
 
 printf 'os-init lib strategy checks passed\n'

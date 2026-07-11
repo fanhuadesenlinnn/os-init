@@ -79,18 +79,22 @@ install_formula() {
         else
             skip "$label 已安装"
         fi
-    else
-        install "安装 $label"
-        brew_install "$formula"
-    fi
+	else
+		install "安装 $label"
+		brew_install "$formula"
+		os_init_mark_user_ownership "macos-formula-${formula//[^A-Za-z0-9._-]/-}"
+	fi
 }
 
 uninstall_formula() {
     local formula="$1" label
     label="$(formula_label "$formula")"
-    if formula_installed "$formula"; then
-        remove "卸载 $label"
-        brew_uninstall "$formula" 2>/dev/null || true
+	if formula_installed "$formula" && os_init_user_owned "macos-formula-${formula//[^A-Za-z0-9._-]/-}"; then
+		remove "卸载 $label"
+		brew_uninstall "$formula" 2>/dev/null || true
+		os_init_forget_user_ownership "macos-formula-${formula//[^A-Za-z0-9._-]/-}"
+	elif formula_installed "$formula"; then
+		warn "保留非 OS Init 安装的 $label"
     else
         skip "$label 未安装"
     fi
@@ -119,6 +123,10 @@ EOF
 }
 
 require_macos
+if [[ "$UNINSTALL" == true ]] && ! command -v brew &>/dev/null; then
+	warn "未安装 Homebrew，无法卸载 formula；不会为了卸载而安装 Homebrew"
+	exit 0
+fi
 ensure_brew
 
 for c in "${COMPONENTS[@]}"; do

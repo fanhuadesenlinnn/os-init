@@ -140,6 +140,32 @@ func TestRun_WritesLogFile(t *testing.T) {
 	if !strings.Contains(string(data), "logme") {
 		t.Error("log file should contain script output")
 	}
+	info, err := os.Stat(result.LogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("log mode = %o, want 600", got)
+	}
+}
+
+func TestRun_OversizedLineDoesNotDeadlock(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeScript(t, dir, "modules/test/huge.sh", "#!/bin/bash\ndd if=/dev/zero bs=1024 count=1200 2>/dev/null | tr '\\0' x\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := runner.Run(ctx, runner.Params{TmpDir: dir, Script: "test/huge.sh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ctx.Err() != nil {
+		t.Fatal("oversized output line blocked the process until timeout")
+	}
+	if !strings.Contains(result.Output, "output reader error") {
+		t.Fatalf("expected explicit reader error, got %q", result.Output)
+	}
 }
 
 func TestRun_EnvVars(t *testing.T) {

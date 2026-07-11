@@ -123,11 +123,20 @@ if [[ "$UNINSTALL" == true ]]; then
         remove "scheduler udev rule removed"
     fi
 
-    if want "limits"; then
-        echo "[REVERT] limits..."
-        sudo rm -f /etc/security/limits.d/99-os-init.conf
-        sudo rm -f /etc/systemd/system.conf.d/99-os-init.conf /etc/systemd/user.conf.d/99-os-init.conf
-        sudo systemctl daemon-reexec 2>/dev/null || true
+	if want "limits"; then
+		echo "[REVERT] limits..."
+		sudo rm -f /etc/security/limits.d/99-os-init.conf
+		sudo rm -f /etc/systemd/system.conf.d/99-os-init.conf /etc/systemd/user.conf.d/99-os-init.conf
+		for pam_file in \
+			/etc/pam.d/common-session \
+			/etc/pam.d/common-session-noninteractive \
+			/etc/pam.d/system-auth \
+			/etc/pam.d/password-auth \
+			/etc/pam.d/system-login; do
+			[[ -f "$pam_file" ]] || continue
+			sudo sed -i '/^# os-init -- enable pam_limits$/ {N;/\nsession required pam_limits\.so$/d;}' "$pam_file"
+		done
+		sudo systemctl daemon-reexec 2>/dev/null || true
         remove "os-init limits drop-ins removed"
     fi
 

@@ -56,8 +56,9 @@ func run(args []string) error {
 	signal.Notify(sigCh, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		tui.RunCleanup()
-		os.Exit(1)
+		// Route termination through the model so an active installer context is
+		// canceled and its process group exits before temporary files are removed.
+		p.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	}()
 
 	if _, err := p.Run(); err != nil {

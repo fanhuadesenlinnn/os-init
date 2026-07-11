@@ -19,6 +19,8 @@ type confirmModel struct {
 	addedDependencies []planner.DependencyAddition
 	softAssociations  []planner.SoftAssociation
 	executionOrder    []modules.Module
+	affectedPaths     []string
+	destructivePaths  []string
 }
 
 func newConfirmModel(count int, m mode) confirmModel {
@@ -37,6 +39,8 @@ func newConfirmModelForPlan(plan planner.Plan, m mode, target platform.Target) c
 		addedDependencies: plan.AddedDependencies,
 		softAssociations:  plan.SoftAssociations,
 		executionOrder:    plan.Modules,
+		affectedPaths:     collectModulePaths(plan.Modules, false),
+		destructivePaths:  collectModulePaths(plan.Modules, true),
 	}
 }
 
@@ -120,6 +124,30 @@ func (m confirmModel) View() string {
 		b.WriteString("\n")
 	}
 
+	if len(m.affectedPaths) > 0 {
+		b.WriteString(MutedStyle.Render(text("  重要影响路径:", "  Important affected paths:")) + "\n")
+		for i, path := range m.affectedPaths {
+			if i >= 5 {
+				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个路径", "    %d more paths"), len(m.affectedPaths)-i)) + "\n")
+				break
+			}
+			b.WriteString(MutedStyle.Render("    - "+path) + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if m.mode == modeUninstall && len(m.destructivePaths) > 0 {
+		b.WriteString(ErrorStyle.Render(text("  显式清理开关可能删除:", "  Explicit purge flags may delete:")) + "\n")
+		for i, path := range m.destructivePaths {
+			if i >= 3 {
+				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个路径", "    %d more paths"), len(m.destructivePaths)-i)) + "\n")
+				break
+			}
+			b.WriteString(MutedStyle.Render("    - "+path) + "\n")
+		}
+		b.WriteString("\n")
+	}
+
 	if m.err != "" {
 		b.WriteString(ErrorStyle.Render("  "+m.err) + "\n\n")
 	}
@@ -138,4 +166,24 @@ func (m confirmModel) View() string {
 	))
 
 	return b.String()
+}
+
+func collectModulePaths(selected []modules.Module, destructive bool) []string {
+	seen := map[string]bool{}
+	var paths []string
+	for _, mod := range selected {
+		values := mod.AffectedPaths
+		if destructive {
+			values = mod.DestructivePaths
+		}
+		for _, path := range values {
+			path = strings.TrimSpace(path)
+			if path == "" || seen[path] {
+				continue
+			}
+			seen[path] = true
+			paths = append(paths, path)
+		}
+	}
+	return paths
 }

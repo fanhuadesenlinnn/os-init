@@ -65,6 +65,12 @@ func (m summaryModel) View() string {
 
 		if r.LogFile != "" {
 			b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    日志: %s", "    log: %s"), r.LogFile)) + "\n")
+		} else if r.ExitCode != 0 && strings.TrimSpace(r.Output) != "" {
+			detail := strings.TrimSpace(strings.SplitN(r.Output, "\n", 2)[0])
+			if len([]rune(detail)) > 120 {
+				detail = string([]rune(detail)[:117]) + "..."
+			}
+			b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    原因: %s", "    reason: %s"), detail)) + "\n")
 		}
 	}
 

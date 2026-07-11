@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"io/fs"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/planner"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
 )
 
@@ -51,6 +53,8 @@ type Model struct {
 	tmpDir           string
 	cleanupFn        func()
 	sudoCancel       func()
+	executionCancel  context.CancelFunc
+	exitAfterExecute bool
 }
 
 // New creates a new root Model.
@@ -82,7 +86,11 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 			m.sudoCancel = nil
 		}
 		m.screen = screenSummary
-		m.summary = newSummaryModel(nil, m.selectedModules)
+		m.summary = newSummaryModel([]runner.Result{{
+			Module:   text("启动执行", "Start execution"),
+			ExitCode: -1,
+			Output:   err.Error(),
+		}}, m.selectedModules)
 		return m, nil
 	}
 	m.tmpDir = tmpDir
@@ -97,12 +105,16 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 		env[k] = v
 	}
 
+	executionCtx, executionCancel := context.WithCancel(context.Background())
+	m.executionCancel = executionCancel
+	globalExecutionCancel = executionCancel
 	m.executor = newExecutorModel(
 		m.selectedModules,
 		tmpDir,
 		m.selectedMode.Flag(),
 		env,
 		m.webhookURL,
+		executionCtx,
 	)
 	m.executor.program = globalProgram
 	m.screen = screenExecutor
@@ -180,6 +192,9 @@ var (
 
 	// globalCleanup is called on SIGTERM or abnormal exit to remove tmpdir.
 	globalCleanup func()
+
+	// globalExecutionCancel stops the active process group before cleanup.
+	globalExecutionCancel context.CancelFunc
 )
 
 // SetProgram injects the tea.Program reference. Must be called
@@ -190,6 +205,10 @@ func SetProgram(p *tea.Program) {
 
 // RunCleanup calls the registered cleanup function (tmpdir removal).
 func RunCleanup() {
+	if globalExecutionCancel != nil {
+		globalExecutionCancel()
+		globalExecutionCancel = nil
+	}
 	if globalCleanup != nil {
 		globalCleanup()
 		globalCleanup = nil
@@ -211,6 +230,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
+			if m.screen == screenExecutor && m.executionCancel != nil {
+				m.executionCancel()
+				m.executor.canceling = true
+				m.exitAfterExecute = true
+				return m, nil
+			}
 			if m.cleanupFn != nil {
 				m.cleanupFn()
 			}
@@ -338,10 +363,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.cleanupFn != nil {
 			m.cleanupFn()
 			m.cleanupFn = nil
+			globalCleanup = nil
 		}
 		if m.sudoCancel != nil {
 			m.sudoCancel()
 			m.sudoCancel = nil
+		}
+		if m.executionCancel != nil {
+			m.executionCancel()
+			m.executionCancel = nil
+			globalExecutionCancel = nil
+		}
+		if m.exitAfterExecute {
+			return m, tea.Quit
 		}
 		m.summary = newSummaryModel(m.executor.summaryResults, m.selectedModules)
 		m.screen = screenSummary

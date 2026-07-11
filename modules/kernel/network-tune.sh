@@ -9,6 +9,8 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 mode="${1:-apply}"
+STATE_DIR="${OS_INIT_SYSTEM_STATE_DIR:-/var/lib/os-init}"
+STATE_FILE="${STATE_DIR}/network-tune.state"
 
 should_skip_iface() {
     case "$1" in
@@ -65,6 +67,49 @@ tune_ring_buffer() {
     ethtool -G "$iface" rx "$rx_max" tx "$tx_max" >/dev/null 2>&1 || true
 }
 
+snapshot_state() {
+    local tmp iface path value rx tx mss_present=0 initial=0
+    install -d -m 0700 "$STATE_DIR"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-network-state.XXXXXX")"
+    if [[ -f "$STATE_FILE" ]]; then
+        cp -a "$STATE_FILE" "$tmp"
+    else
+        initial=1
+    fi
+
+    for iface in $(interfaces); do
+        for path in /sys/class/net/"$iface"/queues/rx-*/rps_cpus; do
+            [[ -f "$path" ]] || continue
+            grep -Fq "rps|${path}|" "$tmp" 2>/dev/null && continue
+            value="$(cat "$path")"
+            printf 'rps|%s|%s\n' "$path" "$value" >> "$tmp"
+        done
+        for path in /sys/class/net/"$iface"/queues/rx-*/rps_flow_cnt; do
+            [[ -f "$path" ]] || continue
+            grep -Fq "flow|${path}|" "$tmp" 2>/dev/null && continue
+            value="$(cat "$path")"
+            printf 'flow|%s|%s\n' "$path" "$value" >> "$tmp"
+        done
+        if command -v ethtool >/dev/null 2>&1; then
+            rx="$(ethtool -g "$iface" 2>/dev/null | awk '/Current hardware settings/{current=1; next} current && /^RX:/{print $2; exit}')"
+            tx="$(ethtool -g "$iface" 2>/dev/null | awk '/Current hardware settings/{current=1; next} current && /^TX:/{print $2; exit}')"
+            if [[ "$rx" =~ ^[0-9]+$ && "$tx" =~ ^[0-9]+$ ]] && ! grep -Fq "ring|${iface}|" "$tmp" 2>/dev/null; then
+                printf 'ring|%s|%s|%s\n' "$iface" "$rx" "$tx" >> "$tmp"
+            fi
+        fi
+    done
+    if [[ "$initial" == "1" ]]; then
+        value="$(sysctl -n net.core.rps_sock_flow_entries 2>/dev/null || echo 0)"
+        printf 'sysctl|net.core.rps_sock_flow_entries|%s\n' "$value" >> "$tmp"
+        if command -v iptables >/dev/null 2>&1 && iptables -t mangle -C POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null; then
+            mss_present=1
+        fi
+        printf 'mss|%s\n' "$mss_present" >> "$tmp"
+    fi
+    install -m 0600 "$tmp" "$STATE_FILE"
+    rm -f "$tmp"
+}
+
 apply_rps() {
     local cpus mask iface rps_file flow_file
 
@@ -84,42 +129,50 @@ apply_rps() {
     sysctl -w net.core.rps_sock_flow_entries=32768 >/dev/null 2>&1 || true
 }
 
-reset_rps() {
-    local iface rps_file flow_file
-
-    for iface in $(interfaces); do
-        for rps_file in /sys/class/net/"$iface"/queues/rx-*/rps_cpus; do
-            [[ -f "$rps_file" ]] && echo "0" > "$rps_file"
-        done
-        for flow_file in /sys/class/net/"$iface"/queues/rx-*/rps_flow_cnt; do
-            [[ -f "$flow_file" ]] && echo "0" > "$flow_file"
-        done
-    done
-
-    sysctl -w net.core.rps_sock_flow_entries=0 >/dev/null 2>&1 || true
-}
-
 apply_mss_clamp() {
     command -v iptables >/dev/null 2>&1 || return 0
 
-    iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || true
-    iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || true
+    iptables -t mangle -C POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || \
+        iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 }
 
-reset_mss_clamp() {
-    command -v iptables >/dev/null 2>&1 || return 0
-
-    iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || true
+restore_state() {
+    local kind first second third original_mss=""
+    if [[ ! -f "$STATE_FILE" ]]; then
+        echo "Warning: no OS Init network snapshot; preserving current runtime tuning" >&2
+        return 0
+    fi
+    while IFS='|' read -r kind first second third; do
+        case "$kind" in
+            rps|flow)
+                [[ "$first" == /sys/class/net/*/queues/rx-*/rps_* && "$second" =~ ^[0-9a-fA-F,]+$ ]] || continue
+                [[ -f "$first" ]] && printf '%s\n' "$second" > "$first"
+                ;;
+            ring)
+                [[ "$first" =~ ^[A-Za-z0-9_.:-]+$ && "$second" =~ ^[0-9]+$ && "$third" =~ ^[0-9]+$ ]] || continue
+                command -v ethtool >/dev/null 2>&1 && ethtool -G "$first" rx "$second" tx "$third" >/dev/null 2>&1 || true
+                ;;
+            sysctl)
+                [[ "$first" == "net.core.rps_sock_flow_entries" && "$second" =~ ^[0-9]+$ ]] || continue
+                sysctl -w "${first}=${second}" >/dev/null 2>&1 || true
+                ;;
+            mss) original_mss="$first" ;;
+        esac
+    done < "$STATE_FILE"
+    if [[ "$original_mss" == "0" ]] && command -v iptables >/dev/null 2>&1; then
+        iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || true
+    fi
+    rm -f "$STATE_FILE"
 }
 
 case "$mode" in
     apply)
+        snapshot_state
         apply_rps
         apply_mss_clamp
         ;;
     --revert|revert)
-        reset_mss_clamp
-        reset_rps
+        restore_state
         ;;
     *)
         echo "Usage: $0 [apply|--revert]" >&2

@@ -51,22 +51,23 @@ backup_user_file_once() {
 }
 
 install_template() {
-    local src="$1" dst="$2"
-    mkdir -p "$(dirname "$dst")"
-    [[ -f "$src" ]] || die "$(os_init_text "缺少内置模板: $src" "missing bundled template: $src")"
+	local src="$1" dst="$2" key
+	mkdir -p "$(dirname "$dst")"
+	[[ -f "$src" ]] || die "$(os_init_text "缺少内置模板: $src" "missing bundled template: $src")"
+	key="terminal-$(basename "$dst")"
 
     if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
         skip "$dst already up to date"
         return 0
     fi
 
-    if [[ -f "$dst" ]]; then
-        backup_user_file_once "$dst"
-        update "$(os_init_text "更新 $dst" "updating $dst")"
+	if [[ -f "$dst" ]]; then
+		update "$(os_init_text "更新 $dst" "updating $dst")"
     else
         install "$(os_init_text "写入 $dst" "writing $dst")"
     fi
-    cp "$src" "$dst"
+	os_init_prepare_owned_user_path "$key" "$dst"
+	cp "$src" "$dst"
     os_init_reown_user_file "$dst"
 }
 
@@ -119,9 +120,10 @@ uninstall_style() {
     dir="$(terminal_config_dir)"
     os_init_remove_interactive_shell_block "terminal-style"
 
-    if [[ -d "$dir" ]]; then
-        remove "$(os_init_text "删除 os-init 终端样式模板" "removing os-init terminal style templates")"
-        rm -f "$dir/starship-rich.toml" "$dir/starship-simple.toml" "$dir/starship-plain.toml"
+	if [[ -d "$dir" ]]; then
+		os_init_restore_owned_user_path "terminal-starship-rich.toml" "$dir/starship-rich.toml" || true
+		os_init_restore_owned_user_path "terminal-starship-simple.toml" "$dir/starship-simple.toml" || true
+		os_init_restore_owned_user_path "terminal-starship-plain.toml" "$dir/starship-plain.toml" || true
     else
         skip "$dir not found"
     fi

@@ -85,8 +85,9 @@ ensure_login_shell_allowed() {
     if grep -qxF "$shell_path" /etc/shells; then
         return 0
     fi
-    install "adding $shell_path to /etc/shells"
-    printf '%s\n' "$shell_path" | sudo tee -a /etc/shells >/dev/null
+	install "adding $shell_path to /etc/shells"
+	printf '%s\n' "$shell_path" | sudo tee -a /etc/shells >/dev/null
+	os_init_mark_ownership "zsh-etc-shells-entry"
 }
 
 set_default_zsh() {
@@ -100,7 +101,12 @@ set_default_zsh() {
         return
     fi
 
-    ensure_login_shell_allowed "$shell_path"
+	ensure_login_shell_allowed "$shell_path"
+	if ! os_init_user_owned "original-login-shell"; then
+		mkdir -p "$(os_init_user_state_dir)/values"
+		printf '%s\n' "$current_shell" > "$(os_init_user_state_dir)/values/original-login-shell"
+		os_init_mark_user_ownership "original-login-shell"
+	fi
     install "setting zsh as default shell for $user"
     if ! sudo chsh -s "$shell_path" "$user"; then
         die "无法非交互式切换默认 shell，请确认 sudo 验证成功且 $shell_path 已写入 /etc/shells"
@@ -135,10 +141,11 @@ ensure_oh_my_zsh() {
         else
             skip "oh-my-zsh already installed at ~/.oh-my-zsh"
         fi
-    else
-        install "cloning oh-my-zsh"
-        git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
-    fi
+	else
+		install "cloning oh-my-zsh"
+		git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
+		touch "$HOME/.oh-my-zsh/.os-init-owned"
+	fi
 }
 
 has_oh_my_zsh_source_outside_os_init_block() {
@@ -249,17 +256,21 @@ if [[ "$UNINSTALL" == true ]]; then
     if want_zsh_plugin; then
         echo "[REMOVE] zsh plugins..."
         if want "autosuggestions"; then
-            if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
-                remove "zsh-autosuggestions"
-                rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+			if [[ -f "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned" ]]; then
+				remove "zsh-autosuggestions"
+				rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+			elif [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
+				warn "保留非 OS Init 创建的 zsh-autosuggestions"
             else
                 skip "zsh-autosuggestions not found"
             fi
         fi
         if want "syntax-highlighting"; then
-            if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+			if [[ -f "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned" ]]; then
                 remove "zsh-syntax-highlighting"
-                rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+				rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+			elif [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+				warn "保留非 OS Init 创建的 zsh-syntax-highlighting"
             else
                 skip "zsh-syntax-highlighting not found"
             fi
@@ -272,9 +283,11 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "nvm"; then
         echo "[REMOVE] nvm..."
-        if [[ -d "$HOME/.nvm" ]]; then
+		if [[ -f "$HOME/.nvm/.os-init-owned" ]]; then
             remove "removing ~/.nvm"
-            rm -rf "$HOME/.nvm"
+			rm -rf "$HOME/.nvm"
+		elif [[ -d "$HOME/.nvm" ]]; then
+			warn "保留非 OS Init 创建的 ~/.nvm"
         else
             skip "nvm not installed"
         fi
@@ -283,13 +296,16 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "fnm"; then
         echo "[REMOVE] fnm..."
-        if command -v fnm &>/dev/null; then
-            remove "removing fnm"
-            if tool_prefers_package_manager; then
-                pkg_remove fnm 2>/dev/null || true
-            else
-                rm -f "$(command -v fnm)"
-                rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
+		if command -v fnm &>/dev/null; then
+			if tool_prefers_package_manager && os_init_package_owned "fnm-package"; then
+				remove "卸载由 OS Init 安装的 fnm 软件包"
+				pkg_remove fnm 2>/dev/null || true
+				os_init_forget_package_ownership "fnm-package"
+			elif ! tool_prefers_package_manager && os_init_user_owned "fnm-user-install"; then
+				rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
+				os_init_forget_user_ownership "fnm-user-install"
+			else
+				warn "保留非 OS Init 安装的 fnm"
             fi
         else
             skip "fnm not installed"
@@ -299,13 +315,15 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "starship"; then
         echo "$(os_init_text "[删除]" "[REMOVE]") starship..."
-        if command -v starship &>/dev/null; then
-            if tool_prefers_package_manager; then
+		if command -v starship &>/dev/null; then
+			if tool_prefers_package_manager && os_init_package_owned "starship-package"; then
                 remove "通过包管理器卸载 starship"
-                pkg_remove starship 2>/dev/null || true
-            else
-                remove "removing starship binary"
-                sudo rm -f "$(command -v starship)"
+				pkg_remove starship 2>/dev/null || true
+				os_init_forget_package_ownership "starship-package"
+			elif ! tool_prefers_package_manager; then
+				os_init_restore_owned_path "starship-bin" "$(command -v starship)" || true
+			else
+				warn "保留非 OS Init 安装的 starship"
             fi
         else
             skip "starship not installed"
@@ -316,9 +334,12 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "direnv"; then
         echo "[REMOVE] direnv..."
-        if command -v direnv &>/dev/null; then
+		if command -v direnv &>/dev/null && os_init_package_owned "direnv-package"; then
             remove "removing direnv"
-            pkg_remove "${DIRENV_PACKAGE:-direnv}" 2>/dev/null || true
+			pkg_remove "${DIRENV_PACKAGE:-direnv}" 2>/dev/null || true
+			os_init_forget_package_ownership "direnv-package"
+		elif command -v direnv &>/dev/null; then
+			warn "保留非 OS Init 安装的 direnv"
         else
             skip "direnv not installed"
         fi
@@ -327,9 +348,12 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "git"; then
         echo "[REMOVE] git-lfs..."
-        if command -v git-lfs &>/dev/null; then
+		if command -v git-lfs &>/dev/null && os_init_package_owned "git-lfs-package"; then
             remove "removing git-lfs"
-            pkg_remove git-lfs 2>/dev/null || true
+			pkg_remove git-lfs 2>/dev/null || true
+			os_init_forget_package_ownership "git-lfs-package"
+		elif command -v git-lfs &>/dev/null; then
+			warn "保留非 OS Init 安装的 git-lfs"
         else
             skip "git-lfs not installed"
         fi
@@ -337,25 +361,50 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "byobu"; then
         echo "[REMOVE] byobu..."
-        if command -v byobu &>/dev/null; then
-            remove "removing byobu"
-            pkg_remove byobu 2>/dev/null || true
-            [[ -d "$HOME/.byobu" ]] && { remove "removing ~/.byobu"; rm -rf "$HOME/.byobu"; }
-        else
-            skip "byobu not installed"
+		if os_init_package_owned "byobu-package"; then
+			pkg_remove byobu 2>/dev/null || true
+			os_init_forget_package_ownership "byobu-package"
+		fi
+		if os_init_package_owned "tmux-package"; then
+			pkg_remove tmux 2>/dev/null || true
+			os_init_forget_package_ownership "tmux-package"
+		fi
+		if command -v byobu &>/dev/null; then
+			warn "保留非 OS Init 安装的 byobu 和用户配置"
+		elif ! os_init_package_owned "byobu-package"; then
+			skip "byobu not installed"
         fi
     fi
 
     if want "zsh"; then
         echo "[REMOVE] oh-my-zsh..."
-        if [[ -d "$HOME/.oh-my-zsh" ]]; then
+		if [[ -f "$HOME/.oh-my-zsh/.os-init-owned" ]]; then
             remove "removing ~/.oh-my-zsh"
-            rm -rf "$HOME/.oh-my-zsh"
+			rm -rf "$HOME/.oh-my-zsh"
+		elif [[ -d "$HOME/.oh-my-zsh" ]]; then
+			warn "保留非 OS Init 创建的 ~/.oh-my-zsh"
         else
             skip "oh-my-zsh not installed"
         fi
-        os_init_remove_zsh_block "oh-my-zsh"
-        echo "  note: zsh package and default shell left intact"
+		os_init_remove_zsh_block "oh-my-zsh"
+		if os_init_user_owned "original-login-shell"; then
+			original_shell="$(cat "$(os_init_user_state_dir)/values/original-login-shell" 2>/dev/null || true)"
+			if [[ -n "$original_shell" ]]; then
+				sudo chsh -s "$original_shell" "$(real_user)" || warn "无法恢复原默认 shell: $original_shell"
+			fi
+			os_init_forget_user_ownership "original-login-shell"
+			rm -f "$(os_init_user_state_dir)/values/original-login-shell"
+		fi
+		if os_init_owned_path "zsh-etc-shells-entry"; then
+			shell_path="$(command -v zsh 2>/dev/null || true)"
+			if [[ -n "$shell_path" ]]; then
+				sudo awk -v shell="$shell_path" '$0 != shell { print }' /etc/shells | sudo tee /etc/shells.tmp-os-init >/dev/null
+				sudo install -m 0644 /etc/shells.tmp-os-init /etc/shells
+				sudo rm -f /etc/shells.tmp-os-init
+			fi
+			os_init_forget_ownership "zsh-etc-shells-entry"
+		fi
+		echo "  note: zsh package left intact"
     fi
 
     echo ""
@@ -383,20 +432,22 @@ if want "starship"; then
                 if is_macos; then
                     brew_upgrade starship 2>/dev/null || skip "starship 已是最新"
                 else
-                    pkg_install starship
+					pkg_install starship
                 fi
             else
                 skip "starship $(starship --version | head -1) already installed"
             fi
         else
-            install "$(os_init_text "通过包管理器安装 starship" "installing starship via package manager")"
-            pkg_install starship
+			install "$(os_init_text "通过包管理器安装 starship" "installing starship via package manager")"
+			pkg_install starship
+			os_init_mark_package_ownership "starship-package"
         fi
     elif command -v starship &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
             update "updating starship"
-            STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
-            download_file "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER"
+		STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
+		os_init_prepare_owned_path "starship-bin" "$(command -v starship)"
+			download_file_verified "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER" "${STARSHIP_INSTALL_SHA256:-}"
             sh "$STARSHIP_INSTALLER" -y
             rm -f "$STARSHIP_INSTALLER"
         else
@@ -404,8 +455,9 @@ if want "starship"; then
         fi
     else
         install "installing starship"
-        STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
-        download_file "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER"
+		STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
+		os_init_prepare_owned_path "starship-bin" /usr/local/bin/starship
+		download_file_verified "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER" "${STARSHIP_INSTALL_SHA256:-}"
         sh "$STARSHIP_INSTALLER" -y
         rm -f "$STARSHIP_INSTALLER"
     fi
@@ -431,7 +483,8 @@ if want "direnv"; then
         skip "direnv $(direnv version) already installed"
     else
         install "installing direnv"
-        pkg_install "${DIRENV_PACKAGE:-direnv}"
+		pkg_install "${DIRENV_PACKAGE:-direnv}"
+		os_init_mark_package_ownership "direnv-package"
     fi
 fi
 
@@ -454,8 +507,9 @@ if want_zsh_plugin; then
             fi
         else
             install "cloning zsh-autosuggestions"
-            git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
-                "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+			git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
+				"$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+			touch "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned"
         fi
     fi
 
@@ -469,8 +523,9 @@ if want_zsh_plugin; then
             fi
         else
             install "cloning zsh-syntax-highlighting"
-            git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
-                "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+			git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
+				"$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+			touch "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned"
         fi
     fi
 fi
@@ -480,10 +535,11 @@ if want "nvm"; then
     next "nvm"
 
     if [[ -d "$HOME/.nvm" ]]; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating nvm to latest"
-            LATEST_NVM="$(nvm_version)"
-            git_with_proxy -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
+		if [[ "$UPDATE" == true ]]; then
+			update "updating nvm to latest"
+			LATEST_NVM="$(nvm_version)"
+			assert_git_remote_secure "$HOME/.nvm"
+			git_with_proxy -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
             git_with_proxy -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
         else
             skip "nvm already installed at ~/.nvm"
@@ -492,8 +548,9 @@ if want "nvm"; then
         install "installing nvm"
         LATEST_NVM="$(nvm_version)"
         NVM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/nvm-install.XXXXXX")"
-        download_file "$(nvm_install_url "$LATEST_NVM")" "$NVM_INSTALLER"
-        PROFILE=/dev/null bash "$NVM_INSTALLER"
+		download_file_verified "$(nvm_install_url "$LATEST_NVM")" "$NVM_INSTALLER" "${NVM_INSTALL_SHA256:-}"
+		PROFILE=/dev/null bash "$NVM_INSTALLER"
+		touch "$HOME/.nvm/.os-init-owned"
         rm -f "$NVM_INSTALLER"
     fi
 fi
@@ -508,20 +565,22 @@ if want "fnm"; then
         if command -v fnm &>/dev/null; then
             if [[ "$UPDATE" == true ]]; then
                 update "$(os_init_text "通过包管理器更新 fnm" "updating fnm via package manager")"
-                pkg_install fnm
+				pkg_install fnm
             else
                 skip "fnm $(fnm --version 2>/dev/null) already installed"
             fi
         else
-            install "$(os_init_text "通过包管理器安装 fnm" "installing fnm via package manager")"
-            pkg_install fnm
+			install "$(os_init_text "通过包管理器安装 fnm" "installing fnm via package manager")"
+			pkg_install fnm
+			os_init_mark_package_ownership "fnm-package"
         fi
     elif command -v fnm &>/dev/null; then
         if [[ "$UPDATE" == true ]]; then
             update "updating fnm"
             FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-            download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
-            bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+			download_file_verified "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER" "${FNM_INSTALL_SHA256:-}"
+		bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+		os_init_mark_user_ownership "fnm-user-install"
             rm -f "$FNM_INSTALLER"
         else
             skip "fnm $(fnm --version 2>/dev/null) already installed"
@@ -532,9 +591,10 @@ if want "fnm"; then
             pkg_install unzip
         fi
         FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-        download_file "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER"
-        bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
-        rm -f "$FNM_INSTALLER"
+		download_file_verified "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER" "${FNM_INSTALL_SHA256:-}"
+		bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
+		os_init_mark_user_ownership "fnm-user-install"
+		rm -f "$FNM_INSTALLER"
     fi
 fi
 
@@ -558,7 +618,10 @@ if want "byobu"; then
 
     if [[ ${#PKGS[@]} -gt 0 ]]; then
         install "installing ${PKGS[*]}"
-        pkg_install "${PKGS[@]}"
+		pkg_install "${PKGS[@]}"
+		for package in "${PKGS[@]}"; do
+			os_init_mark_package_ownership "${package}-package"
+		done
     fi
 
     BYOBU_DIR="$HOME/.byobu"
@@ -638,7 +701,8 @@ if want "git"; then
         skip "git-lfs already installed"
     else
         install "installing git-lfs"
-        pkg_install git-lfs
+		pkg_install git-lfs
+		os_init_mark_package_ownership "git-lfs-package"
         git lfs install
     fi
 fi

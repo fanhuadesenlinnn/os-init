@@ -205,11 +205,6 @@ func getLatestGoVersion(ctx context.Context) string {
 	return ""
 }
 
-func isInstalled(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
-}
-
 func getInstalledVersion(ctx context.Context, cmd []string, re *regexp.Regexp) string {
 	if len(cmd) == 0 {
 		return ""

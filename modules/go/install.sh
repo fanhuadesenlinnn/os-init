@@ -20,17 +20,21 @@ echo "=== Go Programming Language ($TITLE) ==="
 echo ""
 
 if [[ "$UNINSTALL" == true ]]; then
-    if is_macos || is_arch; then
-        if pkg_is_installed go; then
-            remove "通过系统包管理器卸载 Go"
-            pkg_remove go 2>/dev/null || true
-        fi
-    fi
-    if [[ -d "$GO_INSTALL_DIR" ]]; then
-        remove "removing $GO_INSTALL_DIR"
-        sudo rm -rf "$GO_INSTALL_DIR"
-    else
-        skip "Go not installed at $GO_INSTALL_DIR"
+	if is_macos || is_arch; then
+		if pkg_is_installed go && os_init_package_owned "go-package"; then
+			remove "通过系统包管理器卸载 Go"
+			pkg_remove go 2>/dev/null || true
+			os_init_forget_package_ownership "go-package"
+		elif pkg_is_installed go; then
+			warn "Go 软件包不是由 OS Init 安装，予以保留"
+		fi
+	fi
+	if os_init_owned_path "go-install-dir"; then
+		os_init_restore_owned_path "go-install-dir" "$GO_INSTALL_DIR" || true
+	elif [[ -d "$GO_INSTALL_DIR" ]]; then
+		warn "保留未记录为 OS Init 所有的 $GO_INSTALL_DIR"
+	else
+		skip "Go not installed at $GO_INSTALL_DIR"
     fi
     os_init_remove_shell_block "go"
     echo ""
@@ -49,7 +53,10 @@ install_go_package() {
     else
         $label "通过 pacman/AUR 安装 Go"
     fi
-    pkg_install go
+	pkg_install go
+	if [[ "$label" == "install" ]]; then
+		os_init_mark_package_ownership "go-package"
+	fi
 }
 
 install_go_binary() {
@@ -88,8 +95,9 @@ install_go_binary() {
     go_url="$(resource_url GO_DOWNLOAD_URL "${go_base%/}/${GO_VERSION}.${go_os}-${go_arch}.tar.gz")"
     TMP_DIR=$(mktemp -d /tmp/go-XXXXXX)
     echo "  获取: $go_url"
-    download_file "$go_url" "$TMP_DIR/go.tar.gz"
-    sudo rm -rf "$GO_INSTALL_DIR"
+	download_file_verified "$go_url" "$TMP_DIR/go.tar.gz" "${GO_DOWNLOAD_SHA256:-}"
+	os_init_prepare_owned_path "go-install-dir" "$GO_INSTALL_DIR"
+	sudo rm -rf "$GO_INSTALL_DIR"
     sudo tar -C /usr/local -xzf "$TMP_DIR/go.tar.gz"
     rm -rf "$TMP_DIR"
     echo "  installed: $("$GO_INSTALL_DIR/bin/go" version 2>/dev/null || echo "$GO_VERSION")"
