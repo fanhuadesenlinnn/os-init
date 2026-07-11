@@ -79,7 +79,7 @@ func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN"))
-	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "OH_MY_ZSH_REPO=", "GO_DOWNLOAD_BASE="} {
+	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "NVIM_CONFIG_REPO=", "GO_DOWNLOAD_BASE="} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("darwin config should contain %q, got %q", want, data)
 		}

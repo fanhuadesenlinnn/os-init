@@ -77,6 +77,9 @@ func TestForOS_IncludesMacModulesOnlyOnDarwin(t *testing.T) {
 	if !hasModuleID(mods, "macos-ghostty") {
 		t.Fatal("Ghostty should appear on darwin")
 	}
+	if hasModuleID(mods, "macos-neovide-app") {
+		t.Fatal("standalone Neovide module should be merged into neovim")
+	}
 	if !hasModuleID(mods, "macos-clash-party") {
 		t.Fatal("Clash Party should appear on darwin")
 	}
@@ -269,6 +272,52 @@ func TestMacOSCustomHomebrewRoutes(t *testing.T) {
 		if !strings.Contains(script, command) {
 			t.Fatalf("macOS installer should contain route %q", command)
 		}
+	}
+}
+
+func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
+	t.Parallel()
+
+	shellData, err := os.ReadFile(filepath.Join("..", "..", "modules", "shell", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	shellScript := string(shellData)
+	for _, want := range []string{
+		"brew_install nvm",
+		"brew_install orbstack",
+		"raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh",
+		"romkatv/powerlevel10k.git",
+		"ZSH_THEME=\"$theme\"",
+		"kubectl",
+	} {
+		if !strings.Contains(shellScript, want) {
+			t.Fatalf("shell installer should contain %q", want)
+		}
+	}
+
+	nvimData, err := os.ReadFile(filepath.Join("..", "..", "modules", "neovim", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nvimScript := string(nvimData)
+	for _, want := range []string{
+		"brew_install --cask neovide-app",
+		"fanhuadesenlinnn/nvim.git",
+		"neovide/config.toml",
+	} {
+		if !strings.Contains(nvimScript, want) {
+			t.Fatalf("combined Neovim installer should contain %q", want)
+		}
+	}
+
+	mods := modules.AllModules()
+	combined := findModule(t, mods, "neovim")
+	if combined.Label != "Neovim + Neovide + config-yuan" {
+		t.Fatalf("combined Neovim label = %q", combined.Label)
+	}
+	if len(combined.InstalledMacOSChecks) == 0 {
+		t.Fatal("combined Neovim module should declare macOS Neovide status checks")
 	}
 }
 

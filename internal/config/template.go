@@ -192,7 +192,6 @@ func shellResourceSection() configSection {
 		TitleZ: "Shell 资源",
 		TitleE: "Shell Resources",
 		Entries: []configEntry{
-			{Key: "OH_MY_ZSH_REPO", Value: "https://github.com/ohmyzsh/ohmyzsh.git", CommentZ: "oh-my-zsh 仓库地址，可替换为镜像或内网仓库。", CommentE: "oh-my-zsh repository URL; can be replaced with a mirror or internal repository."},
 			{Key: "STARSHIP_INSTALL_URL", Value: "https://starship.rs/install.sh", CommentZ: "starship 安装脚本地址。", CommentE: "starship install script URL."},
 			{Key: "STARSHIP_INSTALL_SHA256", Value: "", CommentZ: "starship 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the starship installer."},
 			{Key: "ZSH_AUTOSUGGESTIONS_REPO", Value: "https://github.com/zsh-users/zsh-autosuggestions.git", CommentZ: "zsh-autosuggestions 插件仓库地址。", CommentE: "zsh-autosuggestions plugin repository URL."},
@@ -214,7 +213,7 @@ func developmentResourceSection(includeLinuxBinaries bool) configSection {
 		{Key: "GO_DOWNLOAD_BASE", Value: "https://go.dev/dl", CommentZ: "Go 安装包下载基础地址。主要用于非 macOS/Arch 的二进制安装路径。", CommentE: "Base URL for Go archive downloads. Mainly used by the non-macOS/non-Arch binary install path."},
 		{Key: "GO_DOWNLOAD_URL", Value: "", CommentZ: "Go 完整安装包地址；设置后优先。macOS/Arch 默认优先包管理器。", CommentE: "Full Go archive URL; overrides the base URL when set. macOS/Arch default to package managers."},
 		{Key: "GO_DOWNLOAD_SHA256", Value: "", CommentZ: "Go 安装包 SHA-256。", CommentE: "Expected SHA-256 for the Go archive."},
-		{Key: "LAZYVIM_STARTER_REPO", Value: "https://github.com/LazyVim/starter", CommentZ: "LazyVim starter 仓库地址，可替换为镜像或个人模板仓库。", CommentE: "LazyVim starter repository URL; can be replaced with a mirror or personal template repository."},
+		{Key: "NVIM_CONFIG_REPO", Value: "https://github.com/fanhuadesenlinnn/nvim.git", CommentZ: "config-yuan Neovim 配置仓库地址，可替换为镜像。", CommentE: "config-yuan Neovim configuration repository; can be replaced with a mirror."},
 	}
 	if includeLinuxBinaries {
 		entries = append(entries,

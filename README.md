@@ -77,13 +77,13 @@ Choose `English` on startup, or set `OS_INIT_LANG=en_US` before launching. The E
 | Shell 工具 | zsh、oh-my-zsh、starship、direnv、zsh 插件、nvm/fnm、Git 配置、byobu/tmux（Linux） |
 | 终端体验 | 终端样式：本地 rich、SSH simple、TTY plain 自动切换 |
 | 终端工具 | ncdu、Yazi |
-| macOS 开发应用 | Chrome、Codex、OrbStack、VS Code、iTerm2、Ghostty、Sublime Text、Neovide |
+| macOS 开发应用 | Chrome、Codex、OrbStack、VS Code、iTerm2、Ghostty、Sublime Text |
 | macOS 代理网络 | Clash Party、Royal TSX、Seafile Client |
 | macOS 效率/输入/媒体 | PixPin、Bob、Loop、Ice、Stats、MonitorControl、Mos、Input Source Pro、Squirrel、Karabiner、AlDente、Keka、IINA、Downie、Motrix Next、Spotify、Steam、腾讯视频等 |
 | macOS AI/办公/通讯 | ChatGPT、LM Studio、Cherry Studio、SiYuan、微信、Telegram、腾讯会议、WPS Office、Bitwarden、CleanMyMac X、CC Switch |
 | macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
 | 网络代理 | Mihomo |
-| 开发工具 | Docker、Go、Neovim + LazyVim |
+| 开发工具 | Docker、Go、Neovim + Neovide + config-yuan |
 
 安装来源遵循平台生态：macOS 模块会自动安装并使用 Homebrew；Arch Linux 普通模块优先使用 pacman，缺包时自动准备 paru/yay 后走 AUR；Debian/RedHat 系的版本敏感工具优先使用官方二进制或可配置下载地址。
 
@@ -175,7 +175,7 @@ OS_INIT_CONFIG_PROMPT=0
 - 设置 GitHub 代理：`GITHUB_PROXY` 只改写 GitHub、raw.githubusercontent.com、objects.githubusercontent.com 和 github-releases.githubusercontent.com。
 - 经 `GITHUB_PROXY` 获取将被执行或安装的内容时，默认要求配置对应的 `*_SHA256`；未提供校验值会拒绝执行。`OS_INIT_ALLOW_UNVERIFIED_PROXY=1` 仅用于明确接受旧版风险的兼容场景。
 - 设置具体资源地址：例如 `GO_DOWNLOAD_URL`、`DOCKER_TGZ_URL`、`DOCKER_COMPOSE_DOWNLOAD_URL`、`MIHOMO_DOWNLOAD_URL`、`NVIM_DOWNLOAD_URL`、`YAZI_DOWNLOAD_URL`、`HOMEBREW_INSTALL_URL`。这些主要用于非 Arch Linux 的二进制安装路径；macOS/Arch 默认优先包管理器。
-- 设置资源仓库地址：例如 `OH_MY_ZSH_REPO`、`LAZYVIM_STARTER_REPO`、`METACUBEXD_REPO`。
+- 设置资源仓库地址：例如 `NVIM_CONFIG_REPO`、`METACUBEXD_REPO`。
 - 设置 Homebrew 下载和元数据地址：例如 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_ARTIFACT_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`。
 - 设置模块执行超时：`OS_INIT_SCRIPT_TIMEOUT=45m`，也可以用纯秒数；`0` 表示不限制。
 

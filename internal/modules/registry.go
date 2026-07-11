@@ -30,40 +30,44 @@ const (
 
 // Module describes a selectable item in the TUI menu.
 type Module struct {
-	ID                       string   // unique key, e.g. "kernel-sysctl"
-	Script                   string   // relative path, e.g. "kernel/optimize.sh"
-	Components               []string // sub-components or nil for standalone
-	Label                    string   // display name in menu
-	Description              string   // short description
-	Category                 string   // "optimization" or "installation"
-	Subsection               string   // grouping within category (e.g. "Shell", "Dev Tools")
-	OS                       string   // "all", "linux", "darwin"
-	Families                 []string // "all", "debian", "redhat", "arch", "darwin"
-	Requires                 []string // "linux", "systemd"
-	Tags                     []string // "server", "dev", "cn-ready"
-	NeedsSudo                bool     // invoke with sudo bash
-	Kind                     ModuleKind
-	DependsOn                []string
-	Activates                []string
-	ManualSteps              []string
-	AffectedPaths            []string // important paths changed by install/update
-	DestructivePaths         []string // paths that an explicit purge may delete
-	NeedsRelogin             bool
-	Privilege                PrivilegePolicy
-	PrivilegeReason          string
-	InstalledCmd             string // command to check if installed (empty = no check)
-	InstalledCommands        [][]string
-	InstalledAnyCommands     [][]string
-	InstalledCheck           string // file path to check if exists (empty = no check)
-	InstalledAnyChecks       []string
-	InstalledGrepFile        string // "filepath:pattern" — check if file contains pattern
-	InstalledGrepFiles       []string
-	InstalledBrewCask        string
-	InstalledBrewFormula     string
-	InstalledZshBlocks       []string
-	InstalledShellBlocks     []string
-	InstalledSystemdServices []string
-	InstalledUserGroups      []string
+	ID                        string   // unique key, e.g. "kernel-sysctl"
+	Script                    string   // relative path, e.g. "kernel/optimize.sh"
+	Components                []string // sub-components or nil for standalone
+	Label                     string   // display name in menu
+	Description               string   // short description
+	Category                  string   // "optimization" or "installation"
+	Subsection                string   // grouping within category (e.g. "Shell", "Dev Tools")
+	OS                        string   // "all", "linux", "darwin"
+	Families                  []string // "all", "debian", "redhat", "arch", "darwin"
+	Requires                  []string // "linux", "systemd"
+	Tags                      []string // "server", "dev", "cn-ready"
+	NeedsSudo                 bool     // invoke with sudo bash
+	Kind                      ModuleKind
+	DependsOn                 []string
+	Activates                 []string
+	ManualSteps               []string
+	AffectedPaths             []string // important paths changed by install/update
+	DestructivePaths          []string // paths that an explicit purge may delete
+	NeedsRelogin              bool
+	Privilege                 PrivilegePolicy
+	PrivilegeReason           string
+	InstalledCmd              string // command to check if installed (empty = no check)
+	InstalledCommands         [][]string
+	InstalledAnyCommands      [][]string
+	InstalledCheck            string // file path to check if exists (empty = no check)
+	InstalledChecks           []string
+	InstalledAnyChecks        []string
+	InstalledGrepFile         string // "filepath:pattern" — check if file contains pattern
+	InstalledGrepFiles        []string
+	InstalledBrewCask         string
+	InstalledBrewFormula      string
+	InstalledMacOSBrewFormula string
+	InstalledMacOSChecks      []string
+	InstalledLinuxChecks      []string
+	InstalledZshBlocks        []string
+	InstalledShellBlocks      []string
+	InstalledSystemdServices  []string
+	InstalledUserGroups       []string
 }
 
 type PrivilegeNeed struct {
@@ -84,12 +88,12 @@ func AllModules() []Module {
 		{ID: "network-tune", Script: "kernel/optimize.sh", Components: []string{"network"}, Label: "网络 ▸ 队列与 MSS", Description: "RPS/RSS 多核分发、ring buffer、MSS clamp", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, Privilege: PrivilegeSystem, PrivilegeReason: "安装 systemd 服务并调整网卡/iptables 参数", InstalledCheck: "/etc/systemd/system/os-init-network-tune.service"},
 
 		// ── Installations / Shell ──
-		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 需要安装 zsh 并可能写入 /etc/shells", InstalledCmd: "zsh", InstalledCheck: "$HOME/.oh-my-zsh", InstalledZshBlocks: []string{"oh-my-zsh"}},
+		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 需要安装 zsh 并可能写入 /etc/shells", InstalledCmd: "zsh", InstalledCheck: "$HOME/.oh-my-zsh", InstalledChecks: []string{"$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", "$HOME/.oh-my-zsh/custom/themes/powerlevel10k"}, InstalledZshBlocks: []string{"oh-my-zsh"}},
 		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "bash/zsh 跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装脚本默认写入系统二进制目录", InstalledCmd: "starship", InstalledShellBlocks: []string{"starship"}},
 		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 direnv", InstalledCmd: "direnv", InstalledZshBlocks: []string{"direnv"}},
 		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-autosuggestions"},
 		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-syntax-highlighting"},
-		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledCheck: "$HOME/.nvm/nvm.sh", InstalledZshBlocks: []string{"nvm"}},
+		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledMacOSBrewFormula: "nvm", InstalledLinuxChecks: []string{"$HOME/.nvm/nvm.sh"}, InstalledZshBlocks: []string{"nvm"}},
 		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 缺少 unzip 时会通过系统包管理器安装", InstalledCmd: "fnm", InstalledZshBlocks: []string{"fnm"}},
 		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 git-lfs", InstalledCmd: "git"},
 		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, Privilege: PrivilegeSystem, PrivilegeReason: "通过系统包管理器安装 byobu/tmux", InstalledCmd: "byobu"},
@@ -116,7 +120,6 @@ func AllModules() []Module {
 		macOSCask("macOS 开发应用", "iterm2", "iTerm2", "macOS 终端模拟器", "/Applications/iTerm.app"),
 		macOSCask("macOS 开发应用", "ghostty", "Ghostty", "GPU 加速终端模拟器", "/Applications/Ghostty.app"),
 		macOSCask("macOS 开发应用", "sublime-text", "Sublime Text", "轻量代码编辑器", "/Applications/Sublime Text.app"),
-		macOSCask("macOS 开发应用", "neovide-app", "Neovide", "Neovim 图形客户端", "/Applications/Neovide.app"),
 
 		macOSCask("macOS 代理网络", "clash-party", "Clash Party", "Mihomo/Clash 代理 GUI", "/Applications/Clash Party.app"),
 		macOSCask("macOS 代理网络", "royal-tsx", "Royal TSX", "远程连接管理器", "/Applications/Royal TSX.app"),
@@ -196,7 +199,7 @@ func AllModules() []Module {
 		// ── Installations / Dev Tools ──
 		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, AffectedPaths: []string{"/usr/local/bin/docker*", "/etc/docker/daemon.json", "/etc/systemd/system/docker.service", "/var/lib/os-init/ownership"}, DestructivePaths: []string{"/var/lib/docker、/var/lib/containerd (仅 PURGE_DATA=1)", "/etc/docker (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "安装系统二进制、写入 Docker systemd 服务和用户组", InstalledCommands: [][]string{{"docker", "--version"}, {"dockerd", "--version"}, {"docker", "compose", "version"}}, InstalledSystemdServices: []string{"docker.service", "containerd.service"}, InstalledUserGroups: []string{"docker"}},
 		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /usr/local/go", "$HOME/.zshrc|.bashrc", "OS Init 所有权状态目录"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装或更新 /usr/local/go", InstalledAnyCommands: [][]string{{"go", "version"}, {"/usr/local/go/bin/go", "version"}}, InstalledShellBlocks: []string{"go"}},
-		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + LazyVim", Description: "带 IDE 能力的编辑器", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /opt/nvim-*、/usr/local/bin/nvim", "$HOME/.config/nvim"}, DestructivePaths: []string{"$HOME/.config/nvim、$HOME/.local/share/nvim (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /opt 和 /usr/local/bin", InstalledCmd: "nvim", InstalledAnyChecks: []string{"$HOME/.config/nvim/lazyvim.json", "$HOME/.config/nvim/lazy-lock.json"}, InstalledShellBlocks: []string{"neovim"}},
+		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + Neovide + config-yuan", Description: "终端编辑器、macOS 图形客户端和个人配置", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /opt/nvim-*、/usr/local/bin/nvim", "/Applications/Neovide.app (macOS)", "$HOME/.config/nvim", "$HOME/.config/neovide/config.toml"}, DestructivePaths: []string{"$HOME/.config/nvim、$HOME/.config/neovide/config.toml、$HOME/.local/share/nvim (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /opt 和 /usr/local/bin", InstalledCmd: "nvim", InstalledCheck: "$HOME/.config/nvim/init.lua", InstalledMacOSChecks: []string{"/Applications/Neovide.app", "$HOME/.config/neovide/config.toml"}, InstalledShellBlocks: []string{"neovim"}},
 	}
 }
 

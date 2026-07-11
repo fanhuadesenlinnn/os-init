@@ -151,11 +151,13 @@ ArchDevKit 向导覆盖原项目能力：
 
 - Linux 通过发行版包管理器安装 `zsh`；macOS 缺少 `zsh` 时通过 Homebrew 安装。
 - 使用 `chsh` 将当前用户默认 shell 改为 `zsh`。
-- 克隆或更新 `~/.oh-my-zsh`。
+- 使用 Oh My Zsh 官方安装脚本安装，设置 `RUNZSH=no`、`CHSH=no`、`KEEP_ZSHRC=yes`，避免安装器接管现有 rc 文件和默认 shell；已安装时通过 Git 更新。
+- macOS 会自动补装 `git`、`fzf`、`kubectl`；缺少 `docker` 命令时安装 OrbStack，并提示首次打开初始化。
+- 克隆 Powerlevel10k 到 `~/.oh-my-zsh/custom/themes/powerlevel10k`。
 - 在 `~/.zshrc` 写入或更新 `os-init oh-my-zsh` 管理块：
   - `export ZSH="$HOME/.oh-my-zsh"`
-  - `ZSH_THEME=""`
-  - `plugins=(...)`
+  - 默认 `ZSH_THEME="powerlevel10k/powerlevel10k"`；启用 Starship 时置空，避免双提示符。
+  - `plugins=(git zsh-autosuggestions zsh-syntax-highlighting fzf docker kubectl)`
   - 必要时 `source "$ZSH/oh-my-zsh.sh"`
 - 卸载时删除 `~/.oh-my-zsh`；不删除 zsh 包，不恢复默认 shell。
 
@@ -193,20 +195,19 @@ ArchDevKit 向导覆盖原项目能力：
 
 ### zsh 插件
 
-- 克隆或更新：
+- 安装 zsh 主模块时会克隆或更新：
   - `~/.oh-my-zsh/custom/plugins/zsh-autosuggestions`
   - `~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting`
-- 两个插件是独立模块；兼容旧的 `plugins` 参数，但不会再把两个插件强行视为同一个模块。
+- 两个插件仍可独立选择；选择 zsh 主模块时会自动安装它们。
 - 会确保 zsh 和 oh-my-zsh 已存在，并更新 `os-init oh-my-zsh` 管理块里的 `plugins=(...)`。
 - 卸载时删除上述插件目录。
 
 ### nvm
 
-- 下载并执行 nvm 安装脚本。
-- 安装目录为 `~/.nvm`。
-- 安装器以 `PROFILE=/dev/null` 执行，不让 nvm 自行改写用户 rc 文件。
+- macOS 使用 Homebrew 安装、更新和卸载 `nvm`；其他平台继续使用官方安装脚本。
+- `NVM_DIR` 保持为 `~/.nvm`，macOS 从 `brew --prefix nvm` 加载 `nvm.sh` 和补全脚本。
 - 在 `~/.zshrc` 写入或更新 `os-init nvm` 管理块。
-- 卸载时删除 `~/.nvm`。
+- macOS 卸载时保留 `~/.nvm` 中的 Node 版本和缓存；其他平台只删除由 OS Init 创建的目录。
 
 ### fnm
 
@@ -258,7 +259,6 @@ ArchDevKit 向导覆盖原项目能力：
   - `iterm2` -> `/Applications/iTerm.app`
   - `ghostty` -> `/Applications/Ghostty.app`
   - `sublime-text` -> `/Applications/Sublime Text.app`
-  - `neovide-app` -> `/Applications/Neovide.app`
 - 代理和网络：
   - `clash-party` -> `/Applications/Clash Party.app`
   - `royal-tsx` -> `/Applications/Royal TSX.app`
@@ -375,23 +375,24 @@ ArchDevKit 向导覆盖原项目能力：
 
 ### Go
 
-- 下载官方 tarball；Linux 使用 `linux-*` 包，macOS 使用 `darwin-*` 包。
+- macOS 使用 Homebrew，Arch 使用 pacman/AUR；其他 Linux 下载官方 tarball。
 - 删除并重建 `/usr/local/go`。
 - 在 `~/.zshrc` 或 `~/.bashrc` 写入 `os-init go` 管理块，把 `/usr/local/go/bin` 加入 `PATH`。
 - 卸载时删除 `/usr/local/go`。
 
-### Neovim + LazyVim
+### Neovim + Neovide + config-yuan
 
 - Linux 下载 Neovim tarball 并安装到：
   - `/opt/nvim-linux-x86_64` 或 `/opt/nvim-linux-arm64`
 - Linux 创建 `/usr/local/bin/nvim` 软链接。
-- macOS 通过 Homebrew 安装或更新 `neovim`。
+- macOS 通过 Homebrew 安装或更新 `neovim`，并通过 `neovide-app` cask 安装或更新 `/Applications/Neovide.app`。
 - 通过包管理器安装 `ripgrep` 和 `fd`/`fd-find`；macOS 使用 Homebrew 的 `ripgrep`、`fd`。
 - Linux 下载 lazygit 二进制并安装到 `/usr/local/bin/lazygit`；macOS 通过 Homebrew 安装或更新 `lazygit`。
-- 如果 `~/.config/nvim` 不存在，克隆 LazyVim starter。
-- 如果 `~/.config/nvim` 已存在但不是 LazyVim，会备份为 `~/.config/nvim.bak.<timestamp>` 后再写入。
+- 克隆 `https://github.com/fanhuadesenlinnn/nvim.git` 到 `~/.config/nvim`，保留 `.git` 用于后续安全更新。
+- 如果已有其他配置，先保存到 OS Init 用户状态备份，再切换到 config-yuan；显式清理时恢复安装前配置。
+- macOS 将仓库内 `neovide/config.toml` 链接到 `~/.config/neovide/config.toml`。
 - 在 `~/.zshrc` 或 `~/.bashrc` 写入 `os-init neovim` 管理块，默认设置 `EDITOR` 和 `VISUAL` 为 `nvim`。
-- 卸载时移除对应包或二进制，并删除 `~/.config/nvim` 和 `~/.local/share/nvim`。
+- 卸载时按所有权移除 Neovim、Neovide；仅在 `PURGE_CONFIG=1` 时恢复安装前配置并清理 OS Init 创建的数据。
 
 ## 已移除能力
 

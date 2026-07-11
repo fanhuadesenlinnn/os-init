@@ -60,7 +60,7 @@ want() {
 }
 
 want_zsh_plugin() {
-    want "autosuggestions" || want "syntax-highlighting"
+    want "zsh" || want "autosuggestions" || want "syntax-highlighting"
 }
 
 tool_prefers_package_manager() {
@@ -124,6 +124,39 @@ nvm_install_url() {
     resource_url NVM_INSTALL_URL "${NVM_INSTALL_BASE%/}/${version}/install.sh"
 }
 
+starship_prompt_enabled() {
+    local zshrc
+    [[ "$UNINSTALL" != true ]] && want "starship" && return 0
+    zshrc="$(os_init_zshrc 2>/dev/null || true)"
+    [[ -n "$zshrc" && -f "$zshrc" ]] && grep -Fq "# >>> os-init starship >>>" "$zshrc"
+}
+
+ensure_macos_oh_my_zsh_commands() {
+    is_macos || return 0
+
+    local command_name package ownership_key
+    for command_name in git fzf kubectl; do
+        command -v "$command_name" &>/dev/null && continue
+        package="$command_name"
+        ownership_key="shell-dependency-${command_name}"
+        [[ "$command_name" == "fzf" ]] && ownership_key="macos-formula-fzf"
+        install "$(os_init_text "通过 Homebrew 安装 Oh My Zsh 依赖: $package" "installing Oh My Zsh dependency with Homebrew: $package")"
+        brew_install "$package"
+        os_init_mark_user_ownership "$ownership_key"
+    done
+
+    if ! command -v docker &>/dev/null; then
+		if brew_list --cask orbstack &>/dev/null || [[ -d "/Applications/OrbStack.app" ]]; then
+			skip "OrbStack 已安装"
+		else
+			install "$(os_init_text "未检测到 docker，安装 OrbStack" "docker was not found; installing OrbStack")"
+			brew_install orbstack
+			os_init_mark_user_ownership "macos-cask-orbstack"
+		fi
+        warn "$(os_init_text "请打开 OrbStack 完成首次初始化，随后 docker 命令才会可用" "open OrbStack to finish first-time initialization before using the docker command")"
+    fi
+}
+
 ensure_zsh_package() {
     if command -v zsh &>/dev/null; then
         skip "zsh $(zsh --version | head -1) already installed"
@@ -142,10 +175,29 @@ ensure_oh_my_zsh() {
             skip "oh-my-zsh already installed at ~/.oh-my-zsh"
         fi
 	else
-		install "cloning oh-my-zsh"
-		git_clone_depth 1 "$(repo_url OH_MY_ZSH_REPO "https://github.com/ohmyzsh/ohmyzsh.git")" "$HOME/.oh-my-zsh"
+		install "$(os_init_text "通过官方安装脚本安装 Oh My Zsh" "installing Oh My Zsh with the official installer")"
+		RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
 		touch "$HOME/.oh-my-zsh/.os-init-owned"
 	fi
+}
+
+ensure_powerlevel10k() {
+    local theme_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+    mkdir -p "$(dirname "$theme_dir")"
+    if [[ -d "$theme_dir/.git" ]]; then
+        if [[ "$UPDATE" == true ]]; then
+            update "updating Powerlevel10k"
+            git_update_shallow "$theme_dir"
+        else
+            skip "Powerlevel10k already installed"
+        fi
+    elif [[ -e "$theme_dir" ]]; then
+        warn "保留现有非 Git Powerlevel10k 目录: $theme_dir"
+    else
+        install "cloning Powerlevel10k"
+        git_clone_depth 1 "https://github.com/romkatv/powerlevel10k.git" "$theme_dir"
+        touch "$theme_dir/.os-init-owned"
+    fi
 }
 
 has_oh_my_zsh_source_outside_os_init_block() {
@@ -161,15 +213,8 @@ has_oh_my_zsh_source_outside_os_init_block() {
 }
 
 configure_oh_my_zsh() {
-    local plugin_lines content before_regex source_line="" zsh_custom
-    zsh_custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
-    plugin_lines="    git"
-    if want "autosuggestions" || [[ -d "$zsh_custom/plugins/zsh-autosuggestions" ]]; then
-        plugin_lines+=$'\n    zsh-autosuggestions'
-    fi
-    if want "syntax-highlighting" || [[ -d "$zsh_custom/plugins/zsh-syntax-highlighting" ]]; then
-        plugin_lines+=$'\n    zsh-syntax-highlighting'
-    fi
+    local content before_regex source_line="" theme="powerlevel10k/powerlevel10k"
+    starship_prompt_enabled && theme=""
 
     before_regex='^[[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh'
     if ! has_oh_my_zsh_source_outside_os_init_block; then
@@ -179,13 +224,18 @@ configure_oh_my_zsh() {
 
     content="$(cat <<EOF
 export ZSH="\$HOME/.oh-my-zsh"
-ZSH_THEME=""
+ZSH_THEME="$theme"
 export UPDATE_ZSH_DAYS=1
 zstyle ':omz:update' mode auto
 DISABLE_MAGIC_FUNCTIONS=true
 DISABLE_AUTO_TITLE="true"
 plugins=(
-$plugin_lines
+    git
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    fzf
+    docker
+    kubectl
 )$source_line
 EOF
 )"
@@ -211,12 +261,21 @@ EOF
 configure_nvm_zsh() {
     local content
     content="$(cat <<'EOF'
-export NVM_DIR="$HOME/.nvm"
-if [ -s "$NVM_DIR/nvm.sh" ]; then
-    . "$NVM_DIR/nvm.sh"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+NVM_HOMEBREW_PREFIX=""
+if command -v brew >/dev/null 2>&1; then
+    NVM_HOMEBREW_PREFIX="$(brew --prefix nvm 2>/dev/null)"
 fi
-if [ -s "$NVM_DIR/bash_completion" ]; then
-    . "$NVM_DIR/bash_completion"
+if [ -n "$NVM_HOMEBREW_PREFIX" ] && [ -s "$NVM_HOMEBREW_PREFIX/nvm.sh" ]; then
+    . "$NVM_HOMEBREW_PREFIX/nvm.sh"
+    if [ -s "$NVM_HOMEBREW_PREFIX/etc/bash_completion.d/nvm" ]; then
+        . "$NVM_HOMEBREW_PREFIX/etc/bash_completion.d/nvm"
+    fi
+elif [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+    if [ -s "$NVM_DIR/bash_completion" ]; then
+        . "$NVM_DIR/bash_completion"
+    fi
 fi
 EOF
 )"
@@ -237,7 +296,14 @@ EOF
 STEP=0
 count_steps() {
     local total=0
-    for c in "${ALL_COMPONENTS[@]}"; do want "$c" && total=$((total + 1)); done
+	want "zsh" && total=$((total + 1))
+	want "starship" && total=$((total + 1))
+	want "direnv" && total=$((total + 1))
+	want_zsh_plugin && total=$((total + 1))
+	want "nvm" && total=$((total + 1))
+	want "fnm" && total=$((total + 1))
+	want "git" && total=$((total + 1))
+	want "byobu" && total=$((total + 1))
     echo "$total"
 }
 TOTAL=$(count_steps)
@@ -255,7 +321,7 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want_zsh_plugin; then
         echo "[REMOVE] zsh plugins..."
-        if want "autosuggestions"; then
+        if want "zsh" || want "autosuggestions"; then
 			if [[ -f "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned" ]]; then
 				remove "zsh-autosuggestions"
 				rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
@@ -265,7 +331,7 @@ if [[ "$UNINSTALL" == true ]]; then
                 skip "zsh-autosuggestions not found"
             fi
         fi
-        if want "syntax-highlighting"; then
+        if want "zsh" || want "syntax-highlighting"; then
 			if [[ -f "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned" ]]; then
                 remove "zsh-syntax-highlighting"
 				rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
@@ -283,7 +349,13 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "nvm"; then
         echo "[REMOVE] nvm..."
-		if [[ -f "$HOME/.nvm/.os-init-owned" ]]; then
+		if is_macos && os_init_package_owned "nvm-package"; then
+			remove "通过 Homebrew 卸载 nvm"
+			brew_uninstall nvm 2>/dev/null || true
+			os_init_forget_package_ownership "nvm-package"
+		elif is_macos && brew_list --formula nvm &>/dev/null; then
+			warn "保留非 OS Init 安装的 nvm Homebrew formula"
+		elif [[ -f "$HOME/.nvm/.os-init-owned" ]]; then
             remove "removing ~/.nvm"
 			rm -rf "$HOME/.nvm"
 		elif [[ -d "$HOME/.nvm" ]]; then
@@ -330,6 +402,7 @@ if [[ "$UNINSTALL" == true ]]; then
         fi
         os_init_remove_zsh_block "starship"
         os_init_remove_bash_block "starship"
+		[[ -d "$HOME/.oh-my-zsh" ]] && configure_oh_my_zsh
     fi
 
     if want "direnv"; then
@@ -378,6 +451,11 @@ if [[ "$UNINSTALL" == true ]]; then
 
     if want "zsh"; then
         echo "[REMOVE] oh-my-zsh..."
+		p10k_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+		if [[ -f "$p10k_dir/.os-init-owned" ]]; then
+			remove "Powerlevel10k"
+			rm -rf "$p10k_dir"
+		fi
 		if [[ -f "$HOME/.oh-my-zsh/.os-init-owned" ]]; then
             remove "removing ~/.oh-my-zsh"
 			rm -rf "$HOME/.oh-my-zsh"
@@ -417,8 +495,10 @@ if want "zsh"; then
     next "zsh + oh-my-zsh"
 
     ensure_zsh_package
+	ensure_macos_oh_my_zsh_commands
     set_default_zsh
     ensure_oh_my_zsh
+	ensure_powerlevel10k
 fi
 
 # ── starship ──────────────────────────────────────────────────────────────────
@@ -493,11 +573,12 @@ if want_zsh_plugin; then
     next "zsh plugins"
 
     ensure_zsh_package
+	want "zsh" || ensure_macos_oh_my_zsh_commands
     ensure_oh_my_zsh
     ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
     mkdir -p "$ZSH_CUSTOM/plugins"
 
-    if want "autosuggestions"; then
+    if want "zsh" || want "autosuggestions"; then
         if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
             if [[ "$UPDATE" == true ]]; then
                 update "updating zsh-autosuggestions"
@@ -513,7 +594,7 @@ if want_zsh_plugin; then
         fi
     fi
 
-    if want "syntax-highlighting"; then
+    if want "zsh" || want "syntax-highlighting"; then
         if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
             if [[ "$UPDATE" == true ]]; then
                 update "updating zsh-syntax-highlighting"
@@ -534,7 +615,21 @@ fi
 if want "nvm"; then
     next "nvm"
 
-    if [[ -d "$HOME/.nvm" ]]; then
+	if is_macos; then
+		mkdir -p "$HOME/.nvm"
+		if brew_list --formula nvm &>/dev/null; then
+			if [[ "$UPDATE" == true ]]; then
+				update "updating nvm via Homebrew"
+				brew_upgrade nvm 2>/dev/null || skip "nvm 已是最新"
+			else
+				skip "nvm Homebrew formula already installed"
+			fi
+		else
+			install "installing nvm via Homebrew"
+			brew_install nvm
+			os_init_mark_package_ownership "nvm-package"
+		fi
+    elif [[ -d "$HOME/.nvm" ]]; then
 		if [[ "$UPDATE" == true ]]; then
 			update "updating nvm to latest"
 			LATEST_NVM="$(nvm_version)"
@@ -708,7 +803,7 @@ if want "git"; then
 fi
 
 # ── shell integrations ───────────────────────────────────────────────────────
-if want "zsh" || want_zsh_plugin; then
+if want "zsh" || want_zsh_plugin || { want "starship" && [[ -d "$HOME/.oh-my-zsh" ]]; }; then
     configure_oh_my_zsh
 fi
 if want "starship"; then

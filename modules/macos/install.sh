@@ -10,7 +10,7 @@ source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(
     google-chrome codex wechat royal-tsx
-    orbstack visual-studio-code iterm2 ghostty sublime-text neovide-app
+    orbstack visual-studio-code iterm2 ghostty sublime-text
     clash-party seafile-client
     pixpin bob loop jordanbaird-ice stats monitorcontrol mos input-source-pro menubarx
     karabiner-elements squirrel-app aldente keka
@@ -49,7 +49,6 @@ cask_label() {
         visual-studio-code) echo "Visual Studio Code" ;;
         ghostty) echo "Ghostty" ;;
         sublime-text) echo "Sublime Text" ;;
-        neovide-app) echo "Neovide" ;;
         seafile-client) echo "Seafile Client" ;;
         pixpin) echo "PixPin" ;;
         bob) echo "Bob" ;;
@@ -99,7 +98,6 @@ cask_app_path() {
         visual-studio-code) echo "/Applications/Visual Studio Code.app" ;;
         ghostty) echo "/Applications/Ghostty.app" ;;
         sublime-text) echo "/Applications/Sublime Text.app" ;;
-        neovide-app) echo "/Applications/Neovide.app" ;;
         seafile-client) echo "/Applications/Seafile Client.app" ;;
         pixpin) echo "/Applications/PixPin.app" ;;
         bob) echo "/Applications/Bob.app" ;;

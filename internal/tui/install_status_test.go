@@ -83,6 +83,37 @@ func TestInstallStatusChecker_DetectsHomebrewFormulaWithoutPATHCommand(t *testin
 	}
 }
 
+func TestInstallStatusChecker_RequiresMacOSSpecificFormulaAndPaths(t *testing.T) {
+	home := t.TempDir()
+	checker := testStatusChecker(t, home)
+	checker.goos = "darwin"
+	checker.run = fakeRun(map[string][]byte{
+		"brew\x00list\x00--formula": []byte("nvm\n"),
+	})
+	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init nvm >>>\nsource nvm.sh\n# <<< os-init nvm <<<\n")
+	writeFile(t, filepath.Join(home, ".config", "nvim", "init.lua"), "-- config-yuan\n")
+	writeFile(t, filepath.Join(home, ".config", "neovide", "config.toml"), "[font]\n")
+
+	nvm := modules.Module{InstalledMacOSBrewFormula: "nvm", InstalledZshBlocks: []string{"nvm"}}
+	if !checker.moduleInstalled(context.Background(), nvm) {
+		t.Fatal("nvm should require both the Homebrew formula and managed zsh block on macOS")
+	}
+
+	combined := modules.Module{
+		InstalledCheck:       "$HOME/.config/nvim/init.lua",
+		InstalledMacOSChecks: []string{"$HOME/.config/neovide/config.toml"},
+	}
+	if !checker.moduleInstalled(context.Background(), combined) {
+		t.Fatal("combined Neovim module should require its macOS-specific config path")
+	}
+	if err := os.Remove(filepath.Join(home, ".config", "neovide", "config.toml")); err != nil {
+		t.Fatal(err)
+	}
+	if checker.moduleInstalled(context.Background(), combined) {
+		t.Fatal("combined Neovim module should be incomplete without the Neovide config on macOS")
+	}
+}
+
 func TestInstallStatusChecker_ShellIntegrationRequiresManagedBlock(t *testing.T) {
 	home := t.TempDir()
 	checker := testStatusChecker(t, home)

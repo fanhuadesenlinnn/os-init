@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install Neovim + LazyVim starter config + dependencies
+# Install Neovim + Neovide (macOS) + config-yuan + dependencies
 # Author: Dusan Panic <dpanic@gmail.com>
 # Safe to re-run -- idempotent
 
@@ -41,9 +41,23 @@ tool_prefers_package_manager() {
     is_macos || is_arch
 }
 
+update_config_repo_safely() {
+	local dir="$1" branch
+	if [[ -n "$(git -C "$dir" status --porcelain)" ]]; then
+		warn "config-yuan 存在未提交修改，跳过自动更新"
+		return 0
+	fi
+	assert_git_remote_secure "$dir"
+	branch="$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo main)"
+	git_with_proxy -C "$dir" fetch origin --depth=1 -q
+	if ! git -C "$dir" merge --ff-only "origin/$branch"; then
+		warn "config-yuan 无法快进更新，已保留当前配置"
+	fi
+}
+
 TITLE="Setup"
 [[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
-echo "=== Neovim + LazyVim $TITLE ==="
+echo "=== Neovim + Neovide + config-yuan $TITLE ==="
 echo ""
 
 if [[ "$UNINSTALL" == true ]]; then
@@ -62,6 +76,19 @@ if [[ "$UNINSTALL" == true ]]; then
     else
         skip "neovim not installed"
     fi
+
+	# Neovide is part of this combined module on macOS.
+	if is_macos; then
+		if (brew_list --cask neovide-app &>/dev/null || [[ -d "/Applications/Neovide.app" ]]) && os_init_user_owned "macos-cask-neovide-app"; then
+			remove "卸载由 OS Init 安装的 Neovide"
+			brew_uninstall --cask neovide-app 2>/dev/null || true
+			os_init_forget_user_ownership "macos-cask-neovide-app"
+		elif brew_list --cask neovide-app &>/dev/null || [[ -d "/Applications/Neovide.app" ]]; then
+			warn "Neovide 不是由 OS Init 安装，予以保留"
+		else
+			skip "Neovide not installed"
+		fi
+	fi
 
     # lazygit
 	if command -v lazygit &>/dev/null; then
@@ -88,12 +115,17 @@ if [[ "$UNINSTALL" == true ]]; then
 		os_init_forget_package_ownership "neovim-fd-package"
 	fi
 
-    # nvim config
+    # nvim + Neovide config
 	if [[ "${PURGE_CONFIG:-0}" == "1" ]]; then
-		warn "PURGE_CONFIG=1，将删除 Neovim 配置和数据目录"
-		rm -rf "$HOME/.config/nvim" "$HOME/.local/share/nvim"
+		warn "PURGE_CONFIG=1，将恢复安装前的 Neovim 和 Neovide 配置"
+		os_init_restore_owned_user_path "neovim-config-yuan" "$HOME/.config/nvim" || true
+		os_init_restore_owned_user_path "neovide-config" "$HOME/.config/neovide/config.toml" || true
+		if os_init_user_owned "neovim-data"; then
+			rm -rf "$HOME/.local/share/nvim"
+			os_init_forget_user_ownership "neovim-data"
+		fi
 	else
-		skip "保留 ~/.config/nvim 和 ~/.local/share/nvim；如需清理请设置 PURGE_CONFIG=1"
+		skip "保留 Neovim/Neovide 配置和数据；如需恢复安装前状态请设置 PURGE_CONFIG=1"
 	fi
     os_init_remove_shell_block "neovim"
 
@@ -102,8 +134,8 @@ if [[ "$UNINSTALL" == true ]]; then
     exit 0
 fi
 
-# [1/4] Neovim via package manager or GitHub release tarball
-echo "[1/4] neovim..."
+# [1/5] Neovim via package manager or GitHub release tarball
+echo "[1/5] neovim..."
 install_nvim_linux() {
     local label="$1"
     [[ -n "$NVIM_ARCH" ]] || die "Neovim 安装暂不支持当前架构: $(uname -m)"
@@ -154,8 +186,27 @@ else
     fi
 fi
 
-# [2/4] ripgrep + fd-find
-echo "[2/4] ripgrep + fd-find..."
+# [2/5] Neovide on macOS
+echo "[2/5] neovide..."
+if is_macos; then
+	if brew_list --cask neovide-app &>/dev/null || [[ -d "/Applications/Neovide.app" ]]; then
+		if [[ "$UPDATE" == true ]]; then
+			update "updating Neovide via Homebrew"
+			brew_upgrade --cask neovide-app 2>/dev/null || skip "Neovide already at latest"
+		else
+			skip "Neovide already installed"
+		fi
+	else
+		install "installing Neovide via Homebrew cask"
+		brew_install --cask neovide-app
+		os_init_mark_user_ownership "macos-cask-neovide-app"
+	fi
+else
+	skip "Neovide GUI is only installed on macOS"
+fi
+
+# [3/5] ripgrep + fd-find
+echo "[3/5] ripgrep + fd-find..."
 PKGS_TO_INSTALL=()
 if command -v rg &>/dev/null; then
     skip "ripgrep $(rg --version | head -1) already installed"
@@ -180,8 +231,8 @@ if [[ ${#PKGS_TO_INSTALL[@]} -gt 0 ]]; then
 	done
 fi
 
-# [3/4] lazygit
-echo "[3/4] lazygit..."
+# [4/5] lazygit
+echo "[4/5] lazygit..."
 install_lazygit_linux() {
     local label="$1"
     [[ -n "$LAZYGIT_ARCH" ]] || die "lazygit 安装暂不支持当前架构: $(uname -m)"
@@ -232,23 +283,41 @@ else
     fi
 fi
 
-# [4/4] LazyVim starter config
-echo "[4/4] LazyVim config..."
+# [5/5] Personal Neovim + Neovide configuration
+echo "[5/5] config-yuan..."
 NVIM_CONFIG="$HOME/.config/nvim"
-if [[ -d "$NVIM_CONFIG" ]]; then
-    if [[ -f "$NVIM_CONFIG/lazyvim.json" ]] || [[ -f "$NVIM_CONFIG/lazy-lock.json" ]]; then
-        skip "LazyVim config already present at ~/.config/nvim/"
-    else
-        BACKUP="${NVIM_CONFIG}.bak.$(date +%s)"
-        install "backing up existing nvim config to $BACKUP"
-        mv "$NVIM_CONFIG" "$BACKUP"
-        git_clone_depth 1 "$(repo_url LAZYVIM_STARTER_REPO "https://github.com/LazyVim/starter")" "$NVIM_CONFIG"
-        rm -rf "$NVIM_CONFIG/.git"
-    fi
+NVIM_CONFIG_REPO_URL="$(repo_url NVIM_CONFIG_REPO "https://github.com/fanhuadesenlinnn/nvim.git")"
+os_init_prepare_owned_user_path "neovim-config-yuan" "$NVIM_CONFIG"
+if [[ -d "$NVIM_CONFIG/.git" ]] && git -C "$NVIM_CONFIG" remote get-url origin &>/dev/null; then
+	CURRENT_CONFIG_REMOTE="$(git -C "$NVIM_CONFIG" remote get-url origin)"
+	if [[ "${CURRENT_CONFIG_REMOTE%.git}" == "${NVIM_CONFIG_REPO_URL%.git}" ]]; then
+		if [[ "$UPDATE" == true ]]; then
+			update "updating config-yuan"
+			update_config_repo_safely "$NVIM_CONFIG"
+		else
+			skip "config-yuan already present at ~/.config/nvim"
+		fi
+	else
+		install "replacing the managed Neovim config with config-yuan"
+		rm -rf "$NVIM_CONFIG"
+		git_clone_depth 1 "$NVIM_CONFIG_REPO_URL" "$NVIM_CONFIG"
+	fi
 else
-    install "cloning LazyVim starter to ~/.config/nvim/"
-    git_clone_depth 1 "$(repo_url LAZYVIM_STARTER_REPO "https://github.com/LazyVim/starter")" "$NVIM_CONFIG"
-    rm -rf "$NVIM_CONFIG/.git"
+	rm -rf "$NVIM_CONFIG"
+	install "cloning config-yuan to ~/.config/nvim"
+	git_clone_depth 1 "$NVIM_CONFIG_REPO_URL" "$NVIM_CONFIG"
+fi
+
+if is_macos && [[ -f "$NVIM_CONFIG/neovide/config.toml" ]]; then
+	NEOVIDE_CONFIG="$HOME/.config/neovide/config.toml"
+	os_init_prepare_owned_user_path "neovide-config" "$NEOVIDE_CONFIG"
+	mkdir -p "$(dirname "$NEOVIDE_CONFIG")"
+	rm -rf "$NEOVIDE_CONFIG"
+	ln -s "$NVIM_CONFIG/neovide/config.toml" "$NEOVIDE_CONFIG"
+fi
+
+if [[ ! -e "$HOME/.local/share/nvim" ]]; then
+	os_init_mark_user_ownership "neovim-data"
 fi
 
 NVIM_SHELL_BLOCK="$(cat <<'EOF'
@@ -261,6 +330,6 @@ EOF
 os_init_upsert_shell_block "neovim" "$NVIM_SHELL_BLOCK"
 
 echo ""
-echo "=== Neovim + LazyVim setup complete ==="
+echo "=== Neovim + Neovide + config-yuan setup complete ==="
 echo ""
-echo "Run 'nvim' to launch. LazyVim will auto-install plugins on first start."
+echo "Run 'nvim' or open Neovide. lazy.nvim will install plugins on first start."

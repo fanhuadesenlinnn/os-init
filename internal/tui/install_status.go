@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -12,6 +13,7 @@ import (
 )
 
 type installStatusChecker struct {
+	goos     string
 	lookPath func(string) (string, error)
 	stat     func(string) (os.FileInfo, error)
 	readFile func(string) ([]byte, error)
@@ -28,6 +30,7 @@ type installStatusChecker struct {
 
 func defaultInstallStatusChecker() *installStatusChecker {
 	return &installStatusChecker{
+		goos:     runtime.GOOS,
 		lookPath: exec.LookPath,
 		stat:     os.Stat,
 		readFile: os.ReadFile,
@@ -41,6 +44,13 @@ func defaultInstallStatusChecker() *installStatusChecker {
 
 func (c *installStatusChecker) moduleInstalled(ctx context.Context, m modules.Module) bool {
 	checks := 0
+	goos := mCheckerGOOS(c)
+	if goos == "darwin" && m.InstalledMacOSBrewFormula != "" {
+		checks++
+		if !c.brewFormulaInstalled(ctx, m.InstalledMacOSBrewFormula) {
+			return false
+		}
+	}
 
 	if m.InstalledBrewCask != "" {
 		checks++
@@ -77,6 +87,12 @@ func (c *installStatusChecker) moduleInstalled(ctx context.Context, m modules.Mo
 				return false
 			}
 		}
+		for _, path := range m.InstalledChecks {
+			checks++
+			if !c.pathExists(path) {
+				return false
+			}
+		}
 		if len(m.InstalledAnyChecks) > 0 {
 			checks++
 			if !c.anyPathExists(m.InstalledAnyChecks) {
@@ -89,6 +105,22 @@ func (c *installStatusChecker) moduleInstalled(ctx context.Context, m modules.Mo
 		checks++
 		if !c.grepFile(m.InstalledGrepFile) {
 			return false
+		}
+	}
+	if goos == "darwin" {
+		for _, path := range m.InstalledMacOSChecks {
+			checks++
+			if !c.pathExists(path) {
+				return false
+			}
+		}
+	}
+	if goos == "linux" {
+		for _, path := range m.InstalledLinuxChecks {
+			checks++
+			if !c.pathExists(path) {
+				return false
+			}
 		}
 	}
 	for _, grepFile := range m.InstalledGrepFiles {
@@ -123,6 +155,13 @@ func (c *installStatusChecker) moduleInstalled(ctx context.Context, m modules.Mo
 	}
 
 	return checks > 0
+}
+
+func mCheckerGOOS(c *installStatusChecker) string {
+	if c.goos != "" {
+		return c.goos
+	}
+	return runtime.GOOS
 }
 
 func (c *installStatusChecker) commandExists(command string) bool {
