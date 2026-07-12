@@ -527,7 +527,7 @@ func archTargetOptions(includeCustom bool) []archOption {
 		archOption{"archlinuxcn", text("软件源：archlinuxcn 源、keyring 和可选 mirrorlist", "Repository: archlinuxcn repository, keyring, and optional mirrorlist")},
 		archOption{"git", text("Git 环境：git、gh、openssh 和基础 Git 配置", "Git environment: git, gh, OpenSSH, and basic Git config")},
 		archOption{"ops-toolkit", text("运维脚本：ops-toolkit 仓库和稳定命令入口", "Ops scripts: ops-toolkit repository and stable command entrypoint")},
-		archOption{"runtime", text("开发运行时：nodejs、npm、python、go、mise 和国内镜像", "Development runtime: nodejs, npm, python, go, mise, and China mirrors")},
+		archOption{"runtime", text("开发运行时：mise 管理 Node 24、Python 3.13、Go 1.24", "Development runtime: mise-managed Node 24, Python 3.13, and Go 1.24")},
 		archOption{"nvim", text("Neovim：安装 Neovim、个人配置和可选插件同步", "Neovim: install Neovim, personal config, and optional plugin sync")},
 		archOption{"docker", text("Docker：docker/compose、镜像源、服务和用户组", "Docker: docker/compose, mirrors, service, and user group")},
 		archOption{"fonts", text("字体：中文字体、Emoji、Nerd Font、Monaco 和 fontconfig", "Fonts: Chinese fonts, Emoji, Nerd Font, Monaco, and fontconfig")},

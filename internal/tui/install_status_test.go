@@ -88,15 +88,15 @@ func TestInstallStatusChecker_RequiresMacOSSpecificFormulaAndPaths(t *testing.T)
 	checker := testStatusChecker(t, home)
 	checker.goos = "darwin"
 	checker.run = fakeRun(map[string][]byte{
-		"brew\x00list\x00--formula": []byte("nvm\n"),
+		"brew\x00list\x00--formula": []byte("zoxide\n"),
 	})
-	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init nvm >>>\nsource nvm.sh\n# <<< os-init nvm <<<\n")
+	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init zoxide >>>\neval zoxide\n# <<< os-init zoxide <<<\n")
 	writeFile(t, filepath.Join(home, ".config", "nvim", "init.lua"), "-- config-yuan\n")
 	writeFile(t, filepath.Join(home, ".config", "neovide", "config.toml"), "[font]\n")
 
-	nvm := modules.Module{InstalledMacOSBrewFormula: "nvm", InstalledZshBlocks: []string{"nvm"}}
-	if !checker.moduleInstalled(context.Background(), nvm) {
-		t.Fatal("nvm should require both the Homebrew formula and managed zsh block on macOS")
+	zoxide := modules.Module{InstalledMacOSBrewFormula: "zoxide", InstalledZshBlocks: []string{"zoxide"}}
+	if !checker.moduleInstalled(context.Background(), zoxide) {
+		t.Fatal("zoxide should require both the Homebrew formula and managed zsh block on macOS")
 	}
 
 	combined := modules.Module{

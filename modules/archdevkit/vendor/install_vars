@@ -24,12 +24,10 @@ GITHUB_PROXY="https://hubproxy.babadafafafafa.cn/"
 NPM_REGISTRY="https://registry.npmmirror.com"
 PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
 PIP_TRUSTED_HOST="pypi.tuna.tsinghua.edu.cn"
+UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"
+GOPROXY="https://goproxy.cn,direct"
 NODE_MIRROR_URL="https://npmmirror.com/mirrors/node/"
-GO_DOWNLOAD_MIRROR="https://mirrors.aliyun.com/golang"
-GO_REPO_URL="https://github.com/golang/go"
-PYTHON_BUILD_MIRROR_URL="https://registry.npmmirror.com/-/binary/python/"
-PYENV_REPO_URL="https://github.com/pyenv/pyenv.git"
-ENABLE_MISE_GITHUB_URL_REPLACEMENT=1 # 仅用于临时 git insteadOf，不启用 broad MISE_URL_REPLACEMENTS
+GO_DOWNLOAD_MIRROR="https://golang.google.cn/dl/"
 
 # =========================
 # DNS：systemd-resolved 系统解析基线
@@ -56,13 +54,12 @@ ARCHLINUXCN_SERVER='https://mirrors.ustc.edu.cn/archlinuxcn/$arch'
 INSTALL_ARCHLINUXCN_MIRRORLIST=1
 
 # =========================
-# Runtime：pacman 安装系统级开发语言，mise 只作为后续多版本管理器
+# Runtime：pacman 安装 mise，语言运行时全部由 mise 管理
 # =========================
 RUNTIME_MANAGER="mise"
-NODE_VERSION="22"
-NPM_VERSION="11"
+NODE_VERSION="24"
 PYTHON_VERSION="3.13"
-GO_VERSION="1.23"
+GO_VERSION="1.24"
 ENABLE_COREPACK=1
 
 # =========================

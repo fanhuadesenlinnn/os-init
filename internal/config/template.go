@@ -196,18 +196,21 @@ func shellResourceSection() configSection {
 			{Key: "STARSHIP_INSTALL_SHA256", Value: "", CommentZ: "starship 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the starship installer."},
 			{Key: "ZSH_AUTOSUGGESTIONS_REPO", Value: "https://github.com/zsh-users/zsh-autosuggestions.git", CommentZ: "zsh-autosuggestions 插件仓库地址。", CommentE: "zsh-autosuggestions plugin repository URL."},
 			{Key: "ZSH_SYNTAX_HIGHLIGHTING_REPO", Value: "https://github.com/zsh-users/zsh-syntax-highlighting.git", CommentZ: "zsh-syntax-highlighting 插件仓库地址。", CommentE: "zsh-syntax-highlighting plugin repository URL."},
-			{Key: "NVM_VERSION", Value: "", CommentZ: "nvm 版本。留空时从 GitHub 查询最新版本。", CommentE: "nvm version. Empty means query the latest version from GitHub."},
-			{Key: "NVM_INSTALL_BASE", Value: "https://raw.githubusercontent.com/nvm-sh/nvm", CommentZ: "nvm 安装脚本基础地址。", CommentE: "Base URL for the nvm install script."},
-			{Key: "NVM_INSTALL_URL", Value: "", CommentZ: "nvm 完整安装脚本地址；设置后优先于 NVM_INSTALL_BASE。", CommentE: "Full nvm install script URL; overrides NVM_INSTALL_BASE when set."},
-			{Key: "NVM_INSTALL_SHA256", Value: "", CommentZ: "nvm 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the nvm installer."},
-			{Key: "FNM_INSTALL_URL", Value: "https://fnm.vercel.app/install", CommentZ: "fnm 安装脚本地址。", CommentE: "fnm install script URL."},
-			{Key: "FNM_INSTALL_SHA256", Value: "", CommentZ: "fnm 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the fnm installer."},
 		},
 	}
 }
 
 func developmentResourceSection(includeLinuxBinaries bool) configSection {
 	entries := []configEntry{
+		{Key: "MISE_NODE_VERSION", Value: "24", CommentZ: "mise 管理的全局 Node.js 主版本。", CommentE: "Global Node.js major version managed by mise."},
+		{Key: "MISE_PYTHON_VERSION", Value: "3.13", CommentZ: "mise 管理的全局 Python 版本系列。", CommentE: "Global Python version series managed by mise."},
+		{Key: "MISE_GO_VERSION", Value: "1.24", CommentZ: "mise 管理的全局 Go 版本系列。", CommentE: "Global Go version series managed by mise."},
+		{Key: "MISE_NODE_MIRROR_URL", Value: "https://npmmirror.com/mirrors/node/", CommentZ: "mise 下载 Node.js 的大陆镜像，失败时自动回退官方源。", CommentE: "Mainland China mirror for mise Node.js downloads; falls back to upstream on failure."},
+		{Key: "MISE_GO_DOWNLOAD_MIRROR", Value: "https://golang.google.cn/dl/", CommentZ: "mise 下载 Go SDK 的大陆镜像，失败时自动回退官方源。", CommentE: "Mainland China mirror for mise Go SDK downloads; falls back to upstream on failure."},
+		{Key: "NPM_CONFIG_REGISTRY", Value: "https://registry.npmmirror.com", CommentZ: "npm 中国大陆镜像。", CommentE: "npm registry mirror for Mainland China."},
+		{Key: "PIP_INDEX_URL", Value: "https://pypi.tuna.tsinghua.edu.cn/simple", CommentZ: "pip 中国大陆镜像。", CommentE: "pip index mirror for Mainland China."},
+		{Key: "UV_DEFAULT_INDEX", Value: "https://pypi.tuna.tsinghua.edu.cn/simple", CommentZ: "uv 中国大陆镜像。", CommentE: "uv index mirror for Mainland China."},
+		{Key: "GOPROXY", Value: "https://goproxy.cn,direct", CommentZ: "Go module 中国大陆代理。", CommentE: "Go module proxy for Mainland China."},
 		{Key: "GO_VERSION", Value: "", CommentZ: "Go 版本。留空时从 GO_VERSION_URL 查询最新版本。", CommentE: "Go version. Empty means query the latest version from GO_VERSION_URL."},
 		{Key: "GO_VERSION_URL", Value: "https://go.dev/VERSION?m=text", CommentZ: "Go 最新版本查询地址。", CommentE: "URL used to query the latest Go version."},
 		{Key: "GO_DOWNLOAD_BASE", Value: "https://go.dev/dl", CommentZ: "Go 安装包下载基础地址。主要用于非 macOS/Arch 的二进制安装路径。", CommentE: "Base URL for Go archive downloads. Mainly used by the non-macOS/non-Arch binary install path."},

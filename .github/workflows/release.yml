@@ -132,6 +132,12 @@ jobs:
 
           ### 主要能力
 
+          - macOS 与 Arch Linux 统一使用 mise 管理 Node.js 24、Python 3.13 和 Go 1.24
+          - 中国大陆默认启用 Node/Go SDK、npm、pip、uv 和 Go module 镜像，SDK 镜像失败自动回退官方源
+          - 登录 Shell 使用 mise shims，交互式 Shell 使用完整 activate，兼顾终端、IDE 和 GUI 应用
+          - 移除 nvm/fnm 安装入口，迁移时只清理 OS Init 管理块并保留用户运行时数据
+          - macOS Homebrew 软件逐项执行，日志、耗时和退出码互不影响
+          - Motrix Next 使用 cask 级 Homebrew trust 和完整 tap 引用
           - ArchDevKit 安装 Docker 或 Mihomo 时，如果 systemd 暂时无法启动服务，不再中断整个 dev 安装流程
           - 中英双语 TUI，覆盖菜单、确认信息、执行状态和结果页
           - GitHub 专用代理与资源下载配置

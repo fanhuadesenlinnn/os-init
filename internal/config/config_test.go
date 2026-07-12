@@ -79,9 +79,14 @@ func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN"))
-	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "NVIM_CONFIG_REPO=", "GO_DOWNLOAD_BASE="} {
+	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "NVIM_CONFIG_REPO=", "GO_DOWNLOAD_BASE=", "MISE_NODE_VERSION=24", "MISE_PYTHON_VERSION=3.13", "MISE_GO_VERSION=1.24"} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("darwin config should contain %q, got %q", want, data)
+		}
+	}
+	for _, unwanted := range []string{"NVM_INSTALL_URL=", "FNM_INSTALL_URL="} {
+		if strings.Contains(data, unwanted) {
+			t.Fatalf("darwin config should not contain retired runtime manager setting %q", unwanted)
 		}
 	}
 	for _, unwanted := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE="} {

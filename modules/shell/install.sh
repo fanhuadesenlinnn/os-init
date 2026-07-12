@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install shell tooling: zsh, oh-my-zsh, starship, direnv, zsh plugins, nvm, fnm, byobu, git
+# Install shell tooling: zsh, oh-my-zsh, starship, direnv, zsh plugins, byobu, git
 # Author: Dusan Panic <dpanic@gmail.com>
 # Replicates a full zsh dev environment from scratch
 # Safe to re-run -- idempotent (skips already-installed components)
@@ -16,7 +16,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
-ALL_COMPONENTS=(zsh starship direnv autosuggestions syntax-highlighting nvm fnm git)
+ALL_COMPONENTS=(zsh starship direnv autosuggestions syntax-highlighting git)
 is_linux && ALL_COMPONENTS+=(byobu)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
@@ -111,17 +111,6 @@ set_default_zsh() {
     if ! sudo chsh -s "$shell_path" "$user"; then
         die "无法非交互式切换默认 shell，请确认 sudo 验证成功且 $shell_path 已写入 /etc/shells"
     fi
-}
-
-nvm_version() {
-    local version="${NVM_VERSION:-}"
-    [[ -n "$version" ]] || version="$(github_latest_version "nvm-sh/nvm" "")"
-    echo "$version"
-}
-
-nvm_install_url() {
-    local version="$1"
-    resource_url NVM_INSTALL_URL "${NVM_INSTALL_BASE%/}/${version}/install.sh"
 }
 
 starship_prompt_enabled() {
@@ -258,41 +247,6 @@ EOF
     os_init_upsert_zsh_block "direnv" "$content"
 }
 
-configure_nvm_zsh() {
-    local content
-    content="$(cat <<'EOF'
-export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-NVM_HOMEBREW_PREFIX=""
-if command -v brew >/dev/null 2>&1; then
-    NVM_HOMEBREW_PREFIX="$(brew --prefix nvm 2>/dev/null)"
-fi
-if [ -n "$NVM_HOMEBREW_PREFIX" ] && [ -s "$NVM_HOMEBREW_PREFIX/nvm.sh" ]; then
-    . "$NVM_HOMEBREW_PREFIX/nvm.sh"
-    if [ -s "$NVM_HOMEBREW_PREFIX/etc/bash_completion.d/nvm" ]; then
-        . "$NVM_HOMEBREW_PREFIX/etc/bash_completion.d/nvm"
-    fi
-elif [ -s "$NVM_DIR/nvm.sh" ]; then
-    . "$NVM_DIR/nvm.sh"
-    if [ -s "$NVM_DIR/bash_completion" ]; then
-        . "$NVM_DIR/bash_completion"
-    fi
-fi
-EOF
-)"
-    os_init_upsert_zsh_block "nvm" "$content"
-}
-
-configure_fnm_zsh() {
-    local content
-    content="$(cat <<'EOF'
-if command -v fnm >/dev/null 2>&1; then
-    eval "$(fnm env --use-on-cd --shell zsh)"
-fi
-EOF
-)"
-    os_init_upsert_zsh_block "fnm" "$content"
-}
-
 STEP=0
 count_steps() {
     local total=0
@@ -300,8 +254,6 @@ count_steps() {
 	want "starship" && total=$((total + 1))
 	want "direnv" && total=$((total + 1))
 	want_zsh_plugin && total=$((total + 1))
-	want "nvm" && total=$((total + 1))
-	want "fnm" && total=$((total + 1))
 	want "git" && total=$((total + 1))
 	want "byobu" && total=$((total + 1))
     echo "$total"
@@ -345,44 +297,6 @@ if [[ "$UNINSTALL" == true ]]; then
         if [[ -n "$zshrc_file" && -f "$zshrc_file" ]]; then
             configure_oh_my_zsh
         fi
-    fi
-
-    if want "nvm"; then
-        echo "[REMOVE] nvm..."
-		if is_macos && os_init_package_owned "nvm-package"; then
-			remove "通过 Homebrew 卸载 nvm"
-			brew_uninstall nvm 2>/dev/null || true
-			os_init_forget_package_ownership "nvm-package"
-		elif is_macos && brew_list --formula nvm &>/dev/null; then
-			warn "保留非 OS Init 安装的 nvm Homebrew formula"
-		elif [[ -f "$HOME/.nvm/.os-init-owned" ]]; then
-            remove "removing ~/.nvm"
-			rm -rf "$HOME/.nvm"
-		elif [[ -d "$HOME/.nvm" ]]; then
-			warn "保留非 OS Init 创建的 ~/.nvm"
-        else
-            skip "nvm not installed"
-        fi
-        os_init_remove_zsh_block "nvm"
-    fi
-
-    if want "fnm"; then
-        echo "[REMOVE] fnm..."
-		if command -v fnm &>/dev/null; then
-			if tool_prefers_package_manager && os_init_package_owned "fnm-package"; then
-				remove "卸载由 OS Init 安装的 fnm 软件包"
-				pkg_remove fnm 2>/dev/null || true
-				os_init_forget_package_ownership "fnm-package"
-			elif ! tool_prefers_package_manager && os_init_user_owned "fnm-user-install"; then
-				rm -rf "$HOME/.local/share/fnm" "$HOME/.fnm"
-				os_init_forget_user_ownership "fnm-user-install"
-			else
-				warn "保留非 OS Init 安装的 fnm"
-            fi
-        else
-            skip "fnm not installed"
-        fi
-        os_init_remove_zsh_block "fnm"
     fi
 
     if want "starship"; then
@@ -611,88 +525,6 @@ if want_zsh_plugin; then
     fi
 fi
 
-# ── nvm ───────────────────────────────────────────────────────────────────────
-if want "nvm"; then
-    next "nvm"
-
-	if is_macos; then
-		mkdir -p "$HOME/.nvm"
-		if brew_list --formula nvm &>/dev/null; then
-			if [[ "$UPDATE" == true ]]; then
-				update "updating nvm via Homebrew"
-				brew_upgrade nvm 2>/dev/null || skip "nvm 已是最新"
-			else
-				skip "nvm Homebrew formula already installed"
-			fi
-		else
-			install "installing nvm via Homebrew"
-			brew_install nvm
-			os_init_mark_package_ownership "nvm-package"
-		fi
-    elif [[ -d "$HOME/.nvm" ]]; then
-		if [[ "$UPDATE" == true ]]; then
-			update "updating nvm to latest"
-			LATEST_NVM="$(nvm_version)"
-			assert_git_remote_secure "$HOME/.nvm"
-			git_with_proxy -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
-            git_with_proxy -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
-        else
-            skip "nvm already installed at ~/.nvm"
-        fi
-    else
-        install "installing nvm"
-        LATEST_NVM="$(nvm_version)"
-        NVM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/nvm-install.XXXXXX")"
-		download_file_verified "$(nvm_install_url "$LATEST_NVM")" "$NVM_INSTALLER" "${NVM_INSTALL_SHA256:-}"
-		PROFILE=/dev/null bash "$NVM_INSTALLER"
-		touch "$HOME/.nvm/.os-init-owned"
-        rm -f "$NVM_INSTALLER"
-    fi
-fi
-
-# ── fnm ──────────────────────────────────────────────────────────────────────
-if want "fnm"; then
-    next "fnm"
-
-    FNM_SKIP=(--skip-shell)
-
-    if tool_prefers_package_manager; then
-        if command -v fnm &>/dev/null; then
-            if [[ "$UPDATE" == true ]]; then
-                update "$(os_init_text "通过包管理器更新 fnm" "updating fnm via package manager")"
-				pkg_install fnm
-            else
-                skip "fnm $(fnm --version 2>/dev/null) already installed"
-            fi
-        else
-			install "$(os_init_text "通过包管理器安装 fnm" "installing fnm via package manager")"
-			pkg_install fnm
-			os_init_mark_package_ownership "fnm-package"
-        fi
-    elif command -v fnm &>/dev/null; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating fnm"
-            FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-			download_file_verified "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER" "${FNM_INSTALL_SHA256:-}"
-		bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
-		os_init_mark_user_ownership "fnm-user-install"
-            rm -f "$FNM_INSTALLER"
-        else
-            skip "fnm $(fnm --version 2>/dev/null) already installed"
-        fi
-    else
-        install "installing fnm"
-        if ! command -v unzip &>/dev/null; then
-            pkg_install unzip
-        fi
-        FNM_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/fnm-install.XXXXXX")"
-		download_file_verified "$(resource_url FNM_INSTALL_URL "https://fnm.vercel.app/install")" "$FNM_INSTALLER" "${FNM_INSTALL_SHA256:-}"
-		bash "$FNM_INSTALLER" "${FNM_SKIP[@]}"
-		os_init_mark_user_ownership "fnm-user-install"
-		rm -f "$FNM_INSTALLER"
-    fi
-fi
-
 # ── byobu + tmux ──────────────────────────────────────────────────────────────
 if want "byobu"; then
     next "byobu + tmux"
@@ -812,17 +644,10 @@ fi
 if want "direnv"; then
     configure_direnv_zsh
 fi
-if want "nvm"; then
-    configure_nvm_zsh
-fi
-if want "fnm"; then
-    configure_fnm_zsh
-fi
 
 echo ""
 echo "=== $(os_init_text "Shell 工具安装完成" "Shell tools setup complete") ==="
 echo "  $(os_init_text "已处理" "Processed"): ${COMPONENTS[*]}"
 echo ""
 want "byobu" && echo "  byobu  -- $(os_init_text "启动终端复用器" "launch terminal multiplexer")"
-want "fnm" && echo "  fnm   -- fnm install --lts && fnm use lts-latest"
 os_init_text "打开新终端或执行: exec zsh" "Start a new terminal or run: exec zsh"

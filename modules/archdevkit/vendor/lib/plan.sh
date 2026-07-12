@@ -215,17 +215,13 @@ show_plan() {
     echo "  GitHub CLI:       安装 gh，登录需稍后手动执行 gh auth login"
   fi
   if plan_has_module "${modules_text}" "runtime"; then
-    echo "  系统运行时:       pacman 安装 nodejs/npm/python/python-pip/go"
-    echo "  系统包:           mise nodejs npm python python-pip go$( [[ "${ENABLE_COREPACK:-0}" -eq 1 ]] && printf ' corepack' )"
-    echo "  管理工具:         ${RUNTIME_MANAGER}（只配置，不默认执行 mise use）"
+    echo "  系统包:           mise"
+    echo "  管理工具:         ${RUNTIME_MANAGER}（统一安装并管理所有语言运行时）"
     echo "  mise 目标版本:    node ${NODE_VERSION} / python ${PYTHON_VERSION} / go ${GO_VERSION}"
-    echo "  npm 目标版本:     ${NPM_VERSION}（仅保留配置兼容）"
     echo "  npm 源:           ${NPM_REGISTRY}"
     echo "  pip 源:           ${PIP_INDEX_URL}"
-    echo "  Node 下载镜像:    ${NODE_MIRROR_URL}（手动 mise use）"
-    echo "  Go 下载镜像:      ${GO_DOWNLOAD_MIRROR}（手动 mise use）"
-    echo "  Python 下载镜像:  ${PYTHON_BUILD_MIRROR_URL}（手动 mise use）"
-    echo "  pyenv 实际仓库:   $(mise_pyenv_repo_url)"
+    echo "  Node 下载镜像:    ${NODE_MIRROR_URL}"
+    echo "  Go 下载镜像:      ${GO_DOWNLOAD_MIRROR}"
     echo "  Corepack:         $(bool_text "${ENABLE_COREPACK}")"
   fi
   if plan_uses_github_proxy "${modules_text}"; then

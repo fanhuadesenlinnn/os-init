@@ -113,7 +113,7 @@ show_menu() {
       "archlinuxcn|软件源：archlinuxcn 源、keyring 和可选 mirrorlist" \
       "git|Git 环境：git、gh、openssh 和基础 Git 配置" \
       "ops-toolkit|运维脚本：ops-toolkit 仓库和稳定命令入口" \
-      "runtime|开发运行时：nodejs、npm、python、go、mise 和国内镜像" \
+      "runtime|开发运行时：mise 管理 Node 24、Python 3.13、Go 1.24" \
       "nvim|Neovim：安装 Neovim、个人配置和可选插件同步" \
       "docker|Docker：docker/compose、镜像源、服务和用户组" \
       "fonts|字体：中文字体、Emoji、Nerd Font、Monaco 和 fontconfig" \

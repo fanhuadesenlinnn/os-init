@@ -124,7 +124,7 @@ ArchDevKit 向导覆盖原项目能力：
 - `base`：通过 pacman 安装基础工具、排障工具、现代 CLI、tmux、AUR helper。
 - `archlinuxcn`：备份并修改 `/etc/pacman.conf`，安装 `archlinuxcn-keyring` 和可选 mirrorlist。
 - `dns`：写入 `/etc/systemd/resolved.conf.d/90-archdevkit-dns.conf`、`/etc/NetworkManager/conf.d/90-archdevkit-dns.conf`，可修改 `/etc/resolv.conf` 指向 systemd-resolved。
-- `runtime`：通过 pacman 安装 Node.js、npm、Python、Go、mise、corepack，并写入 `~/.config/archdevkit/mise-china.env`。
+- `runtime`：通过 pacman 安装 mise，再由 mise 安装 Node.js 24、Python 3.13、Go 1.24，并写入 `~/.config/archdevkit/mise-china.env`。
 - `git`：安装 git、GitHub CLI、OpenSSH，并写入全局 Git 配置。
 - `ops-toolkit`：克隆仓库到 `~/.local/share/ops-toolkit`，在 `~/.local/bin` 生成命令入口。
 - `nvim`：安装 Neovim 并写入 ArchDevKit 的 Neovim 配置。
@@ -202,19 +202,12 @@ ArchDevKit 向导覆盖原项目能力：
 - 会确保 zsh 和 oh-my-zsh 已存在，并更新 `os-init oh-my-zsh` 管理块里的 `plugins=(...)`。
 - 卸载时删除上述插件目录。
 
-### nvm
+### mise 运行时管理
 
-- macOS 使用 Homebrew 安装、更新和卸载 `nvm`；其他平台继续使用官方安装脚本。
-- `NVM_DIR` 保持为 `~/.nvm`，macOS 从 `brew --prefix nvm` 加载 `nvm.sh` 和补全脚本。
-- 在 `~/.zshrc` 写入或更新 `os-init nvm` 管理块。
-- macOS 卸载时保留 `~/.nvm` 中的 Node 版本和缓存；其他平台只删除由 OS Init 创建的目录。
-
-### fnm
-
-- 下载并执行 fnm 安装脚本。
-- 必要时通过包管理器安装 `unzip`；macOS 使用 Homebrew。
-- 安装器使用 `--skip-shell`，由 os-init 写入 `os-init fnm` 管理块。
-- 卸载时删除当前 `fnm` 二进制以及 `~/.local/share/fnm`、`~/.fnm`。
+- mise 是 macOS 和 Arch Linux 唯一的 Node.js、Python、Go 版本管理器，不再提供 nvm 或 fnm 安装入口。
+- 全局版本为 Node.js 24、Python 3.13、Go 1.24，并跟随各版本系列的最新补丁版本。
+- 登录 Shell 使用 shims，交互式 Shell 使用完整 activate；安装时清理由 OS Init 写入的旧 nvm/fnm 管理块，但保留用户数据。
+- 中国大陆默认配置 Node/Go SDK 下载镜像以及 npm、pip、uv、Go module 镜像；SDK 镜像失败时使用官方源重试，始终保留校验。
 
 ### Git 配置
 
@@ -320,7 +313,7 @@ ArchDevKit 向导覆盖原项目能力：
 - 媒体和数据处理：`ffmpeg`、`imagemagick`、`gallery-dl`、`yt-dlp`、`jq`
 - 其他已纳入工具：`herdr`、`llmfit`
 - `zoxide` 会写入 `os-init zoxide` zsh 管理块。
-- `mise` 会写入 `os-init mise` zsh 管理块。
+- `mise` 会在 `~/.zprofile` 写入 shims 管理块、在 `~/.zshrc` 写入完整 activate 管理块，并安装 Node.js 24、Python 3.13、Go 1.24。
 
 ### Mihomo
 

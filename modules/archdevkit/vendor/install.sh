@@ -76,10 +76,8 @@ ArchDevKit - Arch Linux 工作站初始化工具
   --no-china                不配置 npm/pip 国内源
   --no-github-proxy         不使用 GitHub 代理
   --github-proxy URL        指定 GitHub 代理
-  --node-mirror URL         指定后续手动 mise use 使用的 Node.js 下载镜像
-  --go-mirror URL           指定后续手动 mise use 使用的 Go SDK 下载镜像
-  --python-build-mirror URL 指定后续手动 mise use 使用的 python-build 下载镜像
-  --pyenv-repo URL          指定 mise Python 使用的 pyenv 仓库
+  --node-mirror URL         指定 mise 使用的 Node.js 下载镜像
+  --go-mirror URL           指定 mise 使用的 Go SDK 下载镜像
   --dns                     dev/workstation 中配置系统 DNS
   --no-dns                  dev/workstation 中跳过系统 DNS
   --with-ops-toolkit        dev/workstation 中安装 Ops Toolkit
@@ -92,10 +90,9 @@ ArchDevKit - Arch Linux 工作站初始化工具
   --repo URL                指定 Neovim 配置仓库
   --branch NAME             指定 Neovim 配置分支
   --no-plugin-sync          不同步 Neovim 插件
-  --node-version VERSION    指定后续手动 mise use 的 Node.js 目标版本
-  --npm-version VERSION     指定后续手动 npm 调整的目标版本
-  --python-version VERSION  指定后续手动 mise use 的 Python 目标版本
-  --go-version VERSION      指定后续手动 mise use 的 Go 目标版本
+  --node-version VERSION    指定 mise 全局 Node.js 目标版本
+  --python-version VERSION  指定 mise 全局 Python 目标版本
+  --go-version VERSION      指定 mise 全局 Go 目标版本
   --no-sddm                 不启用 SDDM
   --nvidia                  安装 NVIDIA Wayland 相关包
   --gpu TYPE                指定 GPU 类型：auto / intel / amd / nvidia / vmware / virtio / qxl / virtualbox / none
@@ -178,10 +175,6 @@ parse_args() {
       --node-mirror=*) NODE_MIRROR_URL="${1#*=}"; shift ;;
       --go-mirror) GO_DOWNLOAD_MIRROR="${2:-}"; shift 2 ;;
       --go-mirror=*) GO_DOWNLOAD_MIRROR="${1#*=}"; shift ;;
-      --python-build-mirror) PYTHON_BUILD_MIRROR_URL="${2:-}"; shift 2 ;;
-      --python-build-mirror=*) PYTHON_BUILD_MIRROR_URL="${1#*=}"; shift ;;
-      --pyenv-repo) PYENV_REPO_URL="${2:-}"; shift 2 ;;
-      --pyenv-repo=*) PYENV_REPO_URL="${1#*=}"; shift ;;
       --dns) ENABLE_DNS=1; shift ;;
       --no-dns) ENABLE_DNS=0; shift ;;
       --with-ops-toolkit) ENABLE_OPS_TOOLKIT=1; shift ;;
@@ -203,8 +196,6 @@ parse_args() {
       --no-plugin-sync) SYNC_NVIM_PLUGINS=0; shift ;;
       --node-version) NODE_VERSION="${2:-}"; shift 2 ;;
       --node-version=*) NODE_VERSION="${1#*=}"; shift ;;
-      --npm-version) NPM_VERSION="${2:-}"; shift 2 ;;
-      --npm-version=*) NPM_VERSION="${1#*=}"; shift ;;
       --python-version) PYTHON_VERSION="${2:-}"; shift 2 ;;
       --python-version=*) PYTHON_VERSION="${1#*=}"; shift ;;
       --go-version) GO_VERSION="${2:-}"; shift 2 ;;

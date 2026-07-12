@@ -94,7 +94,7 @@ bash install.sh install proxy
 | `archlinuxcn` | archlinuxcn 软件源 |
 | `git` | Git、GitHub CLI、OpenSSH 和基础 Git 配置 |
 | `ops-toolkit` | 克隆可更新的运维脚本仓库，并写入稳定命令入口 |
-| `runtime` | 系统 Node.js/npm/Python/Go 和 mise |
+| `runtime` | mise 管理的 Node 24、Python 3.13 和 Go 1.24 |
 | `nvim` | Neovim 和个人配置 |
 | `docker` | Docker、Docker Compose、镜像源和用户组 |
 | `fonts` | 中文字体、Emoji、Nerd Font、可选 Monaco |

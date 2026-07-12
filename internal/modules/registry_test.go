@@ -296,7 +296,6 @@ func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
 	}
 	shellScript := string(shellData)
 	for _, want := range []string{
-		"brew_install nvm",
 		"brew_install orbstack",
 		"raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh",
 		"romkatv/powerlevel10k.git",
@@ -336,7 +335,7 @@ func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
 func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
-	for _, id := range []string{"shell-zsh", "shell-direnv", "shell-nvm", "shell-fnm"} {
+	for _, id := range []string{"shell-zsh", "shell-direnv"} {
 		mod := findModule(t, mods, id)
 		if len(mod.InstalledZshBlocks) == 0 {
 			t.Fatalf("%s should declare zsh block checks", id)
@@ -346,6 +345,48 @@ func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 		mod := findModule(t, mods, id)
 		if len(mod.InstalledShellBlocks) == 0 {
 			t.Fatalf("%s should declare shell block checks", id)
+		}
+	}
+}
+
+func TestLegacyRuntimeManagersAreRemoved(t *testing.T) {
+	t.Parallel()
+	mods := modules.AllModules()
+	for _, id := range []string{"shell-nvm", "shell-fnm"} {
+		if hasModuleID(mods, id) {
+			t.Fatalf("legacy runtime manager %s should not be registered", id)
+		}
+	}
+	data, err := os.ReadFile(filepath.Join("..", "..", "modules", "shell", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `want "nvm"`) || strings.Contains(string(data), `want "fnm"`) {
+		t.Fatal("shell installer should not expose nvm/fnm installation routes")
+	}
+}
+
+func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(filepath.Join("..", "..", "modules", "macos", "cli.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	for _, want := range []string{
+		`MISE_NODE_VERSION:-24`,
+		`MISE_PYTHON_VERSION:-3.13`,
+		`MISE_GO_VERSION:-1.24`,
+		`mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"`,
+		`mise activate zsh --shims`,
+		`mise activate zsh`,
+		`https://registry.npmmirror.com`,
+		`https://pypi.tuna.tsinghua.edu.cn/simple`,
+		`https://goproxy.cn,direct`,
+		`国内运行时镜像安装失败，使用官方源重试`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("mise installer should contain %q", want)
 		}
 	}
 }

@@ -40,7 +40,7 @@ make build
 - Docker：Arch Linux 使用 pacman/AUR 安装 Docker 组件；Debian/RedHat 系使用 Docker 静态二进制和 Docker Compose CLI 插件。
 - Mihomo：按 ArchDevKit 风格安装代理核心、配置模板、systemd 服务和 MetaCubeXD 面板。
 - ArchDevKit：在 Arch Linux 上显示独立菜单，完整嵌入 ArchDevKit 的 base、archlinuxcn、dns、runtime、desktop、doctor、config 等能力。
-- Shell 接入：Go、starship、direnv、Yazi、Neovim、nvm/fnm 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
+- Shell 接入：mise、starship、direnv、Yazi、Neovim 等会写入 os-init 管理块，不覆盖用户自己的 rc 配置。
 - 终端体验：Starship 自动选择本地图形终端 `rich`、SSH `simple`、TTY/救援环境 `plain` 三种样式；可配置 eza/bat 友好 alias。
 - 中英双语界面：启动时可选择中文或 English；菜单、确认信息、执行状态和结果页会保持所选语言一致。
 
@@ -74,14 +74,14 @@ Choose `English` on startup, or set `OS_INIT_LANG=en_US` before launching. The E
 
 | 分组 | 模块 |
 | --- | --- |
-| Shell 工具 | zsh、oh-my-zsh、starship、direnv、zsh 插件、nvm/fnm、Git 配置、byobu/tmux（Linux） |
+| Shell 工具 | zsh、oh-my-zsh、starship、direnv、zsh 插件、Git 配置、byobu/tmux（Linux） |
 | 终端体验 | 终端样式：本地 rich、SSH simple、TTY plain 自动切换 |
 | 终端工具 | ncdu、Yazi |
 | macOS 开发应用 | Chrome、Codex、OrbStack、VS Code、iTerm2、Ghostty、Sublime Text |
 | macOS 代理网络 | Clash Party、Royal TSX、Seafile Client |
 | macOS 效率/输入/媒体 | PixPin、Bob、Loop、Ice、Stats、MonitorControl、Mos、Input Source Pro、Squirrel、Karabiner、AlDente、Keka、IINA、Downie、Motrix Next、Spotify、Steam、腾讯视频等 |
 | macOS AI/办公/通讯 | ChatGPT、LM Studio、Cherry Studio、SiYuan、微信、Telegram、腾讯会议、WPS Office、Bitwarden、CleanMyMac X、CC Switch |
-| macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
+| macOS 命令行 | bat、eza、ripgrep、fd、fzf、gh、jq、mise（Node 24 / Python 3.13 / Go 1.24）、nmap、nushell、tmux、uv、zoxide、ffmpeg、ImageMagick、yt-dlp 等 |
 | 网络代理 | Mihomo |
 | 开发工具 | Docker、Go、Neovim + Neovide + config-yuan |
 
@@ -99,7 +99,7 @@ ArchDevKit 安装目标通过“原版交互菜单”选择。进入后按 ArchD
 | archlinuxcn 软件源 | archlinuxcn 源、keyring、mirrorlist |
 | 系统 DNS | systemd-resolved、NetworkManager DNS 后端、国内 DNS 基线 |
 | Git / Ops Toolkit | GitHub CLI、OpenSSH、ops-toolkit 命令入口 |
-| Runtime / mise | Node/npm/Python/Go、mise、国内镜像环境 |
+| Runtime / mise | mise 统一管理 Node 24、Python 3.13、Go 1.24 和国内镜像环境 |
 | Neovim / Docker / 字体 | ArchDevKit 原有开发环境模块 |
 | Zsh / Proxy / Hyprland | Oh My Zsh、Starship 终端样式、Mihomo/sing-box、Hyprland 桌面 |
 | dev / workstation | ArchDevKit 原有组合套餐 |

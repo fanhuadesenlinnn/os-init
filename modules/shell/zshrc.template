@@ -28,15 +28,3 @@ source $ZSH/oh-my-zsh.sh
 
 eval "$(starship init zsh)"
 eval "$(direnv hook zsh)"
-
-# nvm (Node Version Manager)
-if [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  \. "$NVM_DIR/nvm.sh"
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-fi
-
-# fnm (Fast Node Manager)
-if command -v fnm &>/dev/null; then
-  eval "$(fnm env --use-on-cd --shell zsh)"
-fi

@@ -34,6 +34,17 @@ bash install.sh plan base --json | ruby -rjson -e '
   raise "base key mismatch" unless mod.fetch("key") == "base"
   raise "base description missing" if mod.fetch("description").empty?
 '
+
+echo "==> mise runtime strategy"
+grep -q '^NODE_VERSION="24"$' install_vars || { echo "runtime should default to Node 24"; exit 1; }
+grep -q '^PYTHON_VERSION="3.13"$' install_vars || { echo "runtime should default to Python 3.13"; exit 1; }
+grep -q '^GO_VERSION="1.24"$' install_vars || { echo "runtime should default to Go 1.24"; exit 1; }
+grep -q 'pacman_install mise' modules/runtime.sh || { echo "runtime should install mise through pacman"; exit 1; }
+grep -q 'mise use --global' modules/runtime.sh || { echo "runtime should install tools through mise"; exit 1; }
+if grep -Eq 'pacman_install.*(nodejs|python|go)' modules/runtime.sh; then
+  echo "runtime should not install language runtimes through pacman"
+  exit 1
+fi
 base_plan_output="$(bash install.sh plan base)"
 for package in dust bottom procs bandwhich sd hyperfine just; do
   [[ "${base_plan_output}" == *"${package}"* ]] || { echo "base plan missing ${package}"; exit 1; }

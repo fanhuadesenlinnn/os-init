@@ -42,12 +42,6 @@ var versionCheckers = []versionChecker{
 		versionRe:  regexp.MustCompile(`(\d+\.\d+\.\d+)`),
 	},
 	{
-		moduleID:   "shell-fnm",
-		repo:       "Schniz/fnm",
-		versionCmd: []string{"fnm", "--version"},
-		versionRe:  regexp.MustCompile(`(\d+\.\d+\.\d+)`),
-	},
-	{
 		moduleID:   "go",
 		repo:       "",
 		versionCmd: []string{"go", "version"},

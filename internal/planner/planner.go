@@ -325,12 +325,8 @@ func shellRank(id string) int {
 		return 14
 	case "shell-syntax-hl":
 		return 15
-	case "shell-nvm":
-		return 16
-	case "shell-fnm":
-		return 17
 	case "shell-byobu":
-		return 18
+		return 16
 	default:
 		return 19
 	}

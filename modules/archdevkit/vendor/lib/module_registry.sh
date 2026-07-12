@@ -8,7 +8,7 @@ module_desc() {
     archlinuxcn) echo "archlinuxcn 软件源" ;;
     git) echo "Git / GitHub CLI" ;;
     ops_toolkit) echo "Ops Toolkit 运维脚本命令" ;;
-    runtime) echo "系统 Node/npm/Python/Go + mise 版本管理器" ;;
+    runtime) echo "mise 管理 Node 24、Python 3.13 和 Go 1.24" ;;
     nvim) echo "Neovim + 个人配置" ;;
     docker) echo "Docker / Compose" ;;
     fonts) echo "字体环境" ;;
@@ -141,9 +141,9 @@ module_config_fingerprint() {
         printf 'mirrorlist=%s\n' "${INSTALL_ARCHLINUXCN_MIRRORLIST:-0}"
         ;;
       runtime)
-        printf 'runtime=%s\nnode=%s\npython=%s\ngo=%s\nnpm=%s\n' \
-          "${RUNTIME_MANAGER}" "${NODE_VERSION}" "${PYTHON_VERSION}" "${GO_VERSION}" "${NPM_VERSION}"
-        printf 'mirrors=%s|%s|%s\n' "${NODE_MIRROR_URL}" "${GO_DOWNLOAD_MIRROR}" "${PYTHON_BUILD_MIRROR_URL}"
+        printf 'runtime=%s\nnode=%s\npython=%s\ngo=%s\n' \
+          "${RUNTIME_MANAGER}" "${NODE_VERSION}" "${PYTHON_VERSION}" "${GO_VERSION}"
+        printf 'mirrors=%s|%s\n' "${NODE_MIRROR_URL}" "${GO_DOWNLOAD_MIRROR}"
         ;;
       ops_toolkit)
         printf 'repo=%s\nbranch=%s\ndir=%s\nbin=%s\ncommand=%s\n' \
@@ -231,7 +231,7 @@ menu_target_overview() {
   printf "  %-12s %s\n" "archlinuxcn" "软件源：启用 archlinuxcn 源、keyring 和可选 mirrorlist"
   printf "  %-12s %s\n" "git" "Git 环境：安装 git、gh、openssh，并写入基础 Git 配置"
   printf "  %-12s %s\n" "ops-toolkit" "运维脚本：克隆 ops-toolkit，并写入稳定命令入口"
-  printf "  %-12s %s\n" "runtime" "开发运行时：安装 nodejs、npm、python、go、mise、corepack，并配置国内镜像"
+  printf "  %-12s %s\n" "runtime" "开发运行时：pacman 安装 mise，由 mise 管理 Node/Python/Go"
   printf "  %-12s %s\n" "nvim" "Neovim：安装 Neovim，拉取个人配置，并按需同步插件"
   printf "  %-12s %s\n" "docker" "Docker：安装 docker/compose，配置镜像源、服务和用户组"
   printf "  %-12s %s\n" "fonts" "字体：中文字体、Emoji、Nerd Font、Monaco 和 fontconfig/GTK 字体设置"

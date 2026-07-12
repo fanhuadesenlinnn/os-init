@@ -94,8 +94,6 @@ func AllModules() []Module {
 		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 direnv", InstalledCmd: "direnv", InstalledZshBlocks: []string{"direnv"}},
 		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-autosuggestions"},
 		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-syntax-highlighting"},
-		{ID: "shell-nvm", Script: "shell/install.sh", Components: []string{"nvm"}, Label: "nvm", Description: "Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, InstalledMacOSBrewFormula: "nvm", InstalledLinuxChecks: []string{"$HOME/.nvm/nvm.sh"}, InstalledZshBlocks: []string{"nvm"}},
-		{ID: "shell-fnm", Script: "shell/install.sh", Components: []string{"fnm"}, Label: "fnm", Description: "快速 Node 版本管理", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 缺少 unzip 时会通过系统包管理器安装", InstalledCmd: "fnm", InstalledZshBlocks: []string{"fnm"}},
 		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 git-lfs", InstalledCmd: "git"},
 		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, Privilege: PrivilegeSystem, PrivilegeReason: "通过系统包管理器安装 byobu/tmux", InstalledCmd: "byobu"},
 
@@ -235,7 +233,7 @@ func ArchDevKitInstallModule(component string) (Module, bool) {
 	case "ops-toolkit":
 		return archDevKitInstall("ops-toolkit", "Ops Toolkit", "克隆运维脚本仓库并生成稳定命令入口", KindShellIntegration, "ops"), true
 	case "runtime":
-		return archDevKitInstall("runtime", "Runtime / mise", "系统 Node/npm/Python/Go、mise 和国内镜像配置", KindShellIntegration, "mise"), true
+		return archDevKitInstall("runtime", "Runtime / mise", "mise 管理 Node 24、Python 3.13、Go 1.24 和国内镜像", KindShellIntegration, "mise"), true
 	case "nvim":
 		return archDevKitInstall("nvim", "Neovim", "Neovim 和个人配置", KindShellIntegration, "nvim"), true
 	case "docker":
@@ -356,7 +354,7 @@ func macOSFormula(component, label, description, installedCmd string) Module {
 		zshBlocks = []string{component}
 	}
 
-	return Module{
+	module := Module{
 		ID:                   "macos-cli-" + component,
 		Script:               "macos/cli.sh",
 		Components:           []string{component},
@@ -372,6 +370,16 @@ func macOSFormula(component, label, description, installedCmd string) Module {
 		InstalledBrewFormula: component,
 		InstalledZshBlocks:   zshBlocks,
 	}
+	if component == "mise" {
+		module.Activates = []string{ActivationShellProfile}
+		module.InstalledCheck = "$HOME/.config/os-init/mise-china.env"
+		module.InstalledCommands = [][]string{
+			{"mise", "exec", "--", "node", "--version"},
+			{"mise", "exec", "--", "python", "--version"},
+			{"mise", "exec", "--", "go", "version"},
+		}
+	}
+	return module
 }
 
 func caskActivations(component string) []string {

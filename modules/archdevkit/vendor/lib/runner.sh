@@ -88,7 +88,7 @@ show_summary() {
     add_summary_tip "后续脚本更新可执行：cd ${OPS_TOOLKIT_DIR} && git pull --ff-only，既有命令入口保持不变。"
   fi
   if is_done "runtime"; then
-    add_summary_tip "系统 Node.js/npm/Python/Go 已可直接使用；重新打开终端，或执行 exec \"\$SHELL\"，让 mise activation 生效。"
+    add_summary_tip "mise 管理的 Node.js/Python/Go 已可使用；重新打开终端，或执行 exec \"\$SHELL\"，让 activation 生效。"
   fi
   if is_done "nvim"; then
     add_summary_tip "首次打开 Neovim 会加载插件；如果同步失败，可执行：nvim +Lazy sync。"
