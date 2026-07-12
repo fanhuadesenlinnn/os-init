@@ -151,27 +151,39 @@ prepare_cask_source() {
         motrix-next)
             install "$(os_init_text "添加 Homebrew tap: AnInsomniacy/motrix-next" "adding Homebrew tap: AnInsomniacy/motrix-next")"
             run_brew tap AnInsomniacy/motrix-next
+			if command brew help trust >/dev/null 2>&1; then
+				install "$(os_init_text "信任 Motrix Next cask" "trusting the Motrix Next cask")"
+				run_brew trust --cask aninsomniacy/motrix-next/motrix-next
+			fi
             ;;
     esac
 }
 
+cask_reference() {
+	case "$1" in
+		motrix-next) echo "aninsomniacy/motrix-next/motrix-next" ;;
+		*) echo "$1" ;;
+	esac
+}
+
 install_cask() {
-    local cask="$1" label
+	local cask="$1" label reference
     label="$(cask_label "$cask")"
+	reference="$(cask_reference "$cask")"
+	[[ "$cask" == "motrix-next" ]] && prepare_cask_source "$cask"
     if cask_installed "$cask"; then
         if [[ "$UPDATE" == true ]]; then
             update "更新 $label"
-            brew_upgrade --cask "$cask" 2>/dev/null || skip "$label 已是最新或由应用内更新器管理"
+			brew_upgrade --cask "$reference" 2>/dev/null || skip "$label 已是最新或由应用内更新器管理"
         else
             skip "$label 已安装"
         fi
 	else
 		install "安装 $label"
-		prepare_cask_source "$cask"
 		if install_without_cask_flag "$cask"; then
-			brew_install "$cask"
+			brew_install "$reference"
 		else
-			brew_install --cask "$cask"
+			brew_install --cask "$reference"
 		fi
 		os_init_mark_user_ownership "macos-cask-${cask//[^A-Za-z0-9._-]/-}"
 	fi

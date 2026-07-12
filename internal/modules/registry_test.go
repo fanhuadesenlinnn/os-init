@@ -232,10 +232,16 @@ func TestMacOSModules_DeclareHomebrewStatusChecks(t *testing.T) {
 		}
 		switch m.Script {
 		case "macos/install.sh":
+			if !m.RunIndividually {
+				t.Fatalf("macOS cask module %q should run individually", m.ID)
+			}
 			if m.InstalledBrewCask == "" {
 				t.Fatalf("macOS cask module %q should declare InstalledBrewCask", m.ID)
 			}
 		case "macos/cli.sh":
+			if !m.RunIndividually {
+				t.Fatalf("macOS formula module %q should run individually", m.ID)
+			}
 			if m.InstalledBrewFormula == "" {
 				t.Fatalf("macOS formula module %q should declare InstalledBrewFormula", m.ID)
 			}
@@ -268,7 +274,13 @@ func TestMacOSCustomHomebrewRoutes(t *testing.T) {
 	if !strings.Contains(script, "run_brew tap AnInsomniacy/motrix-next") {
 		t.Fatal("Motrix Next should add its Homebrew tap before installation")
 	}
-	for _, command := range []string{"brew_install \"$cask\"", "brew_install --cask \"$cask\""} {
+	if !strings.Contains(script, "run_brew trust --cask aninsomniacy/motrix-next/motrix-next") {
+		t.Fatal("Motrix Next should trust only its fully-qualified cask")
+	}
+	if !strings.Contains(script, `motrix-next) echo "aninsomniacy/motrix-next/motrix-next"`) {
+		t.Fatal("Motrix Next should install through its fully-qualified cask reference")
+	}
+	for _, command := range []string{"brew_install \"$reference\"", "brew_install --cask \"$reference\""} {
 		if !strings.Contains(script, command) {
 			t.Fatalf("macOS installer should contain route %q", command)
 		}
@@ -461,6 +473,25 @@ func TestGroupByScript_DeduplicatesComponentsButKeepsModuleLabels(t *testing.T) 
 	}
 	if got := groups[0].ModuleLabels; !reflect.DeepEqual(got, []string{"zsh-autosuggestions", "zsh-syntax-highlighting"}) {
 		t.Fatalf("module labels should be preserved, got %v", got)
+	}
+}
+
+func TestGroupByScript_KeepsIndividualModulesSeparate(t *testing.T) {
+	t.Parallel()
+	selected := []modules.Module{
+		{ID: "macos-visual-studio-code", Script: "macos/install.sh", Components: []string{"visual-studio-code"}, Label: "Visual Studio Code", RunIndividually: true},
+		{ID: "macos-motrix-next", Script: "macos/install.sh", Components: []string{"motrix-next"}, Label: "Motrix Next", RunIndividually: true},
+	}
+
+	groups := modules.GroupByScript(selected)
+	if len(groups) != 2 {
+		t.Fatalf("individual macOS modules should produce 2 groups, got %d", len(groups))
+	}
+	if got := groups[0].Components; !reflect.DeepEqual(got, []string{"visual-studio-code"}) {
+		t.Fatalf("first group components = %v", got)
+	}
+	if got := groups[1].Components; !reflect.DeepEqual(got, []string{"motrix-next"}) {
+		t.Fatalf("second group components = %v", got)
 	}
 }
 

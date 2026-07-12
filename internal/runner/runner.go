@@ -102,6 +102,9 @@ func Run(ctx context.Context, p Params) (Result, error) {
 		}
 		name := strings.ReplaceAll(p.Script, "/", "-")
 		name = strings.TrimSuffix(name, ".sh")
+		if len(p.Components) > 0 {
+			name += "-" + strings.Join(p.Components, "-")
+		}
 		logPath = filepath.Join(
 			p.LogDir,
 			fmt.Sprintf("%s-%s.log", name, time.Now().Format("20060102-150405")),

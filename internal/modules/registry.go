@@ -42,6 +42,7 @@ type Module struct {
 	Requires                  []string // "linux", "systemd"
 	Tags                      []string // "server", "dev", "cn-ready"
 	NeedsSudo                 bool     // invoke with sudo bash
+	RunIndividually           bool     // do not merge with modules that share the same script
 	Kind                      ModuleKind
 	DependsOn                 []string
 	Activates                 []string
@@ -266,6 +267,7 @@ func macOSCask(subsection, component, label, description, installedCheck string)
 		Category:          "installation",
 		Subsection:        subsection,
 		OS:                "darwin",
+		RunIndividually:   true,
 		Kind:              KindInstallOnly,
 		Activates:         caskActivations(component),
 		ManualSteps:       caskManualSteps(component),
@@ -363,6 +365,7 @@ func macOSFormula(component, label, description, installedCmd string) Module {
 		Category:             "installation",
 		Subsection:           "macOS 命令行",
 		OS:                   "darwin",
+		RunIndividually:      true,
 		Kind:                 kind,
 		Activates:            activates,
 		InstalledCmd:         installedCmd,
@@ -564,6 +567,18 @@ func GroupByScript(selected []Module) []ScriptGroup {
 	var groups []ScriptGroup
 
 	for _, m := range selected {
+		if m.RunIndividually {
+			groups = append(groups, ScriptGroup{
+				Script:       m.Script,
+				Components:   appendUnique(nil, m.Components...),
+				Label:        m.Label,
+				NeedsSudo:    m.NeedsSudo,
+				Privilege:    m.Privilege,
+				ModuleIDs:    []string{m.ID},
+				ModuleLabels: []string{m.Label},
+			})
+			continue
+		}
 		key := m.Script
 		if idx, ok := seen[key]; ok && len(m.Components) > 0 {
 			groups[idx].Components = appendUnique(groups[idx].Components, m.Components...)

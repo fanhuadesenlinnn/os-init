@@ -281,7 +281,7 @@ ArchDevKit 向导覆盖原项目能力：
 - 媒体和下载：
   - `iina` -> `/Applications/IINA.app`
   - `downie` -> `/Applications/Downie 4.app`
-  - `motrix-next` -> `/Applications/MotrixNext.app`（安装前执行 `brew tap AnInsomniacy/motrix-next`）
+  - `motrix-next` -> `/Applications/MotrixNext.app`（安装前添加 tap；Homebrew 6+ 仅信任 `aninsomniacy/motrix-next/motrix-next` cask，再使用完整引用安装）
   - `spotify` -> `/Applications/Spotify.app`
   - `steam` -> `/Applications/Steam.app`
   - `qqlive` -> `/Applications/QQLive.app`
@@ -307,6 +307,7 @@ ArchDevKit 向导覆盖原项目能力：
 - OrbStack 安装后需要打开应用完成首次初始化。
 - Clash Party 安装后需要用户在应用内导入自己的代理配置。
 - Motrix Next 当前未签名；如果 macOS 阻止打开，程序只提示用户核对上游说明，不会自动移除隔离属性。
+- macOS cask 和 formula 模块逐个执行，各自拥有日志、耗时和退出码；单个软件失败不会把同批已成功软件误报为失败。
 - Royal TSX、Seafile Client、Bitwarden 安装后需要用户在应用内登录或导入自己的数据。
 
 ### macOS 命令行工具

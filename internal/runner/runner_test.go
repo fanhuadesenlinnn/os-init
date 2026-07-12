@@ -149,6 +149,26 @@ func TestRun_WritesLogFile(t *testing.T) {
 	}
 }
 
+func TestRun_LogFileIncludesComponents(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	logDir := t.TempDir()
+	writeScript(t, dir, "modules/test/log.sh", "#!/bin/bash\necho logme")
+
+	result, err := runner.Run(context.Background(), runner.Params{
+		TmpDir:     dir,
+		Script:     "test/log.sh",
+		Components: []string{"visual-studio-code"},
+		LogDir:     logDir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(filepath.Base(result.LogFile), "test-log-visual-studio-code-") {
+		t.Fatalf("component-specific log filename = %q", result.LogFile)
+	}
+}
+
 func TestRun_OversizedLineDoesNotDeadlock(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
