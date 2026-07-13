@@ -49,8 +49,12 @@ run_confirmed() {
   --reboot) systemctl reboot ;;
   --hibernate) systemctl hibernate ;;
   --suspend)
-    command -v mpc >/dev/null 2>&1 && mpc -q pause || true
-    command -v amixer >/dev/null 2>&1 && amixer set Master mute || true
+    if command -v mpc >/dev/null 2>&1; then
+      mpc -q pause || true
+    fi
+    if command -v amixer >/dev/null 2>&1; then
+      amixer set Master mute || true
+    fi
     systemctl suspend
     ;;
   --logout) hyprctl dispatch exit ;;
