@@ -43,118 +43,71 @@ func defaultInstallStatusChecker() *installStatusChecker {
 }
 
 func (c *installStatusChecker) moduleInstalled(ctx context.Context, m modules.Module) bool {
-	checks := 0
-	goos := mCheckerGOOS(c)
-	if goos == "darwin" && m.InstalledMacOSBrewFormula != "" {
-		checks++
-		if !c.brewFormulaInstalled(ctx, m.InstalledMacOSBrewFormula) {
-			return false
-		}
-	}
+	ok, active := c.evaluateCheck(ctx, m.Verify)
+	return active && ok
+}
 
-	if m.InstalledBrewCask != "" {
-		checks++
-		if !c.brewCaskInstalled(ctx, m.InstalledBrewCask) && !c.pathExists(m.InstalledCheck) {
-			return false
-		}
-	} else if m.InstalledBrewFormula != "" {
-		checks++
-		if !c.brewFormulaInstalled(ctx, m.InstalledBrewFormula) {
-			return false
-		}
-	} else {
-		if m.InstalledCmd != "" {
-			checks++
-			if !c.commandExists(m.InstalledCmd) {
-				return false
+func (c *installStatusChecker) evaluateCheck(ctx context.Context, check modules.Check) (bool, bool) {
+	if check.GOOS != "" && check.GOOS != mCheckerGOOS(c) {
+		return true, false
+	}
+	if len(check.All) > 0 {
+		active := false
+		for _, child := range check.All {
+			ok, childActive := c.evaluateCheck(ctx, child)
+			active = active || childActive
+			if childActive && !ok {
+				return false, true
 			}
 		}
-		for _, command := range m.InstalledCommands {
-			checks++
-			if !c.commandSucceeds(ctx, command) {
-				return false
+		return true, active
+	}
+	if len(check.Any) > 0 {
+		active := false
+		for _, child := range check.Any {
+			ok, childActive := c.evaluateCheck(ctx, child)
+			active = active || childActive
+			if childActive && ok {
+				return true, true
 			}
 		}
-		if len(m.InstalledAnyCommands) > 0 {
-			checks++
-			if !c.anyCommandSucceeds(ctx, m.InstalledAnyCommands) {
-				return false
-			}
-		}
-		if m.InstalledCheck != "" {
-			checks++
-			if !c.pathExists(m.InstalledCheck) {
-				return false
-			}
-		}
-		for _, path := range m.InstalledChecks {
-			checks++
-			if !c.pathExists(path) {
-				return false
-			}
-		}
-		if len(m.InstalledAnyChecks) > 0 {
-			checks++
-			if !c.anyPathExists(m.InstalledAnyChecks) {
-				return false
-			}
-		}
+		return false, active
 	}
-
-	if m.InstalledGrepFile != "" {
-		checks++
-		if !c.grepFile(m.InstalledGrepFile) {
-			return false
-		}
+	if check.Kind == "" {
+		return false, false
 	}
-	if goos == "darwin" {
-		for _, path := range m.InstalledMacOSChecks {
-			checks++
-			if !c.pathExists(path) {
-				return false
-			}
-		}
+	value := ""
+	if len(check.Values) > 0 {
+		value = check.Values[0]
 	}
-	if goos == "linux" {
-		for _, path := range m.InstalledLinuxChecks {
-			checks++
-			if !c.pathExists(path) {
-				return false
-			}
+	switch check.Kind {
+	case modules.CheckCommand:
+		return c.commandExists(value), true
+	case modules.CheckCommandRun:
+		return c.commandSucceeds(ctx, check.Values), true
+	case modules.CheckPath:
+		return c.pathExists(value), true
+	case modules.CheckFileContains:
+		if len(check.Values) != 2 {
+			return false, true
 		}
+		data, err := c.readFile(c.expandPath(check.Values[0]))
+		return err == nil && strings.Contains(string(data), check.Values[1]), true
+	case modules.CheckBrewCask:
+		return c.brewCaskInstalled(ctx, value), true
+	case modules.CheckBrewFormula:
+		return c.brewFormulaInstalled(ctx, value), true
+	case modules.CheckZshBlock:
+		return c.zshBlockExists(value), true
+	case modules.CheckShellBlock:
+		return c.shellBlockExists(value), true
+	case modules.CheckSystemd:
+		return c.systemdServiceActive(ctx, value), true
+	case modules.CheckUserGroup:
+		return c.currentUserInGroup(ctx, value), true
+	default:
+		return false, true
 	}
-	for _, grepFile := range m.InstalledGrepFiles {
-		checks++
-		if !c.grepFile(grepFile) {
-			return false
-		}
-	}
-	for _, block := range m.InstalledZshBlocks {
-		checks++
-		if !c.zshBlockExists(block) {
-			return false
-		}
-	}
-	for _, block := range m.InstalledShellBlocks {
-		checks++
-		if !c.shellBlockExists(block) {
-			return false
-		}
-	}
-	for _, service := range m.InstalledSystemdServices {
-		checks++
-		if !c.systemdServiceActive(ctx, service) {
-			return false
-		}
-	}
-	for _, group := range m.InstalledUserGroups {
-		checks++
-		if !c.currentUserInGroup(ctx, group) {
-			return false
-		}
-	}
-
-	return checks > 0
 }
 
 func mCheckerGOOS(c *installStatusChecker) string {

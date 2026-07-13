@@ -38,20 +38,6 @@ all_modules() {
   echo "base aur archlinuxcn dns git ops_toolkit fonts proxy desktop_hyprland"
 }
 
-module_impacts() {
-  case "$(module_key "$1")" in
-    base) echo "pacman 基础命令行工具"; echo "${HOME}/.tmux.conf" ;;
-    aur) echo "paru / yay（root 与普通用户均优先使用 archlinuxcn 预编译包）" ;;
-    archlinuxcn) echo "/etc/pacman.conf"; echo "archlinuxcn keyring / mirrorlist" ;;
-    dns) echo "/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf"; echo "/etc/NetworkManager/conf.d/90-os-init-arch-dns.conf"; echo "/etc/resolv.conf" ;;
-    git) echo "git / github-cli / openssh"; echo "目标用户全局 Git 配置" ;;
-    ops_toolkit) echo "${OPS_TOOLKIT_DIR}"; echo "${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}" ;;
-    fonts) echo "系统字体包和目标用户 fontconfig/GTK 配置" ;;
-    proxy) echo "${MIHOMO_CONFIG_FILE}"; echo "${MIHOMO_STATE_DIR}"; echo "${MIHOMO_SERVICE_NAME}" ;;
-    desktop_hyprland) echo "Hyprland/SDDM/Fcitx5/Rime 系统能力"; echo "${HOME}/.config/{hypr,waybar,rofi,dunst,yazi,btop,alacritty}" ;;
-  esac
-}
-
 module_config_fingerprint() {
   local module
   module="$(module_key "$1")"
@@ -99,9 +85,4 @@ module_install_func() {
     desktop_hyprland) install_desktop_hyprland ;;
     *) die "未知 Arch 模块：$1" ;;
   esac
-}
-
-menu_target_overview() {
-  echo "可用 Arch 能力：base aur archlinuxcn dns git ops-toolkit fonts mihomo desktop"
-  echo "dev/workstation 组合请从 OS Init 主菜单选择。"
 }

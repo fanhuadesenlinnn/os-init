@@ -51,11 +51,16 @@ func TestExecutorCancellationStopsCurrentGroupAndDoesNotContinue(t *testing.T) {
 	if err := os.WriteFile(script, []byte("#!/bin/bash\necho started\nsleep 30\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	provider := filepath.Join(tmp, "modules", "provider.sh")
+	providerScript := "#!/bin/bash\nshift\nscript=\"\"\nwhile [[ $# -gt 0 ]]; do case \"$1\" in --script) script=\"$2\"; shift 2 ;; --operation) shift 2 ;; --component) shift 2 ;; esac; done\nexec bash \"$(dirname \"$0\")/$script\"\n"
+	if err := os.WriteFile(provider, []byte(providerScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m := newExecutorModel([]modules.Module{{
 		ID: "slow", Script: "test/run.sh", Label: "slow",
-	}}, tmp, "", nil, "", ctx)
+	}}, tmp, modules.OperationInstall, nil, "", ctx)
 
 	done := make(chan tea.Msg, 1)
 	go func() { done <- m.runCurrent()() }()

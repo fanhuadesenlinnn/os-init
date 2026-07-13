@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 )
 
 type modeOption struct {
@@ -23,10 +24,42 @@ func modeOptions() []modeOption {
 }
 
 type modeModel struct {
-	cursor int
+	cursor  int
+	options []modeOption
 }
 
-func newModeModel() modeModel { return modeModel{} }
+func newModeModel(selected ...modules.Module) modeModel {
+	options := modeOptions()
+	if len(selected) > 0 {
+		filtered := make([]modeOption, 0, len(options))
+		for _, option := range options {
+			supported := true
+			operation := operationForMode(option.mode)
+			for _, module := range selected {
+				if !module.SupportsOperation(operation) {
+					supported = false
+					break
+				}
+			}
+			if supported {
+				filtered = append(filtered, option)
+			}
+		}
+		options = filtered
+	}
+	return modeModel{options: options}
+}
+
+func operationForMode(selected mode) modules.Operation {
+	switch selected {
+	case modeUpdate:
+		return modules.OperationUpdate
+	case modeUninstall:
+		return modules.OperationUninstall
+	default:
+		return modules.OperationInstall
+	}
+}
 
 func (m modeModel) Init() tea.Cmd { return nil }
 
@@ -39,11 +72,14 @@ func (m modeModel) Update(msg tea.Msg) (modeModel, tea.Cmd) {
 				m.cursor--
 			}
 		case "down", "j":
-			if m.cursor < len(modeOptions())-1 {
+			if m.cursor < len(m.options)-1 {
 				m.cursor++
 			}
 		case "enter":
-			selected := modeOptions()[m.cursor].mode
+			if len(m.options) == 0 {
+				return m, nil
+			}
+			selected := m.options[m.cursor].mode
 			return m, func() tea.Msg { return selectedModeMsg{mode: selected} }
 		case "esc":
 			return m, func() tea.Msg { return switchScreenMsg{to: screenMenu} }
@@ -64,7 +100,7 @@ func (m modeModel) View() string {
 		helpAction{key: "Esc", desc: text("返回", "back")},
 	) + "\n\n")
 
-	for i, opt := range modeOptions() {
+	for i, opt := range m.options {
 		cursor := "  "
 		if i == m.cursor {
 			cursor = lipgloss.NewStyle().Foreground(ColorAccent).Render("▸ ")

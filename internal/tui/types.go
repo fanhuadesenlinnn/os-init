@@ -41,17 +41,6 @@ func (m mode) String() string {
 	return ""
 }
 
-// Flag returns the CLI flag for the mode.
-func (m mode) Flag() string {
-	switch m {
-	case modeUpdate:
-		return "--update"
-	case modeUninstall:
-		return "--uninstall"
-	}
-	return ""
-}
-
 // Shared messages between screens.
 
 type switchScreenMsg struct{ to screen }

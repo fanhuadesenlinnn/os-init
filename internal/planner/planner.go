@@ -7,16 +7,8 @@ import (
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
-type Mode string
-
-const (
-	ModeInstall   Mode = "install"
-	ModeUpdate    Mode = "update"
-	ModeUninstall Mode = "uninstall"
-)
-
 type Options struct {
-	Mode Mode
+	Operation modules.Operation
 }
 
 type Plan struct {
@@ -59,9 +51,9 @@ func (p Plan) BlockingIssue() (Issue, bool) {
 }
 
 func Build(selected []modules.Module, target platform.Target, opts Options) Plan {
-	mode := opts.Mode
-	if mode == "" {
-		mode = ModeInstall
+	operation := opts.Operation
+	if operation == "" {
+		operation = modules.OperationInstall
 	}
 
 	selected = dedupeModules(selected)
@@ -71,13 +63,17 @@ func Build(selected []modules.Module, target platform.Target, opts Options) Plan
 	}
 
 	available, registryOrder := availableModules(target, selected)
+	validateSelection(selected, operation, &plan)
+	if _, blocked := plan.BlockingIssue(); blocked {
+		return plan
+	}
 	planned := append([]modules.Module(nil), selected...)
 	plannedByID := map[string]modules.Module{}
 	for _, m := range planned {
 		plannedByID[m.ID] = m
 	}
 
-	if mode != ModeUninstall {
+	if operation != modules.OperationUninstall {
 		visiting := map[string]bool{}
 		for i := 0; i < len(planned); i++ {
 			ensureDependencies(planned[i], available, plannedByID, &planned, &plan, visiting)
@@ -85,8 +81,46 @@ func Build(selected []modules.Module, target platform.Target, opts Options) Plan
 		plan.SoftAssociations = softAssociations(plannedByID, available)
 	}
 
+	planned = executableModules(planned)
 	plan.Modules = orderModules(planned, registryOrder)
 	return plan
+}
+
+func validateSelection(selected []modules.Module, operation modules.Operation, plan *Plan) {
+	actions := 0
+	stateful := 0
+	for _, module := range selected {
+		if module.EntryKind == modules.EntryAction {
+			actions++
+		} else {
+			stateful++
+		}
+		if !module.SupportsOperation(operation) {
+			plan.Issues = append(plan.Issues, Issue{
+				Blocking:  true,
+				MessageZH: "选中的项目不支持当前操作：" + module.Label,
+				MessageEN: "The selected item does not support this operation: " + module.Label,
+				ModuleIDs: []string{module.ID},
+			})
+		}
+	}
+	if actions > 0 && stateful > 0 {
+		plan.Issues = append(plan.Issues, Issue{
+			Blocking:  true,
+			MessageZH: "诊断/状态操作不能与安装模块在同一批次执行。",
+			MessageEN: "Diagnostic/status actions cannot be mixed with lifecycle modules in one batch.",
+		})
+	}
+}
+
+func executableModules(planned []modules.Module) []modules.Module {
+	out := make([]modules.Module, 0, len(planned))
+	for _, module := range planned {
+		if module.EntryKind != modules.EntryPreset {
+			out = append(out, module)
+		}
+	}
+	return out
 }
 
 func ensureDependencies(
@@ -241,82 +275,7 @@ func moduleLess(a, b modules.Module, registryOrder map[string]int) bool {
 }
 
 func moduleRank(m modules.Module) int {
-	if m.Category == "optimization" {
-		switch m.ID {
-		case "network-ipv4":
-			return 80
-		case "network-tune":
-			return 81
-		default:
-			return 82
-		}
-	}
-	if m.Category != "installation" {
-		return 100
-	}
-
-	switch m.Subsection {
-	case "Shell 工具":
-		return shellRank(m.ID)
-	case "终端体验":
-		return 19
-	case "终端工具":
-		return 20
-	case "macOS 命令行":
-		return 25
-	case "网络代理":
-		return 30
-	case "开发工具":
-		switch m.ID {
-		case "go":
-			return 40
-		case "neovim":
-			return 45
-		case "docker":
-			return 50
-		default:
-			return 45
-		}
-	case "macOS 开发应用":
-		return 60
-	case "macOS 代理网络":
-		return 61
-	case "macOS 效率工具":
-		return 62
-	case "macOS 输入增强":
-		return 63
-	case "macOS 媒体下载":
-		return 64
-	case "macOS AI 笔记":
-		return 65
-	case "macOS 通讯办公":
-		return 66
-	case "macOS 字体":
-		return 67
-	default:
-		return 70
-	}
-}
-
-func shellRank(id string) int {
-	switch id {
-	case "shell-zsh":
-		return 10
-	case "shell-git":
-		return 11
-	case "shell-starship":
-		return 12
-	case "shell-direnv":
-		return 13
-	case "shell-autosuggestions":
-		return 14
-	case "shell-syntax-hl":
-		return 15
-	case "shell-byobu":
-		return 16
-	default:
-		return 19
-	}
+	return int(m.Phase)*1000 + m.Order
 }
 
 func availableModules(target platform.Target, selected []modules.Module) (map[string]modules.Module, map[string]int) {

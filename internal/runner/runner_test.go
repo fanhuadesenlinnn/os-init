@@ -20,6 +20,29 @@ func writeScript(t *testing.T, dir, relPath, content string) string {
 	if err := os.WriteFile(full, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	provider := filepath.Join(dir, "modules", "provider.sh")
+	if relPath != "provider.sh" {
+		if err := os.WriteFile(provider, []byte(`#!/bin/bash
+set -euo pipefail
+shift
+script=""; operation="install"; args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --script) script="$2"; shift 2 ;;
+    --operation) operation="$2"; shift 2 ;;
+    --component) args+=("$2"); shift 2 ;;
+  esac
+done
+[[ "$operation" == update ]] && args+=(--update)
+[[ "$operation" == uninstall ]] && args+=(--uninstall)
+if [[ ${#args[@]} -gt 0 ]]; then
+  exec bash "$(dirname "$0")/$script" "${args[@]}"
+fi
+exec bash "$(dirname "$0")/$script"
+`), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return full
 }
 
@@ -79,7 +102,7 @@ func TestRun_PassesComponents(t *testing.T) {
 		TmpDir:     dir,
 		Script:     "test/args.sh",
 		Components: []string{"zsh", "starship"},
-		Mode:       "--update",
+		Operation:  "update",
 		OnLine:     onLine,
 	})
 	if err != nil {
@@ -90,6 +113,29 @@ func TestRun_PassesComponents(t *testing.T) {
 	}
 	if !strings.Contains(lines[0], "zsh") || !strings.Contains(lines[0], "starship") || !strings.Contains(lines[0], "--update") {
 		t.Errorf("expected args with components and mode, got %q", lines[0])
+	}
+}
+
+func TestRun_UsesStableProviderProtocol(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	providerData, err := os.ReadFile(filepath.Join("..", "..", "modules", "provider.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeScript(t, dir, "modules/test/args.sh", "#!/bin/bash\nprintf '%s\\n' \"$@\"\n")
+	if err := os.WriteFile(filepath.Join(dir, "modules", "provider.sh"), providerData, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := runner.Run(context.Background(), runner.Params{
+		TmpDir: dir, Script: "test/args.sh", Components: []string{"alpha", "beta"}, Operation: "update",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != 0 || !strings.Contains(result.Output, "alpha\nbeta\n--update") {
+		t.Fatalf("provider did not adapt the stable protocol: %+v", result)
 	}
 }
 

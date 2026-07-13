@@ -41,7 +41,7 @@ type Params struct {
 	TmpDir     string
 	Script     string            // relative to modules/, e.g. "shell/install.sh"
 	Components []string          // sub-components to pass as args
-	Mode       string            // "--update" or "--uninstall" or ""
+	Operation  string            // stable provider operation: install, update, uninstall
 	Env        map[string]string // extra env vars
 	OnLine     func(string)      // called per line (ANSI-stripped), may be nil
 	LogDir     string            // if set, writes log file here
@@ -50,17 +50,20 @@ type Params struct {
 
 // Run executes a shell script and captures its output.
 func Run(ctx context.Context, p Params) (Result, error) {
-	scriptPath := filepath.Join(p.TmpDir, "modules", p.Script)
-
+	providerPath := filepath.Join(p.TmpDir, "modules", "provider.sh")
+	operation := p.Operation
+	if operation == "" {
+		operation = "install"
+	}
 	args := []string{}
 	if p.Sudo {
-		args = append(args, "bash", scriptPath)
+		args = append(args, "bash", providerPath)
 	} else {
-		args = append(args, scriptPath)
+		args = append(args, providerPath)
 	}
-	args = append(args, p.Components...)
-	if p.Mode != "" {
-		args = append(args, p.Mode)
+	args = append(args, "execute", "--script", p.Script, "--operation", operation)
+	for _, component := range p.Components {
+		args = append(args, "--component", component)
 	}
 
 	var cmd *exec.Cmd

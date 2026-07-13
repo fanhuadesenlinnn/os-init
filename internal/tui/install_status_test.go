@@ -64,7 +64,7 @@ func TestInstallStatusChecker_DetectsHomebrewCaskWithoutAppPath(t *testing.T) {
 		"brew\x00list\x00--cask": []byte("font-hack-nerd-font\n"),
 	})
 
-	mod := modules.Module{InstalledBrewCask: "font-hack-nerd-font"}
+	mod := modules.Module{Verify: modules.BrewCask("font-hack-nerd-font")}
 	if !checker.moduleInstalled(context.Background(), mod) {
 		t.Fatal("expected Homebrew cask module to be installed")
 	}
@@ -77,7 +77,7 @@ func TestInstallStatusChecker_DetectsHomebrewFormulaWithoutPATHCommand(t *testin
 		"brew\x00list\x00--formula": []byte("iftop\nrsync\nbind\n"),
 	})
 
-	mod := modules.Module{InstalledBrewFormula: "iftop", InstalledCmd: "iftop"}
+	mod := modules.Module{Verify: modules.BrewFormula("iftop")}
 	if !checker.moduleInstalled(context.Background(), mod) {
 		t.Fatal("expected Homebrew formula module to be installed even when command is outside PATH")
 	}
@@ -94,15 +94,15 @@ func TestInstallStatusChecker_RequiresMacOSSpecificFormulaAndPaths(t *testing.T)
 	writeFile(t, filepath.Join(home, ".config", "nvim", "init.lua"), "-- config-yuan\n")
 	writeFile(t, filepath.Join(home, ".config", "neovide", "config.toml"), "[font]\n")
 
-	zoxide := modules.Module{InstalledMacOSBrewFormula: "zoxide", InstalledZshBlocks: []string{"zoxide"}}
+	zoxide := modules.Module{Verify: modules.All(modules.BrewFormula("zoxide"), modules.ZshBlock("zoxide"))}
 	if !checker.moduleInstalled(context.Background(), zoxide) {
 		t.Fatal("zoxide should require both the Homebrew formula and managed zsh block on macOS")
 	}
 
-	combined := modules.Module{
-		InstalledCheck:       "$HOME/.config/nvim/init.lua",
-		InstalledMacOSChecks: []string{"$HOME/.config/neovide/config.toml"},
-	}
+	combined := modules.Module{Verify: modules.All(
+		modules.Path("$HOME/.config/nvim/init.lua"),
+		modules.OnGOOS("darwin", modules.Path("$HOME/.config/neovide/config.toml")),
+	)}
 	if !checker.moduleInstalled(context.Background(), combined) {
 		t.Fatal("combined Neovim module should require its macOS-specific config path")
 	}
@@ -124,7 +124,7 @@ func TestInstallStatusChecker_ShellIntegrationRequiresManagedBlock(t *testing.T)
 		return "", errors.New("missing")
 	}
 
-	mod := modules.Module{InstalledCmd: "starship", InstalledShellBlocks: []string{"starship"}}
+	mod := modules.Module{Verify: modules.All(modules.Command("starship"), modules.ShellBlock("starship"))}
 	if checker.moduleInstalled(context.Background(), mod) {
 		t.Fatal("starship should not be complete without the shell block")
 	}
@@ -142,7 +142,7 @@ func TestInstallStatusChecker_ShellBlockCanExistInOneInteractiveRc(t *testing.T)
 	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init go >>>\nexport PATH=\"/usr/local/go/bin:$PATH\"\n# <<< os-init go <<<\n")
 	writeFile(t, filepath.Join(home, ".bashrc"), "# user bash config\n")
 
-	mod := modules.Module{InstalledShellBlocks: []string{"go"}}
+	mod := modules.Module{Verify: modules.ShellBlock("go")}
 	if !checker.moduleInstalled(context.Background(), mod) {
 		t.Fatal("shell integration should be complete when the managed block exists in one interactive rc file")
 	}
@@ -160,11 +160,14 @@ func TestInstallStatusChecker_SystemServiceRequiresCommandsServicesAndGroup(t *t
 		"id\x00-nG": []byte("staff docker\n"),
 	})
 
-	mod := modules.Module{
-		InstalledCommands:        [][]string{{"docker", "--version"}, {"dockerd", "--version"}, {"docker", "compose", "version"}},
-		InstalledSystemdServices: []string{"docker.service", "containerd.service"},
-		InstalledUserGroups:      []string{"docker"},
-	}
+	mod := modules.Module{Verify: modules.All(
+		modules.CommandRun("docker", "--version"),
+		modules.CommandRun("dockerd", "--version"),
+		modules.CommandRun("docker", "compose", "version"),
+		modules.SystemdService("docker.service"),
+		modules.SystemdService("containerd.service"),
+		modules.UserGroup("docker"),
+	)}
 	if !checker.moduleInstalled(context.Background(), mod) {
 		t.Fatal("docker should be complete when commands, services, and group all pass")
 	}
@@ -188,11 +191,23 @@ func TestMacOSFormulaShellHooksDeclareStatusBlocks(t *testing.T) {
 		if mod.Kind != modules.KindShellIntegration {
 			t.Fatalf("%s kind = %q, want shell integration", id, mod.Kind)
 		}
-		want := []string{mod.Components[0]}
-		if !reflect.DeepEqual(mod.InstalledZshBlocks, want) {
-			t.Fatalf("%s InstalledZshBlocks = %v, want %v", id, mod.InstalledZshBlocks, want)
+		want := modules.ZshBlock(mod.Components[0])
+		if !checkContains(mod.Verify, want) {
+			t.Fatalf("%s verification does not contain zsh block %q: %#v", id, mod.Components[0], mod.Verify)
 		}
 	}
+}
+
+func checkContains(check, wanted modules.Check) bool {
+	if reflect.DeepEqual(check, wanted) {
+		return true
+	}
+	for _, child := range append(check.All, check.Any...) {
+		if checkContains(child, wanted) {
+			return true
+		}
+	}
+	return false
 }
 
 func fakeRun(outputs map[string][]byte) func(context.Context, string, ...string) ([]byte, error) {

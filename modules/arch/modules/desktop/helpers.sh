@@ -132,7 +132,7 @@ fi
 
 neovide_bin="$(find_real_neovide)" || {
   log "real neovide binary not found"
-  printf 'Neovide is not installed. Re-run: bash install.sh desktop\n' >&2
+  printf 'Neovide is not installed. Re-run OS Init and update Arch Hyprland Desktop.\n' >&2
   exit 127
 }
 

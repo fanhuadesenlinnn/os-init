@@ -38,5 +38,14 @@ grep -Fq 'install_package_from_pacman_prefer_archlinuxcn paru' "${SCRIPT_DIR}/li
 grep -Fq 'install_package_from_pacman_prefer_archlinuxcn yay' "${SCRIPT_DIR}/lib/packages.sh"
 grep -Fq 'mihomo_service_ready' "${SCRIPT_DIR}/modules/proxy/common.sh"
 grep -Fq 'https://example.com/your-subscription-url' "${SCRIPT_DIR}/files/mihomo/config.yaml.tpl"
+grep -Fq 'OS_INIT_PROVIDER_MODE' "${SCRIPT_DIR}/install.sh"
+grep -Fq 'restore_config_environment' "${SCRIPT_DIR}/install.sh"
+
+for removed_control in lib/plan.sh lib/runner.sh lib/recovery.sh lib/ui.sh preset.sh; do
+  if [[ -e "${SCRIPT_DIR}/${removed_control}" ]]; then
+    echo "duplicate Arch control-plane file remains: ${removed_control}" >&2
+    exit 1
+  fi
+done
 
 echo "Arch capability checks passed"

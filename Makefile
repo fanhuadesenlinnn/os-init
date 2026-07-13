@@ -12,8 +12,8 @@ run:
 
 lint:
 	test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './.git/*'))"
-	bash -n modules/lib.sh modules/*/*.sh tooling/*.sh
-	shellcheck modules/lib.sh modules/*/*.sh tooling/*.sh
+	bash -n modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
+	shellcheck modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
 
 test:
 	go test ./...

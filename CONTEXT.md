@@ -10,9 +10,18 @@ one flat module menu, one configuration surface, and one execution planner.
 **Arch Linux Capability**: A normal module available only on Arch-family
 systems. It may combine pacman/systemd work with target-user configuration.
 
-**Preset**: A dependency-only module that expands to ordinary modules. The
+**Preset**: A dependency-only catalog entry that expands to ordinary modules. The
 `arch-dev` and `arch-workstation` presets are convenience compositions; they
 do not own separate implementations, configuration, or state.
+
+**Action**: A one-shot command such as Arch diagnostics or detailed status.
+Actions have no installed state and cannot be mixed with lifecycle modules.
+
+**Lifecycle**: The install, update, and uninstall operations explicitly
+supported by a module. Unsupported operations are rejected during planning.
+
+**Provider**: The stable Shell execution boundary. Go supplies script,
+operation, and components; platform-specific Shell code implements the change.
 
 **Target User**: The account receiving user configuration. A normal user is
 the target when running normally; root is the target when OS Init runs as root.
@@ -31,6 +40,8 @@ the current platform.
 
 - Arch-specific modules and cross-platform modules share the same menu,
   planner, confirmation page, executor, and summary.
+- Presets are removed after dependency expansion, while actions remain
+  separate from stateful lifecycle modules.
 - A normal Arch user runs system work through sudo and user work without sudo.
 - In root mode, system work executes directly and user configuration targets
   `/root`; paru/yay use prebuilt archlinuxcn packages, while makepkg remains

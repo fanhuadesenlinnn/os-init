@@ -104,8 +104,8 @@ func runUpdateChecks(mods []modules.Module) tea.Cmd {
 
 				// Otherwise just check if installed + try to get version
 				if installed {
-					if m.InstalledCmd != "" {
-						ver := tryGetVersion(ctx, m.InstalledCmd)
+					if command := m.PrimaryCommand(); command != "" {
+						ver := tryGetVersion(ctx, command)
 						if ver != "" {
 							results[idx] = updateCheckResult{
 								moduleID: m.ID,

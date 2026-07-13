@@ -96,7 +96,7 @@ func TestConfirmView_EnglishArchMihomoContainsNoChineseMetadata(t *testing.T) {
 			break
 		}
 	}
-	plan := planner.Build([]modules.Module{selected}, target, planner.Options{Mode: planner.ModeInstall})
+	plan := planner.Build([]modules.Module{selected}, target, planner.Options{Operation: modules.OperationInstall})
 	model := newConfirmModelForPlan(plan, modeInstall, target)
 	if view := model.View(); containsHan(view) {
 		t.Fatalf("English Arch Mihomo confirmation contains Chinese text: %q", view)

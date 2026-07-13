@@ -14,7 +14,8 @@ module. Development and workstation flows are dependency presets.
 - Represent `arch-dev` and `arch-workstation` as planner dependencies.
 - Install prebuilt paru/yay from archlinuxcn for root and normal users; only a
   normal user may fall back to AUR builds.
-- Keep Arch diagnostics and detailed state actions as ordinary modules.
+- Keep Arch diagnostics and detailed state as one-shot actions rather than
+  modules with synthetic installed state.
 - Do not maintain a separate menu, configuration file, executor, or summary.
 
 ## Consequences

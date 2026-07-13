@@ -72,7 +72,7 @@ func New(cfg Config) Model {
 func (m Model) startMenu() (Model, tea.Cmd) {
 	target := platform.Detect()
 	mods := modules.ForTarget(target)
-	mods = filterModulesForExecutionUser(mods, os.Geteuid() == 0)
+	mods = modules.ResolveForContext(mods, os.Geteuid() == 0)
 	m.menu = newMenuModel(mods)
 	m.screen = screenMenu
 	return m, m.menu.Init()
@@ -111,7 +111,7 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 	m.executor = newExecutorModel(
 		m.selectedModules,
 		tmpDir,
-		m.selectedMode.Flag(),
+		plannerOperation(m.selectedMode),
 		env,
 		m.webhookURL,
 		executionCtx,
@@ -122,7 +122,7 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 }
 
 func (m Model) showMode() (Model, tea.Cmd) {
-	m.mode = newModeModel()
+	m.mode = newModeModel(m.requestedModules...)
 	m.screen = screenMode
 	return m, m.mode.Init()
 }
@@ -133,7 +133,7 @@ func (m Model) buildExecutionPlan() (Model, bool) {
 		base = m.selectedModules
 	}
 
-	plan := planner.Build(base, platform.Detect(), planner.Options{Mode: plannerMode(m.selectedMode)})
+	plan := planner.Build(base, platform.Detect(), planner.Options{Operation: plannerOperation(m.selectedMode)})
 	m.executionPlan = plan
 	if issue, ok := plan.BlockingIssue(); ok {
 		m.selectedModules = base
@@ -170,14 +170,14 @@ func (m Model) showConfirm() (Model, tea.Cmd) {
 	return m, m.confirm.Init()
 }
 
-func plannerMode(m mode) planner.Mode {
+func plannerOperation(m mode) modules.Operation {
 	switch m {
 	case modeUpdate:
-		return planner.ModeUpdate
+		return modules.OperationUpdate
 	case modeUninstall:
-		return planner.ModeUninstall
+		return modules.OperationUninstall
 	default:
-		return planner.ModeInstall
+		return modules.OperationInstall
 	}
 }
 
@@ -375,36 +375,6 @@ func selectionNeedsSudoPrime(selected []modules.Module, target platform.Target) 
 
 func selectionNeedsSudoPrimeForUID(selected []modules.Module, target platform.Target, effectiveUID int) bool {
 	return effectiveUID != 0 && modules.SelectionNeedsPrivilege(selected, target)
-}
-
-func filterModulesForExecutionUser(mods []modules.Module, root bool) []modules.Module {
-	hasArchMise := false
-	for _, mod := range mods {
-		if mod.ID == "arch-mise" {
-			hasArchMise = true
-			break
-		}
-	}
-
-	filtered := make([]modules.Module, 0, len(mods))
-	for _, mod := range mods {
-		if hasArchMise && mod.ID == "go" {
-			continue
-		}
-		if root && mod.ID == "docker" {
-			mod.NeedsRelogin = false
-			mod.InstalledUserGroups = nil
-			activations := make([]string, 0, len(mod.Activates))
-			for _, activation := range mod.Activates {
-				if activation != modules.ActivationRelogin {
-					activations = append(activations, activation)
-				}
-			}
-			mod.Activates = activations
-		}
-		filtered = append(filtered, mod)
-	}
-	return filtered
 }
 
 // View renders the active screen.

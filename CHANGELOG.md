@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.26.0 - 2026-07-13
+
+### Changed
+
+- Separate stateful modules, dependency-only presets, and one-shot actions while preserving the flat TUI selection surface.
+- Declare supported lifecycle operations per module and reject unsupported or mixed action/module plans before execution.
+- Replace the expanding installed-status field matrix with composable `All`/`Any` verification checks.
+- Use explicit, language-independent execution phases and order hints instead of localized subsection names and module-ID ranking.
+- Move root and target-user module resolution out of the TUI and into the catalog layer.
+- Route every Shell invocation through a stable provider protocol carrying script, operation, and components.
+- Make Go the only Arch control plane by removing the duplicate Arch menu, planner, confirmation, runner, recovery, summary, and preset acknowledgement script.
+- Align Arch configuration precedence with the shared defaults, system/user config, environment, and runtime override contract.
+
+### Fixed
+
+- Prevent Arch capabilities from presenting an uninstall path that could only fail inside the Shell implementation.
+- Keep Arch configuration-fingerprint state updated when capabilities execute through the unified provider.
+
 ## v0.25.0 - 2026-07-13
 
 ### Changed

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 模块状态：安装成功记录、状态校验、跳过判断和 status 输出。
+# 模块状态：记录配置指纹，并为 Arch 状态详情提供数据。
 
 state_root() {
   printf "%s" "${OS_INIT_ARCH_STATE_DIR:-${HOME}/.local/state/os-init/arch}"
@@ -25,20 +25,6 @@ read_state_value() {
   awk -F= -v key="${key}" '$1 == key {print substr($0, length(key) + 2); exit}' "${file}"
 }
 
-module_state_valid() {
-  local module file expected_hash actual_status actual_hash
-  module="$(module_key "$1")"
-  state_enabled || return 1
-  file="$(module_state_file "${module}")"
-  [[ -f "${file}" ]] || return 1
-
-  actual_status="$(read_state_value "${file}" "status" || true)"
-  actual_hash="$(read_state_value "${file}" "config_hash" || true)"
-  expected_hash="$(module_config_fingerprint "${module}")"
-  [[ "${actual_status}" == "success" && "${actual_hash}" == "${expected_hash}" ]] || return 1
-  module_quick_verify "${module}"
-}
-
 state_collect_module() {
   local module="$1" file status hash expected
   module="$(module_key "${module}")"
@@ -53,7 +39,7 @@ state_collect_module() {
   STATE_STATUS="${status}"
   STATE_CHECK="missing"
   STATE_REASON="未找到状态文件"
-  STATE_SUGGESTION="需要安装时执行：bash install.sh install $(module_display_key "${module}") --yes"
+  STATE_SUGGESTION="需要安装时，请在 OS Init 中选择：$(module_desc "${module}")"
   STATE_INSTALLED_AT="-"
   STATE_SCRIPT_COMMIT="-"
   STATE_CONFIG_HASH="${hash}"
@@ -71,14 +57,14 @@ state_collect_module() {
   if [[ "${status}" != "success" ]]; then
     STATE_CHECK="check-failed"
     STATE_REASON="状态文件记录的状态不是 success"
-    STATE_SUGGESTION="建议执行：bash install.sh install $(module_display_key "${module}") --force --yes"
+    STATE_SUGGESTION="建议在 OS Init 中更新：$(module_desc "${module}")"
     return 0
   fi
 
   if [[ "${hash}" != "${expected}" ]]; then
     STATE_CHECK="changed"
     STATE_REASON="当前配置指纹和上次成功安装时不同"
-    STATE_SUGGESTION="确认变更后执行：bash install.sh install $(module_display_key "${module}") --force --yes"
+    STATE_SUGGESTION="确认变更后在 OS Init 中更新：$(module_desc "${module}")"
     return 0
   fi
 
@@ -89,7 +75,7 @@ state_collect_module() {
   else
     STATE_CHECK="check-failed"
     STATE_REASON="配置指纹未变化，但轻量校验未通过"
-    STATE_SUGGESTION="先执行：bash install.sh doctor；需要重装时执行：bash install.sh install $(module_display_key "${module}") --force --yes"
+    STATE_SUGGESTION="先在 OS Init 中运行 Arch 系统诊断；需要时再更新：$(module_desc "${module}")"
   fi
 }
 
@@ -108,39 +94,6 @@ mark_module_installed() {
     printf 'script_commit=%s\n' "${commit}"
     printf 'config_hash=%s\n' "$(module_config_fingerprint "${module}")"
   } > "${file}"
-}
-
-mark_skipped() {
-  local module existing
-  module="$(module_key "$1")"
-  for existing in ${MODULE_SKIPPED_LIST}; do
-    [[ "${existing}" == "${module}" ]] && return 0
-  done
-  MODULE_SKIPPED_LIST="${MODULE_SKIPPED_LIST} ${module}"
-}
-
-is_skipped() {
-  local module existing
-  module="$(module_key "$1")"
-  for existing in ${MODULE_SKIPPED_LIST}; do
-    [[ "${existing}" == "${module}" ]] && return 0
-  done
-  return 1
-}
-
-reset_module_state() {
-  local target="$1" module file
-  state_prepare_dirs
-  if [[ "${target}" == "all" ]]; then
-    rm -f "$(state_root)"/modules/*.state 2>/dev/null || true
-    log_info "已清除所有模块状态"
-    return 0
-  fi
-  for module in $(modules_for_target "${target}"); do
-    file="$(module_state_file "${module}")"
-    rm -f "${file}"
-    log_info "已清除模块状态：$(module_display_key "${module}")"
-  done
 }
 
 state_status_text() {

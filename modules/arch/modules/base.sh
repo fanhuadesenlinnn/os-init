@@ -59,7 +59,7 @@ show_base_tool_status_table() {
   done < <(base_tool_commands)
 
   if [[ "${missing}" -gt 0 ]]; then
-    log_warn "缺少 ${missing} 个基础工具命令，可执行：bash install.sh install base --force --yes"
+    log_warn "缺少 ${missing} 个基础工具命令，请重新运行 OS Init 并更新 Arch 基础环境"
   else
     log_info "基础工具命令检测通过"
   fi

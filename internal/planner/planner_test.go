@@ -1,6 +1,7 @@
 package planner_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
@@ -17,7 +18,7 @@ func TestBuild_AddsStrongDependenciesForInstall(t *testing.T) {
 	plan := planner.Build(
 		[]modules.Module{byID["shell-autosuggestions"]},
 		target,
-		planner.Options{Mode: planner.ModeInstall},
+		planner.Options{Operation: modules.OperationInstall},
 	)
 
 	if !hasModule(plan.Modules, "shell-zsh") {
@@ -43,7 +44,7 @@ func TestBuild_AddsStarshipForTerminalStyleWithoutForcingZsh(t *testing.T) {
 	plan := planner.Build(
 		[]modules.Module{byID["terminal-style"]},
 		target,
-		planner.Options{Mode: planner.ModeInstall},
+		planner.Options{Operation: modules.OperationInstall},
 	)
 
 	if !hasModule(plan.Modules, "shell-starship") {
@@ -66,7 +67,7 @@ func TestBuild_DoesNotAddStrongDependenciesForUninstall(t *testing.T) {
 	plan := planner.Build(
 		[]modules.Module{byID["shell-autosuggestions"]},
 		target,
-		planner.Options{Mode: planner.ModeUninstall},
+		planner.Options{Operation: modules.OperationUninstall},
 	)
 
 	if hasModule(plan.Modules, "shell-zsh") {
@@ -86,16 +87,19 @@ func TestBuild_ExpandsArchWorkstationPreset(t *testing.T) {
 	plan := planner.Build(
 		[]modules.Module{byID["arch-workstation"]},
 		target,
-		planner.Options{Mode: planner.ModeInstall},
+		planner.Options{Operation: modules.OperationInstall},
 	)
 
 	if _, ok := plan.BlockingIssue(); ok {
 		t.Fatalf("Arch preset should compose with normal modules: %#v", plan.Issues)
 	}
-	for _, id := range []string{"arch-dev", "arch-desktop", "arch-mise", "docker", "neovim", "arch-mihomo"} {
+	for _, id := range []string{"arch-desktop", "arch-mise", "docker", "neovim", "arch-mihomo"} {
 		if !hasModule(plan.Modules, id) {
 			t.Fatalf("expanded preset missing %s: %v", id, ids(plan.Modules))
 		}
+	}
+	if hasModule(plan.Modules, "arch-dev") || hasModule(plan.Modules, "arch-workstation") {
+		t.Fatalf("dependency-only presets must not reach execution: %v", ids(plan.Modules))
 	}
 }
 
@@ -103,7 +107,7 @@ func TestBuild_ExpandsDependenciesForStandaloneArchMihomo(t *testing.T) {
 	t.Parallel()
 	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 	byID := modulesByID(modules.ForTarget(target))
-	plan := planner.Build([]modules.Module{byID["arch-mihomo"]}, target, planner.Options{Mode: planner.ModeInstall})
+	plan := planner.Build([]modules.Module{byID["arch-mihomo"]}, target, planner.Options{Operation: modules.OperationInstall})
 	if _, ok := plan.BlockingIssue(); ok {
 		t.Fatalf("Arch Mihomo plan should be valid: %#v", plan.Issues)
 	}
@@ -111,6 +115,41 @@ func TestBuild_ExpandsDependenciesForStandaloneArchMihomo(t *testing.T) {
 		if !hasModule(plan.Modules, id) {
 			t.Fatalf("standalone Arch Mihomo missing %s: %v", id, ids(plan.Modules))
 		}
+	}
+}
+
+func TestBuild_BlocksUnsupportedArchUninstall(t *testing.T) {
+	t.Parallel()
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
+	byID := modulesByID(modules.ForTarget(target))
+	plan := planner.Build([]modules.Module{byID["arch-base"]}, target, planner.Options{Operation: modules.OperationUninstall})
+	if issue, ok := plan.BlockingIssue(); !ok || len(issue.ModuleIDs) != 1 || issue.ModuleIDs[0] != "arch-base" {
+		t.Fatalf("unsupported uninstall should be blocked before execution: %#v", plan.Issues)
+	}
+}
+
+func TestBuild_BlocksMixedActionsAndModules(t *testing.T) {
+	t.Parallel()
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
+	byID := modulesByID(modules.ForTarget(target))
+	plan := planner.Build(
+		[]modules.Module{byID["arch-doctor"], byID["arch-base"]},
+		target,
+		planner.Options{Operation: modules.OperationInstall},
+	)
+	if _, ok := plan.BlockingIssue(); !ok {
+		t.Fatalf("actions and lifecycle modules must not share a batch: %#v", plan)
+	}
+}
+
+func TestOrderUsesPhaseInsteadOfLocalizedSubsection(t *testing.T) {
+	t.Parallel()
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	late := modules.Module{ID: "late", Label: "late", Category: "installation", Subsection: "任意文案", OS: "linux", Phase: modules.PhaseApplication, SupportedOperations: []modules.Operation{modules.OperationInstall}}
+	early := modules.Module{ID: "early", Label: "early", Category: "installation", Subsection: "Another label", OS: "linux", Phase: modules.PhaseBootstrap, SupportedOperations: []modules.Operation{modules.OperationInstall}}
+	plan := planner.Build([]modules.Module{late, early}, target, planner.Options{Operation: modules.OperationInstall})
+	if got := ids(plan.Modules); !reflect.DeepEqual(got, []string{"early", "late"}) {
+		t.Fatalf("phase order = %v", got)
 	}
 }
 
@@ -123,7 +162,7 @@ func TestBuild_SuggestsSoftAssociationForDocker(t *testing.T) {
 	plan := planner.Build(
 		[]modules.Module{byID["docker"]},
 		target,
-		planner.Options{Mode: planner.ModeInstall},
+		planner.Options{Operation: modules.OperationInstall},
 	)
 
 	if len(plan.SoftAssociations) != 1 {
@@ -143,7 +182,7 @@ func TestBuild_DoesNotSuggestAlreadySelectedAssociation(t *testing.T) {
 	plan := planner.Build(
 		[]modules.Module{byID["docker"], byID["network-tune"]},
 		target,
-		planner.Options{Mode: planner.ModeInstall},
+		planner.Options{Operation: modules.OperationInstall},
 	)
 
 	if len(plan.SoftAssociations) != 0 {

@@ -121,12 +121,12 @@ func TestForOS_IncludesLinuxModulesOnLinux(t *testing.T) {
 	}
 }
 
-func TestNeedsSudo_AllowedModulesOnly(t *testing.T) {
+func TestAllEntriesDeclareSupportedOperations(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
 	for _, m := range mods {
-		if m.NeedsSudo {
-			t.Errorf("module %q should not require sudo in the registry", m.ID)
+		if len(m.SupportedOperations) == 0 {
+			t.Errorf("entry %q should declare supported operations", m.ID)
 		}
 	}
 }
@@ -165,8 +165,30 @@ func TestPrivilegeNeeds_ArePlatformAware(t *testing.T) {
 func TestAllModules_HaveInstallSemantics(t *testing.T) {
 	t.Parallel()
 	for _, m := range modules.AllModules() {
-		if m.Kind == "" {
+		if m.EntryKind == modules.EntryModule && m.Kind == "" {
 			t.Errorf("module %q should declare a kind", m.ID)
+		}
+	}
+}
+
+func TestCatalogRolesHaveDistinctExecutionSemantics(t *testing.T) {
+	t.Parallel()
+	for _, entry := range modules.AllModules() {
+		switch entry.EntryKind {
+		case modules.EntryModule:
+			if entry.Verify.Empty() {
+				t.Errorf("stateful module %q must declare verification", entry.ID)
+			}
+		case modules.EntryPreset:
+			if entry.Script != "" || entry.Verify.Empty() == false || len(entry.DependsOn) == 0 {
+				t.Errorf("preset %q must be dependency-only: %#v", entry.ID, entry)
+			}
+		case modules.EntryAction:
+			if entry.Script == "" || !entry.Verify.Empty() || len(entry.DependsOn) != 0 {
+				t.Errorf("action %q must be one-shot and stateless: %#v", entry.ID, entry)
+			}
+		default:
+			t.Errorf("entry %q has unknown role %q", entry.ID, entry.EntryKind)
 		}
 	}
 }
@@ -211,8 +233,10 @@ func TestServiceAndManualModules_DeclareCompletionSemantics(t *testing.T) {
 	if !docker.NeedsRelogin || !contains(docker.Activates, modules.ActivationRelogin) {
 		t.Fatalf("docker should declare relogin activation, got needsRelogin=%v activates=%v", docker.NeedsRelogin, docker.Activates)
 	}
-	if len(docker.InstalledCommands) == 0 || len(docker.InstalledSystemdServices) == 0 || len(docker.InstalledUserGroups) == 0 {
-		t.Fatalf("docker should declare command, service, and group checks, got commands=%v services=%v groups=%v", docker.InstalledCommands, docker.InstalledSystemdServices, docker.InstalledUserGroups)
+	for _, kind := range []modules.CheckKind{modules.CheckCommandRun, modules.CheckSystemd, modules.CheckUserGroup} {
+		if !checkHasKind(docker.Verify, kind) {
+			t.Fatalf("docker should declare %s verification: %#v", kind, docker.Verify)
+		}
 	}
 
 	orbstack := findModule(t, mods, "macos-orbstack")
@@ -235,15 +259,15 @@ func TestMacOSModules_DeclareHomebrewStatusChecks(t *testing.T) {
 			if !m.RunIndividually {
 				t.Fatalf("macOS cask module %q should run individually", m.ID)
 			}
-			if m.InstalledBrewCask == "" {
-				t.Fatalf("macOS cask module %q should declare InstalledBrewCask", m.ID)
+			if !checkHasKind(m.Verify, modules.CheckBrewCask) {
+				t.Fatalf("macOS cask module %q should declare a Brew cask check", m.ID)
 			}
 		case "macos/cli.sh":
 			if !m.RunIndividually {
 				t.Fatalf("macOS formula module %q should run individually", m.ID)
 			}
-			if m.InstalledBrewFormula == "" {
-				t.Fatalf("macOS formula module %q should declare InstalledBrewFormula", m.ID)
+			if !checkHasKind(m.Verify, modules.CheckBrewFormula) {
+				t.Fatalf("macOS formula module %q should declare a Brew formula check", m.ID)
 			}
 		}
 	}
@@ -327,7 +351,7 @@ func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
 	if combined.Label != "Neovim + Neovide + config-yuan" {
 		t.Fatalf("combined Neovim label = %q", combined.Label)
 	}
-	if len(combined.InstalledMacOSChecks) == 0 {
+	if !checkHasGOOS(combined.Verify, "darwin") {
 		t.Fatal("combined Neovim module should declare macOS Neovide status checks")
 	}
 }
@@ -337,13 +361,13 @@ func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 	mods := modules.AllModules()
 	for _, id := range []string{"shell-zsh", "shell-direnv"} {
 		mod := findModule(t, mods, id)
-		if len(mod.InstalledZshBlocks) == 0 {
+		if !checkHasKind(mod.Verify, modules.CheckZshBlock) {
 			t.Fatalf("%s should declare zsh block checks", id)
 		}
 	}
 	for _, id := range []string{"shell-starship", "terminal-style", "go", "yazi", "neovim"} {
 		mod := findModule(t, mods, id)
-		if len(mod.InstalledShellBlocks) == 0 {
+		if !checkHasKind(mod.Verify, modules.CheckShellBlock) {
 			t.Fatalf("%s should declare shell block checks", id)
 		}
 	}
@@ -580,6 +604,30 @@ func contains[T comparable](values []T, needle T) bool {
 	return false
 }
 
+func checkHasKind(check modules.Check, kind modules.CheckKind) bool {
+	if check.Kind == kind {
+		return true
+	}
+	for _, child := range append(check.All, check.Any...) {
+		if checkHasKind(child, kind) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkHasGOOS(check modules.Check, goos string) bool {
+	if check.GOOS == goos {
+		return true
+	}
+	for _, child := range append(check.All, check.Any...) {
+		if checkHasGOOS(child, goos) {
+			return true
+		}
+	}
+	return false
+}
+
 func TestNeedsUserInfo_ShellGitOnly(t *testing.T) {
 	t.Parallel()
 	if modules.NeedsUserInfo([]modules.Module{{ID: "docker"}}) {
@@ -620,6 +668,7 @@ func TestInstallSubsections_ReturnsCurrentGroups(t *testing.T) {
 		"Arch Linux 能力",
 		"Arch Linux 开发",
 		"Arch Linux 套餐",
+		"Arch Linux 操作",
 	}
 	if got := modules.InstallSubsections(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected install subsections: got %v, want %v", got, want)

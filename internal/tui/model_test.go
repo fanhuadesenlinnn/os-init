@@ -27,7 +27,7 @@ func TestStartExecutionReportsAssetExtractionFailure(t *testing.T) {
 	}
 }
 
-func TestFilterModulesForExecutionUserSharesArchMiseAndHidesStandaloneGo(t *testing.T) {
+func TestResolveForContextSharesArchMiseAndHidesStandaloneGo(t *testing.T) {
 	mods := []modules.Module{
 		{ID: "shell-zsh", Category: "installation"},
 		{ID: "arch-base", Category: "installation"},
@@ -36,33 +36,33 @@ func TestFilterModulesForExecutionUserSharesArchMiseAndHidesStandaloneGo(t *test
 		{ID: "go", Category: "installation"},
 	}
 
-	rootMods := filterModulesForExecutionUser(mods, true)
+	rootMods := modules.ResolveForContext(mods, true)
 	if len(rootMods) != 4 || rootMods[1].ID != "arch-base" || rootMods[3].ID != "arch-mise" {
 		t.Fatalf("root modules = %#v", rootMods)
 	}
 
-	normalMods := filterModulesForExecutionUser(mods, false)
+	normalMods := modules.ResolveForContext(mods, false)
 	if len(normalMods) != 4 || normalMods[1].ID != "arch-base" || normalMods[3].ID != "arch-mise" {
 		t.Fatalf("normal user modules were unexpectedly filtered: %#v", normalMods)
 	}
 }
 
-func TestFilterModulesForExecutionUserRemovesDockerReloginForRoot(t *testing.T) {
+func TestResolveForContextRemovesDockerReloginForRoot(t *testing.T) {
 	mods := []modules.Module{{
-		ID:                  "docker",
-		Category:            "installation",
-		NeedsRelogin:        true,
-		Activates:           []string{modules.ActivationSystemd, modules.ActivationRelogin},
-		InstalledUserGroups: []string{"docker"},
+		ID:           "docker",
+		Category:     "installation",
+		NeedsRelogin: true,
+		Activates:    []string{modules.ActivationSystemd, modules.ActivationRelogin},
+		Verify:       modules.UserGroup("docker"),
 	}}
-	rootMods := filterModulesForExecutionUser(mods, true)
-	if len(rootMods) != 1 || rootMods[0].NeedsRelogin || len(rootMods[0].InstalledUserGroups) != 0 {
+	rootMods := modules.ResolveForContext(mods, true)
+	if len(rootMods) != 1 || rootMods[0].NeedsRelogin || !rootMods[0].Verify.Empty() {
 		t.Fatalf("root Docker module = %#v", rootMods)
 	}
 	if len(rootMods[0].Activates) != 1 || rootMods[0].Activates[0] != modules.ActivationSystemd {
 		t.Fatalf("root Docker activations = %#v", rootMods[0].Activates)
 	}
-	if !mods[0].NeedsRelogin || len(mods[0].Activates) != 2 || len(mods[0].InstalledUserGroups) != 1 {
+	if !mods[0].NeedsRelogin || len(mods[0].Activates) != 2 || mods[0].Verify.Kind != modules.CheckUserGroup {
 		t.Fatal("filter mutated the source module")
 	}
 }

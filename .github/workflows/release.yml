@@ -31,12 +31,12 @@ jobs:
       - name: Run shell script checks
         run: |
           set -euo pipefail
-          bash -n modules/lib.sh modules/*/*.sh tooling/*.sh
+          bash -n modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
           if ! command -v shellcheck >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y shellcheck
           fi
-          shellcheck modules/lib.sh modules/*/*.sh tooling/*.sh
+          shellcheck modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
 
       - name: Run os-init package strategy checks
         run: bash tooling/test-lib-strategy.sh
@@ -134,6 +134,10 @@ jobs:
 
           ### 主要能力
 
+          - 模块、组合预设和诊断操作具有独立语义；不支持的生命周期操作在执行前阻止
+          - 安装状态使用可组合验证表达式，执行顺序使用稳定且与界面语言无关的阶段
+          - Go 统一负责计划、权限、执行、日志和汇总，所有 Shell 实现通过稳定 provider 协议运行
+          - Arch 不再维护第二套菜单、计划、执行和汇总控制层，同时保留完整工作站领域实现和配置指纹
           - Linux 支持直接以 root 运行，用户配置写入 `/root`，且无需安装 sudo
           - Arch Linux 能力对 root 和普通用户使用相同模块；paru/yay 优先从 archlinuxcn 用 pacman 安装
           - Arch Linux 通过 pacman 安装 mise，并在目标用户 HOME 管理 Node.js 24、Python 3.13 和 Go 1.24

@@ -28,47 +28,34 @@ const (
 	ActivationRelogin      = "relogin"
 )
 
-// Module describes a selectable item in the TUI menu.
+// Module describes a stateful capability. Presets and actions have dedicated
+// source types and are adapted only at the flat catalog boundary.
 type Module struct {
-	ID                        string   // unique key, e.g. "kernel-sysctl"
-	Script                    string   // relative path, e.g. "kernel/optimize.sh"
-	Components                []string // sub-components or nil for standalone
-	Label                     string   // display name in menu
-	Description               string   // short description
-	Category                  string   // "optimization" or "installation"
-	Subsection                string   // grouping within category (e.g. "Shell", "Dev Tools")
-	OS                        string   // "all", "linux", "darwin"
-	Families                  []string // "all", "debian", "redhat", "arch", "darwin"
-	Requires                  []string // "linux", "systemd"
-	Tags                      []string // "server", "dev", "cn-ready"
-	NeedsSudo                 bool     // invoke with sudo bash
-	RunIndividually           bool     // do not merge with modules that share the same script
-	Kind                      ModuleKind
-	DependsOn                 []string
-	Activates                 []string
-	ManualSteps               []string
-	AffectedPaths             []string // important paths changed by install/update
-	DestructivePaths          []string // paths that an explicit purge may delete
-	NeedsRelogin              bool
-	Privilege                 PrivilegePolicy
-	PrivilegeReason           string
-	InstalledCmd              string // command to check if installed (empty = no check)
-	InstalledCommands         [][]string
-	InstalledAnyCommands      [][]string
-	InstalledCheck            string // file path to check if exists (empty = no check)
-	InstalledChecks           []string
-	InstalledAnyChecks        []string
-	InstalledGrepFile         string // "filepath:pattern" — check if file contains pattern
-	InstalledGrepFiles        []string
-	InstalledBrewCask         string
-	InstalledBrewFormula      string
-	InstalledMacOSBrewFormula string
-	InstalledMacOSChecks      []string
-	InstalledLinuxChecks      []string
-	InstalledZshBlocks        []string
-	InstalledShellBlocks      []string
-	InstalledSystemdServices  []string
-	InstalledUserGroups       []string
+	ID                  string   // unique key, e.g. "kernel-sysctl"
+	Script              string   // relative path, e.g. "kernel/optimize.sh"
+	Components          []string // sub-components or nil for standalone
+	Label               string   // display name in menu
+	Description         string   // short description
+	Category            string   // "optimization" or "installation"
+	Subsection          string   // grouping within category (e.g. "Shell", "Dev Tools")
+	OS                  string   // "all", "linux", "darwin"
+	Families            []string // "all", "debian", "redhat", "arch", "darwin"
+	Requires            []string // "linux", "systemd"
+	EntryKind           EntryKind
+	RunIndividually     bool // do not merge with modules that share the same script
+	Kind                ModuleKind
+	DependsOn           []string
+	Activates           []string
+	ManualSteps         []string
+	AffectedPaths       []string // important paths changed by install/update
+	DestructivePaths    []string // paths that an explicit purge may delete
+	NeedsRelogin        bool
+	Privilege           PrivilegePolicy
+	PrivilegeReason     string
+	SupportedOperations []Operation
+	Verify              Check
+	Phase               Phase
+	Order               int
 }
 
 type PrivilegeNeed struct {
@@ -79,28 +66,28 @@ type PrivilegeNeed struct {
 
 // AllModules returns the full registry, unfiltered.
 func AllModules() []Module {
-	return []Module{
+	items := []Module{
 		// ── Optimizations ──
-		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "内核 ▸ sysctl.d", Description: "BBR/FQ、TCP/UDP、conntrack、内存调优", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/sysctl.d 并执行 sysctl", AffectedPaths: []string{"/etc/sysctl.d/99-os-init.conf"}, InstalledGrepFile: "/etc/sysctl.d/99-os-init.conf:tcp_mtu_probing"},
-		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "内核 ▸ limits.d", Description: "文件句柄、进程数、systemd 默认限制", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/security 和 systemd drop-in", AffectedPaths: []string{"/etc/security/limits.d/99-os-init.conf", "/etc/pam.d/*", "/etc/systemd/*.conf.d/99-os-init.conf"}, InstalledGrepFile: "/etc/security/limits.d/99-os-init.conf:1048576"},
-		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "内核 ▸ I/O 调度器", Description: "SSD/NVMe 使用 none", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/udev/rules.d", InstalledCheck: "/etc/udev/rules.d/60-scheduler.rules"},
-		{ID: "kernel-autotune", Script: "kernel/optimize.sh", Components: []string{"autotune"}, Label: "内核 ▸ 自动调优", Description: "按内存动态调整 conntrack、缓冲区、file-max", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, Privilege: PrivilegeSystem, PrivilegeReason: "安装 systemd 服务和 /usr/local/sbin 脚本", InstalledCheck: "/etc/systemd/system/autotune.service"},
-		{ID: "network-ipv4", Script: "kernel/optimize.sh", Components: []string{"ipv4"}, Label: "网络 ▸ IPv4 优先", Description: "gai.conf 优先使用 IPv4 解析结果", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "修改 /etc/gai.conf", InstalledGrepFile: "/etc/gai.conf:os-init -- prefer IPv4"},
-		{ID: "network-tune", Script: "kernel/optimize.sh", Components: []string{"network"}, Label: "网络 ▸ 队列与 MSS", Description: "RPS/RSS 多核分发、ring buffer、MSS clamp", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, Privilege: PrivilegeSystem, PrivilegeReason: "安装 systemd 服务并调整网卡/iptables 参数", InstalledCheck: "/etc/systemd/system/os-init-network-tune.service"},
+		{ID: "kernel-sysctl", Script: "kernel/optimize.sh", Components: []string{"sysctl"}, Label: "内核 ▸ sysctl.d", Description: "BBR/FQ、TCP/UDP、conntrack、内存调优", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/sysctl.d 并执行 sysctl", AffectedPaths: []string{"/etc/sysctl.d/99-os-init.conf"}, Verify: FileContains("/etc/sysctl.d/99-os-init.conf", "tcp_mtu_probing"), Phase: PhaseSystem, Order: 10},
+		{ID: "kernel-limits", Script: "kernel/optimize.sh", Components: []string{"limits"}, Label: "内核 ▸ limits.d", Description: "文件句柄、进程数、systemd 默认限制", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/security 和 systemd drop-in", AffectedPaths: []string{"/etc/security/limits.d/99-os-init.conf", "/etc/pam.d/*", "/etc/systemd/*.conf.d/99-os-init.conf"}, Verify: FileContains("/etc/security/limits.d/99-os-init.conf", "1048576"), Phase: PhaseSystem, Order: 20},
+		{ID: "kernel-scheduler", Script: "kernel/optimize.sh", Components: []string{"scheduler"}, Label: "内核 ▸ I/O 调度器", Description: "SSD/NVMe 使用 none", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/udev/rules.d", Verify: Path("/etc/udev/rules.d/60-scheduler.rules"), Phase: PhaseSystem, Order: 30},
+		{ID: "kernel-autotune", Script: "kernel/optimize.sh", Components: []string{"autotune"}, Label: "内核 ▸ 自动调优", Description: "按内存动态调整 conntrack、缓冲区、file-max", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, Privilege: PrivilegeSystem, PrivilegeReason: "安装 systemd 服务和 /usr/local/sbin 脚本", Verify: Path("/etc/systemd/system/autotune.service"), Phase: PhaseSystem, Order: 40},
+		{ID: "network-ipv4", Script: "kernel/optimize.sh", Components: []string{"ipv4"}, Label: "网络 ▸ IPv4 优先", Description: "gai.conf 优先使用 IPv4 解析结果", Category: "optimization", OS: "linux", Kind: KindSystemTuning, Privilege: PrivilegeSystem, PrivilegeReason: "修改 /etc/gai.conf", Verify: FileContains("/etc/gai.conf", "os-init -- prefer IPv4"), Phase: PhaseNetwork, Order: 80},
+		{ID: "network-tune", Script: "kernel/optimize.sh", Components: []string{"network"}, Label: "网络 ▸ 队列与 MSS", Description: "RPS/RSS 多核分发、ring buffer、MSS clamp", Category: "optimization", OS: "linux", Requires: []string{"systemd"}, Kind: KindSystemTuning, Activates: []string{ActivationSystemd}, Privilege: PrivilegeSystem, PrivilegeReason: "安装 systemd 服务并调整网卡/iptables 参数", Verify: Path("/etc/systemd/system/os-init-network-tune.service"), Phase: PhaseNetwork, Order: 90},
 
 		// ── Installations / Shell ──
-		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 需要安装 zsh 并可能写入 /etc/shells", InstalledCmd: "zsh", InstalledCheck: "$HOME/.oh-my-zsh", InstalledChecks: []string{"$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", "$HOME/.oh-my-zsh/custom/themes/powerlevel10k"}, InstalledZshBlocks: []string{"oh-my-zsh"}},
-		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "bash/zsh 跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装脚本默认写入系统二进制目录", InstalledCmd: "starship", InstalledShellBlocks: []string{"starship"}},
-		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 direnv", InstalledCmd: "direnv", InstalledZshBlocks: []string{"direnv"}},
-		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-autosuggestions"},
-		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", InstalledCheck: "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting", InstalledZshBlocks: []string{"oh-my-zsh"}, InstalledGrepFile: "$HOME/.zshrc:zsh-syntax-highlighting"},
-		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 git-lfs", InstalledCmd: "git"},
-		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, Privilege: PrivilegeSystem, PrivilegeReason: "通过系统包管理器安装 byobu/tmux", InstalledCmd: "byobu"},
+		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}, Label: "zsh + oh-my-zsh", Description: "交互式 Shell 环境", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 需要安装 zsh 并可能写入 /etc/shells", Verify: All(Command("zsh"), Path("$HOME/.oh-my-zsh"), Path("$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"), Path("$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"), Path("$HOME/.oh-my-zsh/custom/themes/powerlevel10k"), ZshBlock("oh-my-zsh")), Phase: PhaseShell, Order: 10},
+		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}, Label: "starship 提示符", Description: "bash/zsh 跨 Shell 提示符", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装脚本默认写入系统二进制目录", Verify: All(Command("starship"), ShellBlock("starship")), Phase: PhaseShell, Order: 30},
+		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}, Label: "direnv", Description: "目录级环境变量", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 direnv", Verify: All(Command("direnv"), ZshBlock("direnv")), Phase: PhaseShell, Order: 40},
+		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions", Description: "命令历史建议", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", Verify: All(Path("$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"), ZshBlock("oh-my-zsh"), FileContains("$HOME/.zshrc", "zsh-autosuggestions")), Phase: PhaseShell, Order: 50},
+		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting", Description: "命令语法高亮", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-zsh"}, Activates: []string{ActivationZshrc}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 可能需要先安装 zsh", Verify: All(Path("$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"), ZshBlock("oh-my-zsh"), FileContains("$HOME/.zshrc", "zsh-syntax-highlighting")), Phase: PhaseShell, Order: 60},
+		{ID: "shell-git", Script: "shell/install.sh", Components: []string{"git"}, Label: "Git 配置", Description: "LFS、SSH-over-HTTPS、模板配置", Category: "installation", Subsection: "Shell 工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 git-lfs", Verify: Command("git"), Phase: PhaseShell, Order: 20},
+		{ID: "shell-byobu", Script: "shell/install.sh", Components: []string{"byobu"}, Label: "byobu + tmux", Description: "终端复用器", Category: "installation", Subsection: "Shell 工具", OS: "linux", Kind: KindInstallOnly, Privilege: PrivilegeSystem, PrivilegeReason: "通过系统包管理器安装 byobu/tmux", Verify: Command("byobu"), Phase: PhaseShell, Order: 70},
 
 		// ── Installations / Terminal ──
-		{ID: "terminal-style", Script: "terminal/style.sh", Components: []string{"style"}, Label: "终端样式", Description: "本地 rich、SSH simple、TTY plain 自动切换", Category: "installation", Subsection: "终端体验", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-starship"}, Activates: []string{ActivationShellProfile}, ManualSteps: []string{"SSH 会自动使用 simple 提示符，TTY 会自动使用 plain 提示符"}, InstalledCmd: "starship", InstalledCheck: "$HOME/.config/os-init/terminal/starship-rich.toml", InstalledShellBlocks: []string{"terminal-style", "starship"}},
-		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 ncdu", InstalledCmd: "ncdu"},
-		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /usr/local/bin", AffectedPaths: []string{"/usr/local/bin/yazi", "$HOME/.config/yazi/ya.sh", "$HOME/.zshrc|.bashrc"}, DestructivePaths: []string{"$HOME/.config/yazi (仅 PURGE_CONFIG=1)"}, InstalledCmd: "yazi", InstalledCheck: "$HOME/.config/yazi/ya.sh", InstalledShellBlocks: []string{"yazi"}},
+		{ID: "terminal-style", Script: "terminal/style.sh", Components: []string{"style"}, Label: "终端样式", Description: "本地 rich、SSH simple、TTY plain 自动切换", Category: "installation", Subsection: "终端体验", OS: "all", Kind: KindShellIntegration, DependsOn: []string{"shell-starship"}, Activates: []string{ActivationShellProfile}, ManualSteps: []string{"SSH 会自动使用 simple 提示符，TTY 会自动使用 plain 提示符"}, Verify: All(Command("starship"), Path("$HOME/.config/os-init/terminal/starship-rich.toml"), ShellBlock("terminal-style"), ShellBlock("starship")), Phase: PhaseTerminal, Order: 10},
+		{ID: "terminal-ncdu", Script: "terminal/install.sh", Components: []string{"ncdu"}, Label: "ncdu", Description: "磁盘占用分析", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindInstallOnly, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 通过系统包管理器安装 ncdu", Verify: Command("ncdu"), Phase: PhaseTerminal, Order: 20},
+		{ID: "yazi", Script: "yazi/install.sh", Label: "Yazi", Description: "终端文件管理器", Category: "installation", Subsection: "终端工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /usr/local/bin", AffectedPaths: []string{"/usr/local/bin/yazi", "$HOME/.config/yazi/ya.sh", "$HOME/.zshrc|.bashrc"}, DestructivePaths: []string{"$HOME/.config/yazi (仅 PURGE_CONFIG=1)"}, Verify: All(Command("yazi"), Path("$HOME/.config/yazi/ya.sh"), ShellBlock("yazi")), Phase: PhaseTerminal, Order: 30},
 
 		// ── Arch Linux capabilities and presets ──
 		archLinuxModule("arch-base", "base", "Arch 基础环境", "基础工具、排障工具、现代 CLI 和 tmux 配置", KindInstallOnly, "rg"),
@@ -112,10 +99,10 @@ func AllModules() []Module {
 		archLinuxModule("arch-fonts", "fonts", "Arch 字体环境", "中文、Emoji、Nerd Font、Monaco 和 fontconfig", KindInstallOnly, "fc-cache"),
 		archLinuxModule("arch-mihomo", "mihomo", "Arch Mihomo + MetaCubeXD", "Mihomo、完整配置预检、systemd 服务和 MetaCubeXD", KindSystemService, "mihomo"),
 		archLinuxModule("arch-desktop", "desktop", "Arch Hyprland 桌面", "Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots 和虚拟机适配", KindSystemService, "Hyprland"),
-		archLinuxAction("arch-doctor", "doctor", "Arch 系统诊断", "检查 Arch 通用模块、网络、服务和桌面环境"),
-		archLinuxAction("arch-status", "status", "Arch 状态详情", "显示 Arch 通用能力的详细状态与建议"),
-		archPreset("arch-dev", "Arch 开发环境", "Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Starship + Shell 插件 + 终端样式 + Arch Mihomo", archDevDependencies()),
-		archPreset("arch-workstation", "Arch 完整工作站", "Arch 开发环境 + Arch Hyprland 桌面", []string{"arch-dev", "arch-desktop"}),
+		actionModule(archLinuxAction("arch-doctor", "doctor", "Arch 系统诊断", "检查 Arch 通用模块、网络、服务和桌面环境")),
+		actionModule(archLinuxAction("arch-status", "status", "Arch 状态详情", "显示 Arch 通用能力的详细状态与建议")),
+		presetModule(archPreset("arch-dev", "Arch 开发环境", "Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Starship + Shell 插件 + 终端样式 + Arch Mihomo", archDevDependencies())),
+		presetModule(archPreset("arch-workstation", "Arch 完整工作站", "Arch 开发环境 + Arch Hyprland 桌面", []string{"arch-dev", "arch-desktop"})),
 
 		// ── Installations / macOS Apps ──
 		macOSCask("macOS 开发应用", "google-chrome", "Google Chrome", "浏览器", "/Applications/Google Chrome.app"),
@@ -199,34 +186,38 @@ func AllModules() []Module {
 		macOSFormula("llmfit", "llmfit", "命令行工具", "llmfit"),
 
 		// ── Installations / Network ──
-		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, AffectedPaths: []string{"/usr/local/bin/mihomo", "/etc/mihomo", "/etc/systemd/system/mihomo.service", "/var/lib/mihomo"}, DestructivePaths: []string{"/etc/mihomo、/var/lib/mihomo (仅 PURGE_DATA=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/mihomo、systemd 服务和系统二进制", InstalledCmd: "mihomo", InstalledCheck: "/etc/mihomo/config.yaml", InstalledSystemdServices: []string{"mihomo.service"}, InstalledShellBlocks: []string{"proxy-env"}},
+		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, AffectedPaths: []string{"/usr/local/bin/mihomo", "/etc/mihomo", "/etc/systemd/system/mihomo.service", "/var/lib/mihomo"}, DestructivePaths: []string{"/etc/mihomo、/var/lib/mihomo (仅 PURGE_DATA=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/mihomo、systemd 服务和系统二进制", Verify: All(Command("mihomo"), Path("/etc/mihomo/config.yaml"), SystemdService("mihomo.service"), ShellBlock("proxy-env")), Phase: PhaseNetwork, Order: 50},
 
 		// ── Installations / Dev Tools ──
-		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, AffectedPaths: []string{"/usr/local/bin/docker*", "/etc/docker/daemon.json", "/etc/systemd/system/docker.service", "/var/lib/os-init/ownership"}, DestructivePaths: []string{"/var/lib/docker、/var/lib/containerd (仅 PURGE_DATA=1)", "/etc/docker (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "安装系统二进制、写入 Docker systemd 服务和用户组", InstalledCommands: [][]string{{"docker", "--version"}, {"dockerd", "--version"}, {"docker", "compose", "version"}}, InstalledSystemdServices: []string{"docker.service", "containerd.service"}, InstalledUserGroups: []string{"docker"}},
-		{ID: "arch-mise", Script: "mise/install.sh", Label: "mise + Node.js 24 + Python 3.13 + Go 1.24", Description: "Arch 通用运行时、国内镜像和 Shell 激活", Category: "installation", Subsection: "Arch Linux 开发", OS: "linux", Families: []string{"arch"}, RunIndividually: true, Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"pacman 软件包 mise", "$HOME/.config/mise/config.toml", "$HOME/.config/os-init/mise-china.env", "$HOME/.local/share/mise", "$HOME/.zprofile|.profile|.zshrc|.bashrc"}, DestructivePaths: []string{"$HOME/.config/mise/config.toml、$HOME/.local/share/mise (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "Arch Linux 通过 pacman 安装 mise，运行时写入目标用户目录", InstalledCmd: "mise", InstalledCommands: [][]string{{"mise", "exec", "--", "node", "--version"}, {"mise", "exec", "--", "python", "--version"}, {"mise", "exec", "--", "go", "version"}}, InstalledCheck: "$HOME/.config/os-init/mise-china.env", InstalledZshBlocks: []string{"mise"}, InstalledShellBlocks: []string{"mise"}},
-		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /usr/local/go", "$HOME/.zshrc|.bashrc", "OS Init 所有权状态目录"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装或更新 /usr/local/go", InstalledAnyCommands: [][]string{{"go", "version"}, {"/usr/local/go/bin/go", "version"}}, InstalledShellBlocks: []string{"go"}},
-		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + Neovide + config-yuan", Description: "终端编辑器、macOS 图形客户端和个人配置", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /opt/nvim-*、/usr/local/bin/nvim", "/Applications/Neovide.app (macOS)", "$HOME/.config/nvim", "$HOME/.config/neovide/config.toml"}, DestructivePaths: []string{"$HOME/.config/nvim、$HOME/.config/neovide/config.toml、$HOME/.local/share/nvim (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /opt 和 /usr/local/bin", InstalledCmd: "nvim", InstalledCheck: "$HOME/.config/nvim/init.lua", InstalledMacOSChecks: []string{"/Applications/Neovide.app", "$HOME/.config/neovide/config.toml"}, InstalledShellBlocks: []string{"neovim"}},
+		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, AffectedPaths: []string{"/usr/local/bin/docker*", "/etc/docker/daemon.json", "/etc/systemd/system/docker.service", "/var/lib/os-init/ownership"}, DestructivePaths: []string{"/var/lib/docker、/var/lib/containerd (仅 PURGE_DATA=1)", "/etc/docker (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "安装系统二进制、写入 Docker systemd 服务和用户组", Verify: All(CommandRun("docker", "--version"), CommandRun("dockerd", "--version"), CommandRun("docker", "compose", "version"), SystemdService("docker.service"), SystemdService("containerd.service"), UserGroup("docker")), Phase: PhaseRuntime, Order: 50},
+		{ID: "arch-mise", Script: "mise/install.sh", Label: "mise + Node.js 24 + Python 3.13 + Go 1.24", Description: "Arch 通用运行时、国内镜像和 Shell 激活", Category: "installation", Subsection: "Arch Linux 开发", OS: "linux", Families: []string{"arch"}, RunIndividually: true, Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"pacman 软件包 mise", "$HOME/.config/mise/config.toml", "$HOME/.config/os-init/mise-china.env", "$HOME/.local/share/mise", "$HOME/.zprofile|.profile|.zshrc|.bashrc"}, DestructivePaths: []string{"$HOME/.config/mise/config.toml、$HOME/.local/share/mise (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "Arch Linux 通过 pacman 安装 mise，运行时写入目标用户目录", Verify: All(Command("mise"), CommandRun("mise", "exec", "--", "node", "--version"), CommandRun("mise", "exec", "--", "python", "--version"), CommandRun("mise", "exec", "--", "go", "version"), Path("$HOME/.config/os-init/mise-china.env"), ZshBlock("mise"), ShellBlock("mise")), Phase: PhaseRuntime, Order: 10},
+		{ID: "go", Script: "go/install.sh", Label: "Go", Description: "Go 语言工具链", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /usr/local/go", "$HOME/.zshrc|.bashrc", "OS Init 所有权状态目录"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装或更新 /usr/local/go", Verify: All(Any(CommandRun("go", "version"), CommandRun("/usr/local/go/bin/go", "version")), ShellBlock("go")), Phase: PhaseRuntime, Order: 20},
+		{ID: "neovim", Script: "neovim/install.sh", Label: "Neovim + Neovide + config-yuan", Description: "终端编辑器、macOS 图形客户端和个人配置", Category: "installation", Subsection: "开发工具", OS: "all", Kind: KindShellIntegration, Activates: []string{ActivationShellProfile}, AffectedPaths: []string{"Homebrew/pacman 软件包，或 Linux /opt/nvim-*、/usr/local/bin/nvim", "/Applications/Neovide.app (macOS)", "$HOME/.config/nvim", "$HOME/.config/neovide/config.toml"}, DestructivePaths: []string{"$HOME/.config/nvim、$HOME/.config/neovide/config.toml、$HOME/.local/share/nvim (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeLinuxSystem, PrivilegeReason: "Linux 安装二进制到 /opt 和 /usr/local/bin", Verify: All(Command("nvim"), Path("$HOME/.config/nvim/init.lua"), OnGOOS("darwin", Path("/Applications/Neovide.app")), OnGOOS("darwin", Path("$HOME/.config/neovide/config.toml")), ShellBlock("neovim")), Phase: PhaseApplication, Order: 20},
 	}
+	for i := range items {
+		items[i] = normalizeModule(items[i])
+	}
+	return items
 }
 
 func archLinuxModule(id, component, label, description string, kind ModuleKind, installedCmd string) Module {
-	m := Module{ID: id, Script: "arch/install.sh", Components: []string{component}, Label: label, Description: description, Category: "installation", Subsection: "Arch Linux 能力", OS: "linux", Families: []string{"arch"}, RunIndividually: true, Kind: kind, Privilege: PrivilegeSystem, PrivilegeReason: "通过 pacman、systemd 或目标用户配置应用 Arch Linux 能力", InstalledCmd: installedCmd}
+	m := Module{ID: id, Script: "arch/install.sh", Components: []string{component}, Label: label, Description: description, Category: "installation", Subsection: "Arch Linux 能力", OS: "linux", Families: []string{"arch"}, RunIndividually: true, Kind: kind, Privilege: PrivilegeSystem, PrivilegeReason: "通过 pacman、systemd 或目标用户配置应用 Arch Linux 能力", SupportedOperations: []Operation{OperationInstall, OperationUpdate}, Verify: Command(installedCmd), Phase: PhaseSystem}
 	switch component {
 	case "base":
 		m.AffectedPaths = []string{"pacman 基础工具包", "$HOME/.tmux.conf"}
 	case "aur":
 		m.AffectedPaths = []string{"archlinuxcn 预编译 paru / yay；普通用户的 AUR 构建回退"}
 		m.DependsOn = []string{"arch-archlinuxcn"}
+		m.Verify = All(Command("paru"), Command("yay"))
 	case "dns":
 		m.AffectedPaths = []string{"/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf", "/etc/NetworkManager/conf.d/90-os-init-arch-dns.conf", "/etc/resolv.conf"}
-		m.InstalledCheck = "/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf"
-		m.InstalledSystemdServices = []string{"systemd-resolved.service"}
+		m.Verify = All(Path("/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf"), SystemdService("systemd-resolved.service"))
 	case "archlinuxcn":
 		m.AffectedPaths = []string{"/etc/pacman.conf", "archlinuxcn-keyring / archlinuxcn-mirrorlist-git"}
-		m.InstalledGrepFile = "/etc/pacman.conf:[archlinuxcn]"
+		m.Verify = FileContains("/etc/pacman.conf", "[archlinuxcn]")
 	case "git":
 		m.AffectedPaths = []string{"pacman: git github-cli openssh", "$HOME/.gitconfig"}
-		m.InstalledCommands = [][]string{{"git", "--version"}, {"gh", "--version"}}
+		m.Verify = All(CommandRun("git", "--version"), CommandRun("gh", "--version"))
 	case "ops-toolkit":
 		m.AffectedPaths = []string{"$HOME/.local/share/ops-toolkit", "$HOME/.local/bin/ops 和脚本命令"}
 		m.DependsOn = []string{"arch-git"}
@@ -242,20 +233,50 @@ func archLinuxModule(id, component, label, description string, kind ModuleKind, 
 		m.Requires = []string{"systemd"}
 		m.Activates = []string{ActivationSystemd, ActivationShellProfile}
 		m.DependsOn = []string{"arch-aur", "arch-archlinuxcn"}
-		m.InstalledCheck = "/etc/mihomo/config.yaml"
-		m.InstalledSystemdServices = []string{"mihomo.service"}
-		m.InstalledShellBlocks = []string{"proxy-env"}
+		m.Verify = All(Command("mihomo"), Path("/etc/mihomo/config.yaml"), SystemdService("mihomo.service"), ShellBlock("proxy-env"))
 		m.ManualSteps = []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}
 	}
 	return m
 }
 
-func archLinuxAction(id, component, label, description string) Module {
-	return Module{ID: id, Script: "arch/install.sh", Components: []string{component}, Label: label, Description: description, Category: "installation", Subsection: "Arch Linux 能力", OS: "linux", Families: []string{"arch"}, RunIndividually: true, Kind: KindInstallOnly}
+func archLinuxAction(id, component, label, description string) Action {
+	return Action{ID: id, Script: "arch/install.sh", Components: []string{component}, Label: label, Description: description, Subsection: "Arch Linux 操作", OS: "linux", Families: []string{"arch"}, Phase: PhaseAction}
 }
 
-func archPreset(id, label, description string, dependencies []string) Module {
-	return Module{ID: id, Script: "arch/preset.sh", Components: []string{id}, Label: label, Description: description, Category: "installation", Subsection: "Arch Linux 套餐", OS: "linux", Families: []string{"arch"}, RunIndividually: true, Kind: KindInstallOnly, DependsOn: dependencies}
+func archPreset(id, label, description string, dependencies []string) Preset {
+	return Preset{ID: id, Label: label, Description: description, Subsection: "Arch Linux 套餐", OS: "linux", Families: []string{"arch"}, Includes: dependencies, Phase: PhaseSystem}
+}
+
+func actionModule(action Action) Module {
+	return Module{
+		ID: action.ID, Script: action.Script, Components: action.Components,
+		Label: action.Label, Description: action.Description, Category: "installation",
+		Subsection: action.Subsection, OS: action.OS, Families: action.Families,
+		EntryKind: EntryAction, RunIndividually: true, Privilege: action.Privilege,
+		SupportedOperations: []Operation{OperationInstall}, Phase: action.Phase, Order: action.Order,
+	}
+}
+
+func presetModule(preset Preset) Module {
+	return Module{
+		ID: preset.ID, Label: preset.Label, Description: preset.Description,
+		Category: "installation", Subsection: preset.Subsection, OS: preset.OS,
+		Families: preset.Families, EntryKind: EntryPreset, DependsOn: preset.Includes,
+		SupportedOperations: []Operation{OperationInstall}, Phase: preset.Phase, Order: preset.Order,
+	}
+}
+
+func normalizeModule(module Module) Module {
+	if module.EntryKind == "" {
+		module.EntryKind = EntryModule
+	}
+	if module.Phase == 0 {
+		module.Phase = PhaseApplication
+	}
+	if len(module.SupportedOperations) == 0 && module.EntryKind == EntryModule {
+		module.SupportedOperations = []Operation{OperationInstall, OperationUpdate, OperationUninstall}
+	}
+	return module
 }
 
 func archDevDependencies() []string {
@@ -264,21 +285,21 @@ func archDevDependencies() []string {
 
 func macOSCask(subsection, component, label, description, installedCheck string) Module {
 	return Module{
-		ID:                "macos-" + component,
-		Script:            "macos/install.sh",
-		Components:        []string{component},
-		Label:             label,
-		Description:       description,
-		Category:          "installation",
-		Subsection:        subsection,
-		OS:                "darwin",
-		RunIndividually:   true,
-		Kind:              KindInstallOnly,
-		Activates:         caskActivations(component),
-		ManualSteps:       caskManualSteps(component),
-		InstalledCheck:    installedCheck,
-		InstalledBrewCask: component,
-		AffectedPaths:     []string{installedCheck},
+		ID:              "macos-" + component,
+		Script:          "macos/install.sh",
+		Components:      []string{component},
+		Label:           label,
+		Description:     description,
+		Category:        "installation",
+		Subsection:      subsection,
+		OS:              "darwin",
+		RunIndividually: true,
+		Kind:            KindInstallOnly,
+		Activates:       caskActivations(component),
+		ManualSteps:     caskManualSteps(component),
+		Verify:          Any(BrewCask(component), Path(installedCheck)),
+		Phase:           PhaseApplication,
+		AffectedPaths:   []string{installedCheck},
 	}
 }
 
@@ -294,31 +315,41 @@ func macOSFormula(component, label, description, installedCmd string) Module {
 	}
 
 	module := Module{
-		ID:                   "macos-cli-" + component,
-		Script:               "macos/cli.sh",
-		Components:           []string{component},
-		Label:                label,
-		Description:          description,
-		Category:             "installation",
-		Subsection:           "macOS 命令行",
-		OS:                   "darwin",
-		RunIndividually:      true,
-		Kind:                 kind,
-		Activates:            activates,
-		InstalledCmd:         installedCmd,
-		InstalledBrewFormula: component,
-		InstalledZshBlocks:   zshBlocks,
+		ID:              "macos-cli-" + component,
+		Script:          "macos/cli.sh",
+		Components:      []string{component},
+		Label:           label,
+		Description:     description,
+		Category:        "installation",
+		Subsection:      "macOS 命令行",
+		OS:              "darwin",
+		RunIndividually: true,
+		Kind:            kind,
+		Activates:       activates,
+		Verify:          All(append([]Check{BrewFormula(component), Command(installedCmd)}, checksForZshBlocks(zshBlocks)...)...),
+		Phase:           PhaseApplication,
 	}
 	if component == "mise" {
 		module.Activates = []string{ActivationShellProfile}
-		module.InstalledCheck = "$HOME/.config/os-init/mise-china.env"
-		module.InstalledCommands = [][]string{
-			{"mise", "exec", "--", "node", "--version"},
-			{"mise", "exec", "--", "python", "--version"},
-			{"mise", "exec", "--", "go", "version"},
-		}
+		module.Verify = All(
+			BrewFormula(component),
+			CommandRun("mise", "exec", "--", "node", "--version"),
+			CommandRun("mise", "exec", "--", "python", "--version"),
+			CommandRun("mise", "exec", "--", "go", "version"),
+			Path("$HOME/.config/os-init/mise-china.env"),
+			ZshBlock("mise"),
+		)
+		module.Phase = PhaseRuntime
 	}
 	return module
+}
+
+func checksForZshBlocks(names []string) []Check {
+	checks := make([]Check, 0, len(names))
+	for _, name := range names {
+		checks = append(checks, ZshBlock(name))
+	}
+	return checks
 }
 
 func caskActivations(component string) []string {
@@ -497,7 +528,93 @@ func InstallSubsections() []string {
 		"Arch Linux 能力",
 		"Arch Linux 开发",
 		"Arch Linux 套餐",
+		"Arch Linux 操作",
 	}
+}
+
+// SupportsOperation reports whether an entry can participate in an operation.
+func (m Module) SupportsOperation(operation Operation) bool {
+	for _, supported := range m.SupportedOperations {
+		if supported == operation {
+			return true
+		}
+	}
+	return false
+}
+
+// PrimaryCommand returns the first command suitable for a lightweight version
+// display. Verification remains authoritative for installed state.
+func (m Module) PrimaryCommand() string {
+	return primaryCommand(m.Verify)
+}
+
+func primaryCommand(check Check) string {
+	if check.Kind == CheckCommand && len(check.Values) > 0 {
+		return check.Values[0]
+	}
+	for _, child := range check.All {
+		if command := primaryCommand(child); command != "" {
+			return command
+		}
+	}
+	for _, child := range check.Any {
+		if command := primaryCommand(child); command != "" {
+			return command
+		}
+	}
+	return ""
+}
+
+// ResolveForContext applies target-user policy outside the TUI layer.
+func ResolveForContext(mods []Module, root bool) []Module {
+	hasArchMise := false
+	for _, mod := range mods {
+		if mod.ID == "arch-mise" {
+			hasArchMise = true
+			break
+		}
+	}
+
+	resolved := make([]Module, 0, len(mods))
+	for _, mod := range mods {
+		if hasArchMise && mod.ID == "go" {
+			continue
+		}
+		if root && mod.ID == "docker" {
+			mod.NeedsRelogin = false
+			activations := make([]string, 0, len(mod.Activates))
+			for _, activation := range mod.Activates {
+				if activation != ActivationRelogin {
+					activations = append(activations, activation)
+				}
+			}
+			mod.Activates = activations
+			mod.Verify = withoutCheckKind(mod.Verify, CheckUserGroup)
+		}
+		resolved = append(resolved, mod)
+	}
+	return resolved
+}
+
+func withoutCheckKind(check Check, kind CheckKind) Check {
+	if check.Kind == kind {
+		return Check{}
+	}
+	if len(check.All) > 0 {
+		check.All = compactChecks(mapChecks(check.All, func(item Check) Check { return withoutCheckKind(item, kind) }))
+	}
+	if len(check.Any) > 0 {
+		check.Any = compactChecks(mapChecks(check.Any, func(item Check) Check { return withoutCheckKind(item, kind) }))
+	}
+	return check
+}
+
+func mapChecks(checks []Check, transform func(Check) Check) []Check {
+	out := make([]Check, 0, len(checks))
+	for _, check := range checks {
+		out = append(out, transform(check))
+	}
+	return out
 }
 
 // ScriptGroup represents a single script invocation with merged components.
@@ -505,7 +622,6 @@ type ScriptGroup struct {
 	Script       string
 	Components   []string
 	Label        string
-	NeedsSudo    bool
 	Privilege    PrivilegePolicy
 	ModuleIDs    []string
 	ModuleLabels []string
@@ -522,7 +638,6 @@ func GroupByScript(selected []Module) []ScriptGroup {
 				Script:       m.Script,
 				Components:   appendUnique(nil, m.Components...),
 				Label:        m.Label,
-				NeedsSudo:    m.NeedsSudo,
 				Privilege:    m.Privilege,
 				ModuleIDs:    []string{m.ID},
 				ModuleLabels: []string{m.Label},
@@ -532,7 +647,6 @@ func GroupByScript(selected []Module) []ScriptGroup {
 		key := m.Script
 		if idx, ok := seen[key]; ok && len(m.Components) > 0 {
 			groups[idx].Components = appendUnique(groups[idx].Components, m.Components...)
-			groups[idx].NeedsSudo = groups[idx].NeedsSudo || m.NeedsSudo
 			groups[idx].Privilege = mergePrivilege(groups[idx].Privilege, m.Privilege)
 			groups[idx].ModuleIDs = append(groups[idx].ModuleIDs, m.ID)
 			groups[idx].ModuleLabels = append(groups[idx].ModuleLabels, m.Label)
@@ -542,7 +656,6 @@ func GroupByScript(selected []Module) []ScriptGroup {
 				Script:       m.Script,
 				Components:   appendUnique(nil, m.Components...),
 				Label:        m.Label,
-				NeedsSudo:    m.NeedsSudo,
 				Privilege:    m.Privilege,
 				ModuleIDs:    []string{m.ID},
 				ModuleLabels: []string{m.Label},

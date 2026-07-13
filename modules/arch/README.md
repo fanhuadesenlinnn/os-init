@@ -2,6 +2,8 @@
 
 This directory contains Arch-specific implementation details used by normal
 OS Init modules. It is not a separate application or configuration system.
+The Go control plane owns planning, lifecycle selection, logging, and
+summaries; `modules/provider.sh` is the only execution boundary.
 
 Cross-platform capabilities such as mise, Neovim, Docker, and Shell
 remain in their top-level module directories. The `arch-dev` and

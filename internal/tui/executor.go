@@ -32,7 +32,7 @@ type executorModel struct {
 
 	// Execution context
 	tmpDir     string
-	mode       string
+	operation  modules.Operation
 	env        map[string]string
 	webhookURL string
 	program    *tea.Program
@@ -42,7 +42,7 @@ type executorModel struct {
 func newExecutorModel(
 	selected []modules.Module,
 	tmpDir string,
-	modeFlag string,
+	operation modules.Operation,
 	env map[string]string,
 	webhookURL string,
 	ctx context.Context,
@@ -62,7 +62,7 @@ func newExecutorModel(
 		spinner:        s,
 		progress:       p,
 		tmpDir:         tmpDir,
-		mode:           modeFlag,
+		operation:      operation,
 		env:            env,
 		webhookURL:     webhookURL,
 		ctx:            ctx,
@@ -198,9 +198,8 @@ func (m executorModel) runCurrent() tea.Cmd {
 
 	g := m.groups[m.current]
 	tmpDir := m.tmpDir
-	modeFlag := m.mode
+	operation := m.operation
 	env := m.env
-	sudo := g.NeedsSudo
 	prog := m.program
 	timeout := scriptTimeoutFromEnv()
 
@@ -220,10 +219,10 @@ func (m executorModel) runCurrent() tea.Cmd {
 			TmpDir:     tmpDir,
 			Script:     g.Script,
 			Components: g.Components,
-			Mode:       modeFlag,
+			Operation:  string(operation),
 			Env:        env,
 			LogDir:     "logs",
-			Sudo:       sudo,
+			Sudo:       false,
 			OnLine: func(line string) {
 				if prog != nil {
 					prog.Send(scriptOutputMsg{

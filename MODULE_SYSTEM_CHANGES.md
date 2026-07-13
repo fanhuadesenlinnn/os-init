@@ -4,6 +4,9 @@
 
 ## 执行、权限和超时
 
+- Go 控制面统一负责平台过滤、依赖展开、生命周期校验、执行顺序、日志和汇总；Shell 模块统一通过 provider 协议接收 script、operation 和 component。
+- 模块、组合预设和一次性操作具有独立语义。组合预设不进入执行队列，不支持的更新/卸载操作会在执行前阻止。
+- 安装状态使用可组合的命令、路径、文件内容、Homebrew、systemd、用户组和 Shell 管理块检查。
 - TUI 会根据选中的模块判断是否需要系统权限；普通 macOS Homebrew formula/cask 模块不会提前触发 `sudo -v`。
 - Linux 系统优化、Docker、Mihomo、写入 `/usr/local`、`/opt`、`/etc` 或 systemd 的模块会提前校验 sudo，避免脚本中途隐藏式等待密码。
 - 脚本内部使用非交互式 sudo；如果 sudo 缓存失效，会失败并提示，而不是卡在不可见的密码输入处。
@@ -110,7 +113,7 @@
 
 ### Arch Linux 通用能力
 
-Arch Linux 不再运行独立子系统。能力直接注册为普通 OS Init 模块，并可与其他模块放在同一个执行计划中：
+Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS Init 模块，并可与其他模块放在同一个执行计划中；Arch 目录只保留领域实现、诊断和配置指纹状态：
 
 - `Arch 基础环境`：通过 pacman 安装基础、排障和现代 CLI 工具，并写入 tmux 配置。
 - `AUR Helper`：root 和普通用户均优先从 archlinuxcn 用 pacman 安装 paru/yay；仅普通用户可回退到 makepkg。
