@@ -39,7 +39,7 @@ func renderUserConfig(target platform.Target, lang string) []byte {
 	case "linux":
 		sections = append(sections, linuxConfigSections()...)
 		if target.Family == platform.FamilyArch {
-			sections = append(sections, archDevKitConfigSection())
+			sections = append(sections, archConfigSection())
 		}
 	}
 
@@ -280,20 +280,15 @@ func mihomoConfigSection() configSection {
 	}
 }
 
-func archDevKitConfigSection() configSection {
+func archConfigSection() configSection {
 	return configSection{
-		TitleZ: "ArchDevKit 桥接配置",
-		TitleE: "ArchDevKit Bridge Settings",
+		TitleZ: "Arch Linux 能力",
+		TitleE: "Arch Linux Capabilities",
 		Entries: []configEntry{
-			{Key: "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE", Value: "dev", CommentZ: "ArchDevKit 原版菜单默认目标。dev = 完整开发环境，不默认安装桌面。", CommentE: "Default target for the original ArchDevKit menu. dev means a complete development environment without the desktop by default."},
-			{Key: "OS_INIT_ARCHDEVKIT_SHELL_PROMPT_ENGINE", Value: "starship", CommentZ: "ArchDevKit shell 提示符引擎：starship、powerlevel10k 或 basic。默认 starship 会复用 os-init 终端样式模板。", CommentE: "ArchDevKit shell prompt engine: starship, powerlevel10k, or basic. The default starship option reuses os-init terminal style templates."},
-			{Key: "OS_INIT_ARCHDEVKIT_ENABLE_PROXY", Value: "1", CommentZ: "dev/workstation 中是否安装代理模块。", CommentE: "Install the proxy module in dev/workstation targets."},
-			{Key: "OS_INIT_ARCHDEVKIT_PROXY_CORE", Value: "mihomo", CommentZ: "ArchDevKit 代理核心：mihomo 或 sing-box。", CommentE: "ArchDevKit proxy core: mihomo or sing-box."},
-			{Key: "OS_INIT_ARCHDEVKIT_PROXY_AUTO_ENABLE_SERVICE", Value: "1", CommentZ: "安装代理后是否自动启用并启动服务。", CommentE: "Enable and start the proxy service after installation."},
-			{Key: "OS_INIT_ARCHDEVKIT_ENABLE_METACUBEXD", Value: "1", CommentZ: "使用 mihomo 时是否安装 MetaCubeXD 面板。", CommentE: "Install the MetaCubeXD dashboard when using mihomo."},
-			{Key: "OS_INIT_ARCHDEVKIT_ENABLE_DNS", Value: "1", CommentZ: "dev/workstation 中是否配置 systemd-resolved DNS 基线。", CommentE: "Configure the systemd-resolved DNS baseline in dev/workstation targets."},
-			{Key: "OS_INIT_ARCHDEVKIT_ENABLE_OPS_TOOLKIT", Value: "1", CommentZ: "dev/workstation 中是否安装 Ops Toolkit。", CommentE: "Install Ops Toolkit in dev/workstation targets."},
-			{Key: "OS_INIT_ARCHDEVKIT_GPU_TYPE", Value: "auto", CommentZ: "桌面目标使用的 GPU 类型：auto、intel、amd、nvidia、vmware、virtio、qxl、virtualbox、none。", CommentE: "GPU type for desktop targets: auto, intel, amd, nvidia, vmware, virtio, qxl, virtualbox, none."},
+			{Key: "PROXY_AUTO_ENABLE_SERVICE", Value: "1", CommentZ: "安装 Arch sing-box 扩展后是否启用服务。", CommentE: "Enable the Arch sing-box service after installation."},
+			{Key: "ENABLE_DNS", Value: "1", CommentZ: "是否启用 Arch DNS 能力。", CommentE: "Enable the Arch DNS capability."},
+			{Key: "ENABLE_OPS_TOOLKIT", Value: "1", CommentZ: "是否启用 Ops Toolkit。", CommentE: "Enable Ops Toolkit."},
+			{Key: "GPU_TYPE", Value: "auto", CommentZ: "GPU 类型：auto、intel、amd、nvidia、vmware、virtio、qxl、virtualbox、none。", CommentE: "GPU type: auto, intel, amd, nvidia, vmware, virtio, qxl, virtualbox, or none."},
 		},
 	}
 }

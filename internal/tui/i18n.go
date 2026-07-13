@@ -26,8 +26,6 @@ func moduleSection(label string) string {
 		return "System Optimization"
 	case "软件安装":
 		return "Software Installation"
-	case "ArchDevKit":
-		return "ArchDevKit"
 	case "Shell 工具":
 		return "Shell Tools"
 	case "终端体验":
@@ -56,6 +54,12 @@ func moduleSection(label string) string {
 		return "Network Proxy"
 	case "开发工具":
 		return "Development Tools"
+	case "Arch Linux 能力":
+		return "Arch Linux Capabilities"
+	case "Arch Linux 开发":
+		return "Arch Linux Development"
+	case "Arch Linux 套餐":
+		return "Arch Linux Presets"
 	default:
 		return label
 	}
@@ -88,8 +92,8 @@ func modulePrivilegeReason(id, fallback string) string {
 	if value, ok := modulePrivilegeReasonEN[id]; ok {
 		return value
 	}
-	if strings.HasPrefix(id, "archdevkit-") {
-		return "ArchDevKit modifies the Arch system through pacman, systemd, and user shell or desktop configuration"
+	if strings.HasPrefix(id, "arch-") {
+		return "applies an Arch Linux capability through pacman, systemd, or target-user configuration"
 	}
 	return "requires system-level configuration or system-wide component installation"
 }
@@ -163,57 +167,49 @@ var modulePrivilegeReasonEN = map[string]string{
 	"yazi":                  "Linux installs binaries in /usr/local/bin",
 	"mihomo":                "writes /etc/mihomo, a systemd service, and system-wide binaries",
 	"docker":                "installs system-wide binaries and configures Docker services and the docker group",
-	"arch-root-mise":        "installs mise through pacman and manages runtimes for root",
+	"arch-mise":             "installs mise through pacman and manages runtimes for the target user",
 	"go":                    "Linux installs or updates /usr/local/go",
 	"neovim":                "Linux installs binaries in /opt and /usr/local/bin",
 }
 
 var moduleLabelEN = map[string]string{
-	"kernel-sysctl":              "Kernel - sysctl.d",
-	"kernel-limits":              "Kernel - limits.d",
-	"kernel-scheduler":           "Kernel - I/O scheduler",
-	"kernel-autotune":            "Kernel - auto tuning",
-	"network-ipv4":               "Network - prefer IPv4",
-	"network-tune":               "Network - queues and MSS",
-	"shell-zsh":                  "zsh + oh-my-zsh",
-	"shell-starship":             "starship prompt",
-	"shell-direnv":               "direnv",
-	"shell-autosuggestions":      "zsh-autosuggestions",
-	"shell-syntax-hl":            "zsh-syntax-highlighting",
-	"shell-git":                  "Git configuration",
-	"shell-byobu":                "byobu + tmux",
-	"terminal-style":             "Terminal style",
-	"terminal-ncdu":              "ncdu",
-	"yazi":                       "Yazi",
-	"mihomo":                     "Mihomo",
-	"docker":                     "Docker",
-	"arch-root-mise":             "mise + Node.js 24 + Python 3.13 + Go 1.24",
-	"go":                         "Go",
-	"neovim":                     "Neovim + Neovide + config-yuan",
-	"archdevkit-menu":            "Original interactive menu",
-	"archdevkit-base":            "Base environment",
-	"archdevkit-archlinuxcn":     "archlinuxcn repository",
-	"archdevkit-dns":             "System DNS",
-	"archdevkit-git":             "Git / GitHub CLI",
-	"archdevkit-ops-toolkit":     "Ops Toolkit",
-	"archdevkit-runtime":         "Runtime / mise",
-	"archdevkit-nvim":            "Neovim",
-	"archdevkit-docker":          "Docker / Compose",
-	"archdevkit-fonts":           "Font environment",
-	"archdevkit-shell":           "Zsh / Oh My Zsh / Starship",
-	"archdevkit-proxy":           "Proxy environment",
-	"archdevkit-desktop":         "Hyprland desktop",
-	"archdevkit-dev":             "Development profile",
-	"archdevkit-workstation":     "Workstation profile",
-	"archdevkit-status":          "Status",
-	"archdevkit-doctor":          "Doctor",
-	"archdevkit-config-init":     "Initialize config",
-	"archdevkit-config-show":     "Show config",
-	"archdevkit-config-validate": "Validate config",
-	"archdevkit-reset-state":     "Reset state",
-	"macos-wechat":               "WeChat",
-	"macos-tencent-meeting":      "Tencent Meeting",
-	"macos-qqlive":               "Tencent Video",
+	"kernel-sysctl":         "Kernel - sysctl.d",
+	"kernel-limits":         "Kernel - limits.d",
+	"kernel-scheduler":      "Kernel - I/O scheduler",
+	"kernel-autotune":       "Kernel - auto tuning",
+	"network-ipv4":          "Network - prefer IPv4",
+	"network-tune":          "Network - queues and MSS",
+	"shell-zsh":             "zsh + oh-my-zsh",
+	"shell-starship":        "starship prompt",
+	"shell-direnv":          "direnv",
+	"shell-autosuggestions": "zsh-autosuggestions",
+	"shell-syntax-hl":       "zsh-syntax-highlighting",
+	"shell-git":             "Git configuration",
+	"shell-byobu":           "byobu + tmux",
+	"terminal-style":        "Terminal style",
+	"terminal-ncdu":         "ncdu",
+	"yazi":                  "Yazi",
+	"mihomo":                "Mihomo",
+	"docker":                "Docker",
+	"arch-mise":             "mise + Node.js 24 + Python 3.13 + Go 1.24",
+	"arch-base":             "Arch base environment",
+	"arch-aur":              "AUR Helper",
+	"arch-archlinuxcn":      "archlinuxcn repository",
+	"arch-dns":              "Arch system DNS",
+	"arch-git":              "Arch Git / GitHub CLI",
+	"arch-ops-toolkit":      "Ops Toolkit",
+	"arch-fonts":            "Arch font environment",
+	"arch-sing-box":         "sing-box",
+	"arch-desktop":          "Arch Hyprland desktop",
+	"arch-doctor":           "Arch system diagnostics",
+	"arch-status":           "Arch detailed status",
+	"arch-dev":              "Arch development environment",
+	"arch-workstation":      "Arch complete workstation",
+	"go":                    "Go",
+	"neovim":                "Neovim + Neovide + config-yuan",
+	"macos-wechat":          "WeChat",
+	"macos-tencent-meeting": "Tencent Meeting",
+	"macos-qqlive":          "Tencent Video",
 }
 
 var moduleDescriptionEN = map[string]string{
@@ -306,28 +302,20 @@ var moduleDescriptionEN = map[string]string{
 	"macos-cli-llmfit":                    "Command-line tool",
 	"mihomo":                              "Proxy core, config validation, and MetaCubeXD dashboard",
 	"docker":                              "Static binary, Compose plugin, and daemon config",
-	"arch-root-mise":                      "Root runtimes, mainland mirrors, and shell activation",
+	"arch-mise":                           "Arch runtimes, mainland mirrors, and target-user shell activation",
+	"arch-base":                           "Base, troubleshooting, modern CLI tools, and tmux configuration",
+	"arch-aur":                            "Install paru and yay for a normal user; safely skip in root mode",
+	"arch-archlinuxcn":                    "Configure the repository, keyring, and mirrorlist",
+	"arch-dns":                            "systemd-resolved, NetworkManager, and a mainland-friendly DNS baseline",
+	"arch-git":                            "git, gh, OpenSSH, and base Git settings",
+	"arch-ops-toolkit":                    "Clone the operations toolkit and create stable command entrypoints",
+	"arch-fonts":                          "Chinese, Emoji, Nerd Font, Monaco, and fontconfig",
+	"arch-sing-box":                       "Arch-native sing-box, user service, and shell proxy template",
+	"arch-desktop":                        "Hyprland, SDDM, Fcitx5/Rime, browser, hyprdots, and VM integration",
+	"arch-doctor":                         "Check Arch capabilities, network, services, and desktop environment",
+	"arch-status":                         "Show detailed Arch capability status and suggestions",
+	"arch-dev":                            "Base tools, runtimes, containers, shell, fonts, and proxy preset",
+	"arch-workstation":                    "Arch development environment plus the Hyprland desktop capability",
 	"go":                                  "Go toolchain",
 	"neovim":                              "Terminal editor, macOS GUI client, and personal configuration",
-	"archdevkit-menu":                     "Choose install target and options with the original ArchDevKit flow",
-	"archdevkit-base":                     "Base tools, troubleshooting tools, modern CLI tools, tmux, and AUR helpers",
-	"archdevkit-archlinuxcn":              "Configure archlinuxcn repository, keyring, and mirrorlist",
-	"archdevkit-dns":                      "systemd-resolved, NetworkManager DNS backend, and mainland-friendly DNS baseline",
-	"archdevkit-git":                      "git, gh, OpenSSH, and basic Git configuration",
-	"archdevkit-ops-toolkit":              "Clone the ops-toolkit repository and create stable command entrypoints",
-	"archdevkit-runtime":                  "mise-managed Node 24, Python 3.13, Go 1.24, and China mirrors",
-	"archdevkit-nvim":                     "Neovim and personal configuration",
-	"archdevkit-docker":                   "Install Docker/Compose through pacman, configure mirrors, service, and group",
-	"archdevkit-fonts":                    "Chinese fonts, Emoji, Nerd Font, Monaco, and fontconfig",
-	"archdevkit-shell":                    "Zsh, Oh My Zsh, Starship terminal style, plugins, and default shell",
-	"archdevkit-proxy":                    "Mihomo or sing-box, MetaCubeXD, and shell proxy template",
-	"archdevkit-desktop":                  "Hyprland, SDDM, Fcitx5/Rime, browser, terminal, and hyprdots",
-	"archdevkit-dev":                      "base + archlinuxcn + dns + git + ops-toolkit + runtime + nvim + docker + fonts + shell + proxy",
-	"archdevkit-workstation":              "dev + Hyprland desktop",
-	"archdevkit-status":                   "Show ArchDevKit module status and suggested actions",
-	"archdevkit-doctor":                   "Run ArchDevKit doctor diagnostics",
-	"archdevkit-config-init":              "Create ~/.config/archdevkit/config.env",
-	"archdevkit-config-show":              "Show the active ArchDevKit configuration",
-	"archdevkit-config-validate":          "Validate the ArchDevKit config file",
-	"archdevkit-reset-state":              "Clear ArchDevKit state records without uninstalling system software",
 }

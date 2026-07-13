@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## v0.24.0 - 2026-07-13
+
+### Added
+
+- Add first-class Arch Linux capabilities for base tools, AUR helpers, archlinuxcn, DNS, Git/GitHub CLI, Ops Toolkit, fonts, sing-box, diagnostics, status, and the complete Hyprland desktop stack.
+- Add `arch-dev` and `arch-workstation` presets that expand through normal planner dependencies.
+
+### Changed
+
+- Make the shared Arch mise module available to root and normal users, with only pacman operations elevated for normal users.
+- Reuse the normal mise, Neovim, Docker, Shell, terminal-style, and Mihomo modules in Arch presets instead of maintaining duplicate implementations.
+- Move Arch settings into `~/.config/os-init/config.env` and namespace Arch-specific execution state under `~/.local/state/os-init/arch`.
+- Support Arch capabilities in root mode while safely skipping AUR builds that require a normal makepkg user.
+
+### Removed
+
+- Remove the nested ArchDevKit application, vendor wrapper, independent TUI wizard, isolated configuration, and mixed-batch restriction after absorbing its capabilities.
 
 ## v0.23.0 - 2026-07-13
 

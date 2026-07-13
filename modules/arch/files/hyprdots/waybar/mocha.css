@@ -1,0 +1,27 @@
+/* OS Init Arch i3 Clear: dark surfaces, bright readable text, low-saturation blue focus. */
+@define-color rosewater #f8f8f2;
+@define-color flamingo #f8f8f2;
+@define-color pink #bb86fc;
+@define-color mauve #81a2be;
+@define-color red #ff5555;
+@define-color maroon #cc6666;
+@define-color peach #ff8247;
+@define-color yellow #f1fa8c;
+@define-color green #50fa7b;
+@define-color teal #8be9fd;
+@define-color sky #57c7ff;
+@define-color sapphire #57c7ff;
+@define-color blue #81a2be;
+@define-color lavender #6272a4;
+@define-color text #f8f8f2;
+@define-color subtext1 #c5c8c6;
+@define-color subtext0 #bfbfbf;
+@define-color overlay2 #969896;
+@define-color overlay1 #737684;
+@define-color overlay0 #565869;
+@define-color surface2 #44475a;
+@define-color surface1 #373b41;
+@define-color surface0 #282a36;
+@define-color base #1c1c1c;
+@define-color mantle #181a20;
+@define-color crust #101116;

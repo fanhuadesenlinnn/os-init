@@ -113,42 +113,43 @@ func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	}
 }
 
-func TestForTarget_ShowsArchDevKitOnlyOnArchLinux(t *testing.T) {
+func TestForTarget_ShowsArchCapabilitiesOnlyOnArchLinux(t *testing.T) {
 	t.Parallel()
 
 	arch := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
-	if !hasModule(arch, "archdevkit-menu") {
-		t.Fatal("ArchDevKit menu should appear on Arch Linux")
+	for _, id := range []string{"arch-base", "arch-mise", "arch-dev", "arch-workstation"} {
+		if !hasModule(arch, id) {
+			t.Fatalf("%s should appear on Arch Linux", id)
+		}
 	}
 
 	debian := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"})
-	if hasModule(debian, "archdevkit-menu") {
-		t.Fatal("ArchDevKit menu should be hidden on Debian-family Linux")
+	if hasModule(debian, "arch-base") {
+		t.Fatal("Arch capabilities should be hidden on Debian-family Linux")
 	}
 
 	redhat := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyRedHat, Init: "systemd"})
-	if hasModule(redhat, "archdevkit-menu") {
-		t.Fatal("ArchDevKit menu should be hidden on RedHat-family Linux")
+	if hasModule(redhat, "arch-base") {
+		t.Fatal("Arch capabilities should be hidden on RedHat-family Linux")
 	}
 
 	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
-	if hasModule(darwin, "archdevkit-menu") {
-		t.Fatal("ArchDevKit menu should be hidden on macOS")
+	if hasModule(darwin, "arch-base") {
+		t.Fatal("Arch capabilities should be hidden on macOS")
 	}
 }
 
-func TestArchDevKitInstallModule_CreatesOriginalTargets(t *testing.T) {
+func TestArchWorkstationPresetDependsOnDevAndDesktop(t *testing.T) {
 	t.Parallel()
-
-	mod, ok := ArchDevKitInstallModule("workstation")
-	if !ok {
-		t.Fatal("workstation should be a valid ArchDevKit install target")
+	mods := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
+	var preset Module
+	for _, mod := range mods {
+		if mod.ID == "arch-workstation" {
+			preset = mod
+		}
 	}
-	if mod.ID != "archdevkit-workstation" {
-		t.Fatalf("module ID = %q, want archdevkit-workstation", mod.ID)
-	}
-	if len(mod.Components) != 1 || mod.Components[0] != "workstation" {
-		t.Fatalf("components = %v, want [workstation]", mod.Components)
+	if len(preset.DependsOn) != 2 || preset.DependsOn[0] != "arch-dev" || preset.DependsOn[1] != "arch-desktop" {
+		t.Fatalf("workstation dependencies = %v", preset.DependsOn)
 	}
 }
 

@@ -400,9 +400,9 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 		t.Fatal("macOS CLI installer should delegate mise to the shared installer")
 	}
 
-	rootMise := findModule(t, modules.AllModules(), "arch-root-mise")
-	if !rootMise.RootOnly || rootMise.Script != "mise/install.sh" || !contains(rootMise.Families, "arch") {
-		t.Fatalf("Arch root mise module is not scoped correctly: %#v", rootMise)
+	archMise := findModule(t, modules.AllModules(), "arch-mise")
+	if archMise.Script != "mise/install.sh" || !contains(archMise.Families, "arch") {
+		t.Fatalf("Arch mise module is not scoped correctly: %#v", archMise)
 	}
 }
 
@@ -617,6 +617,9 @@ func TestInstallSubsections_ReturnsCurrentGroups(t *testing.T) {
 		"macOS 命令行",
 		"网络代理",
 		"开发工具",
+		"Arch Linux 能力",
+		"Arch Linux 开发",
+		"Arch Linux 套餐",
 	}
 	if got := modules.InstallSubsections(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected install subsections: got %v, want %v", got, want)

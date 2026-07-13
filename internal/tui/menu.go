@@ -68,23 +68,6 @@ func newMenuModel(mods []modules.Module) menuModel {
 		}
 	}
 
-	hasArchDevKit := false
-	for _, m := range mods {
-		if m.Category == "archdevkit" {
-			hasArchDevKit = true
-			break
-		}
-	}
-	if hasArchDevKit {
-		items = append(items, menuItem{separator: true, label: ""}) // spacer
-		items = append(items, menuItem{separator: true, label: "ArchDevKit"})
-		for _, m := range mods {
-			if m.Category == "archdevkit" {
-				items = append(items, menuItem{module: m})
-			}
-		}
-	}
-
 	cursor := 0
 	for i, item := range items {
 		if !item.separator {
@@ -236,17 +219,7 @@ func (m menuModel) Update(msg tea.Msg) (menuModel, tea.Cmd) {
 		case "enter":
 			selected := m.getSelected()
 			if len(selected) == 0 {
-				if !m.items[m.cursor].separator && m.items[m.cursor].module.ID == "archdevkit-menu" {
-					return m, func() tea.Msg { return switchScreenMsg{to: screenArchDevKit} }
-				}
 				return m, nil
-			}
-			if selectedHasModule(selected, "archdevkit-menu") {
-				if len(selected) > 1 {
-					m.notice = text("ArchDevKit 原版菜单需要单独进入，请取消其它选择。", "Open the ArchDevKit menu by itself; deselect other modules first.")
-					return m, nil
-				}
-				return m, func() tea.Msg { return switchScreenMsg{to: screenArchDevKit} }
 			}
 			return m, func() tea.Msg { return selectedModulesMsg{modules: selected} }
 		case "q", "esc":

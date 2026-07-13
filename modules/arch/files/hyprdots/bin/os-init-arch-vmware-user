@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# VMware Wayland user-session helper for Hyprland.
+# Keeps vmware-user-suid-wrapper/vmtoolsd -n vmusr available so the mouse can
+# move between host and guest without requiring a manual ungrab shortcut.
+set -u
+
+log_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/os-init-arch"
+log_file="${log_dir}/vmware-user.log"
+mkdir -p "${log_dir}"
+
+log() {
+  printf '[%s] %s\n' "$(date '+%F %T')" "$*" >>"${log_file}"
+}
+
+is_vmware_guest() {
+  local virt_type=""
+  if command -v systemd-detect-virt >/dev/null 2>&1; then
+    virt_type="$(systemd-detect-virt 2>/dev/null || true)"
+    [[ "${virt_type}" == "vmware" ]] && return 0
+  fi
+
+  command -v lspci >/dev/null 2>&1 && lspci 2>/dev/null | grep -qi 'vmware'
+}
+
+vmware_user_running() {
+  pgrep -u "$(id -u)" -f '(^|[[:space:]/])vmtoolsd([[:space:]].*)?-n[[:space:]]+vmusr([[:space:]]|$)|(^|[[:space:]/])vmware-user-suid-wrapper([[:space:]]|$)|(^|[[:space:]/])vmware-user([[:space:]]|$)' >/dev/null 2>&1
+}
+
+wait_for_wayland_display() {
+  local runtime_dir wayland_display socket
+  runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  wayland_display="${WAYLAND_DISPLAY:-}"
+
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    if [[ -n "${wayland_display}" && -S "${runtime_dir}/${wayland_display}" ]]; then
+      printf '%s\n' "${wayland_display}"
+      return 0
+    fi
+
+    for socket in "${runtime_dir}"/wayland-*; do
+      [[ -S "${socket}" ]] || continue
+      printf '%s\n' "$(basename "${socket}")"
+      return 0
+    done
+
+    sleep 0.2
+  done
+
+  printf '%s\n' "${wayland_display:-wayland-1}"
+}
+
+is_vmware_guest || {
+  log "not a VMware guest, exiting"
+  exit 0
+}
+
+if ! command -v vmware-user-suid-wrapper >/dev/null 2>&1; then
+  log "vmware-user-suid-wrapper not found; install open-vm-tools"
+  exit 0
+fi
+
+if [[ ! -e /dev/uinput ]]; then
+  log "/dev/uinput not found; run: sudo modprobe uinput"
+fi
+
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$(wait_for_wayland_display)}"
+
+log "starting VMware user helper with WAYLAND_DISPLAY=${WAYLAND_DISPLAY}"
+
+while true; do
+  if vmware_user_running; then
+    sleep 5
+    continue
+  fi
+
+  log "starting vmware-user-suid-wrapper"
+  vmware-user-suid-wrapper >>"${log_file}" 2>&1 &
+  child_pid="$!"
+
+  sleep 2
+  if kill -0 "${child_pid}" >/dev/null 2>&1; then
+    wait "${child_pid}" || log "vmware-user-suid-wrapper exited with status $?"
+  else
+    log "vmware-user-suid-wrapper returned quickly; checking again"
+  fi
+
+  sleep 2
+done

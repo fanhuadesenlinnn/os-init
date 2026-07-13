@@ -89,7 +89,7 @@ func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 			t.Fatalf("darwin config should not contain retired runtime manager setting %q", unwanted)
 		}
 	}
-	for _, unwanted := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE="} {
+	for _, unwanted := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "OS_INIT_ARCH_DEFAULT_PROFILE="} {
 		if strings.Contains(data, unwanted) {
 			t.Fatalf("darwin config should not contain %q, got %q", unwanted, data)
 		}
@@ -108,21 +108,19 @@ func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
 	if strings.Contains(data, "HOMEBREW_API_DOMAIN=") {
 		t.Fatalf("linux config should not contain Homebrew settings, got %q", data)
 	}
-	if strings.Contains(data, "OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE=") {
-		t.Fatalf("non-Arch linux config should not contain ArchDevKit settings, got %q", data)
+	if strings.Contains(data, "OS_INIT_ARCH_DEFAULT_PROFILE=") {
+		t.Fatalf("non-Arch linux config should not contain Arch settings, got %q", data)
 	}
 }
 
-func TestRenderUserConfig_ArchIncludesArchDevKitBridge(t *testing.T) {
+func TestRenderUserConfig_ArchIncludesNativeCapabilities(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyArch}, "zh_CN"))
 	for _, want := range []string{
-		"ArchDevKit 桥接配置",
-		"OS_INIT_ARCHDEVKIT_DEFAULT_PROFILE=dev",
-		"OS_INIT_ARCHDEVKIT_ENABLE_PROXY=1",
-		"OS_INIT_ARCHDEVKIT_PROXY_CORE=mihomo",
-		"OS_INIT_ARCHDEVKIT_ENABLE_METACUBEXD=1",
+		"Arch Linux 能力",
+		"PROXY_AUTO_ENABLE_SERVICE=1",
+		"GPU_TYPE=auto",
 	} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("arch config should contain %q, got %q", want, data)

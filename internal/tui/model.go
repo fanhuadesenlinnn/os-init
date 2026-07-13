@@ -34,7 +34,6 @@ type Model struct {
 	banner        bannerModel
 	configStartup configStartupModel
 	menu          menuModel
-	archDevKit    archDevKitModel
 	mode          modeModel
 	gitInfo       gitInfoModel
 	confirm       confirmModel
@@ -258,8 +257,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.configStartup, cmd = m.configStartup.Update(msg)
 	case screenMenu:
 		m.menu, cmd = m.menu.Update(msg)
-	case screenArchDevKit:
-		m.archDevKit, cmd = m.archDevKit.Update(msg)
 	case screenMode:
 		m.mode, cmd = m.mode.Update(msg)
 	case screenGitInfo:
@@ -288,16 +285,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.startMenu()
 
 	case switchScreenMsg:
-		if msg.to == screenArchDevKit && os.Geteuid() == 0 {
-			m.menu.notice = text("root 模式不支持 ArchDevKit，请使用通用 Linux 模块。", "ArchDevKit requires a normal user; use the general Linux modules in root mode.")
-			m.screen = screenMenu
-			return m, nil
-		}
 		m.screen = msg.to
 		switch msg.to {
-		case screenArchDevKit:
-			m.archDevKit = newArchDevKitModel(m.config.Assets)
-			return m, m.archDevKit.Init()
 		case screenGitInfo:
 			return m.showGitInfoOrConfirm()
 		case screenConfirm:
@@ -316,22 +305,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m = next
 		return m.showMode()
-
-	case archDevKitSelectedMsg:
-		if os.Geteuid() == 0 {
-			m.menu.notice = text("root 模式不支持 ArchDevKit，请使用通用 Linux 模块。", "ArchDevKit requires a normal user; use the general Linux modules in root mode.")
-			m.screen = screenMenu
-			return m, nil
-		}
-		m.requestedModules = []modules.Module{msg.module}
-		m.selectedModules = []modules.Module{msg.module}
-		m.executionEnv = msg.env
-		m.selectedMode = modeInstall
-		next, ok := m.buildExecutionPlan()
-		if !ok {
-			return next, nil
-		}
-		return next.showConfirm()
 
 	case selectedModeMsg:
 		m.selectedMode = msg.mode
@@ -405,25 +378,17 @@ func selectionNeedsSudoPrimeForUID(selected []modules.Module, target platform.Ta
 }
 
 func filterModulesForExecutionUser(mods []modules.Module, root bool) []modules.Module {
-	hasRootMise := false
-	if root {
-		for _, mod := range mods {
-			if mod.ID == "arch-root-mise" {
-				hasRootMise = true
-				break
-			}
+	hasArchMise := false
+	for _, mod := range mods {
+		if mod.ID == "arch-mise" {
+			hasArchMise = true
+			break
 		}
 	}
 
 	filtered := make([]modules.Module, 0, len(mods))
 	for _, mod := range mods {
-		if mod.RootOnly && !root {
-			continue
-		}
-		if root && mod.Category == "archdevkit" {
-			continue
-		}
-		if hasRootMise && mod.ID == "go" {
+		if hasArchMise && mod.ID == "go" {
 			continue
 		}
 		if root && mod.ID == "docker" {
@@ -453,8 +418,6 @@ func (m Model) View() string {
 		return m.configStartup.View()
 	case screenMenu:
 		return m.menu.View()
-	case screenArchDevKit:
-		return m.archDevKit.View()
 	case screenMode:
 		return m.mode.View()
 	case screenGitInfo:
@@ -479,8 +442,6 @@ func (m Model) initScreen(s screen) tea.Cmd {
 		return m.configStartup.Init()
 	case screenMenu:
 		return m.menu.Init()
-	case screenArchDevKit:
-		return m.archDevKit.Init()
 	case screenMode:
 		return m.mode.Init()
 	case screenGitInfo:

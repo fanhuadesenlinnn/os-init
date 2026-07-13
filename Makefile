@@ -1,4 +1,4 @@
-.PHONY: build run lint test lib-strategy-test archdevkit-test check clean
+.PHONY: build run lint test lib-strategy-test arch-test check clean
 
 BINARY ?= os-init
 VERSION ?= dev
@@ -21,10 +21,11 @@ test:
 lib-strategy-test:
 	bash tooling/test-lib-strategy.sh
 
-archdevkit-test:
-	bash modules/archdevkit/vendor/scripts/test.sh
+arch-test:
+	bash modules/arch/scripts/test.sh
+	shellcheck -x $$(find modules/arch -type f -name '*.sh' -print)
 
-check: test lint lib-strategy-test archdevkit-test
+check: test lint lib-strategy-test arch-test
 
 clean:
 	rm -rf os-init kickstart dist

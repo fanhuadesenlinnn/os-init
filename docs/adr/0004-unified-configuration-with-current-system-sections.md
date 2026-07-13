@@ -1,15 +1,14 @@
 # Unified configuration with current-system sections
 
-OS Init uses one user-facing configuration surface across macOS, general Linux, and ArchDevKit initialization. Default config creation should generate common settings plus sections relevant to the current system; on Arch Linux that includes common ArchDevKit settings, while macOS and non-Arch Linux should not be cluttered with ArchDevKit defaults.
+OS Init uses `~/.config/os-init/config.env` across macOS, general Linux, and
+Arch Linux. Default generation includes common settings and settings relevant
+to the detected platform.
 
-**Considered Options**
+## Consequences
 
-- Keep separate user-facing configuration files for OS Init and ArchDevKit.
-- Generate every possible setting for every platform in one large config file.
-- Use one config file, but generate common settings plus current-system sections by default.
-
-**Consequences**
-
-- Users should usually edit `~/.config/os-init/config.env` instead of learning several config files.
-- Default config should stay small and focus on commonly changed settings.
-- ArchDevKit can still receive a generated temporary config behind its independent flow so its internal logic stays separate.
+- Users edit one configuration file.
+- Arch modules ignore unrelated keys in that shared file.
+- Arch-specific execution state is namespaced at
+  `~/.local/state/os-init/arch`, while shared modules keep their normal OS Init
+  ownership and status records.
+- Environment variables remain the final override.

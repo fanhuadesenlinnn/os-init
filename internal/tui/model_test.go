@@ -27,22 +27,22 @@ func TestStartExecutionReportsAssetExtractionFailure(t *testing.T) {
 	}
 }
 
-func TestFilterModulesForExecutionUserRemovesArchDevKitForRoot(t *testing.T) {
+func TestFilterModulesForExecutionUserSharesArchMiseAndHidesStandaloneGo(t *testing.T) {
 	mods := []modules.Module{
 		{ID: "shell-zsh", Category: "installation"},
-		{ID: "archdevkit-menu", Category: "archdevkit"},
+		{ID: "arch-base", Category: "installation"},
 		{ID: "kernel-sysctl", Category: "optimization"},
-		{ID: "arch-root-mise", Category: "installation", RootOnly: true},
+		{ID: "arch-mise", Category: "installation"},
 		{ID: "go", Category: "installation"},
 	}
 
 	rootMods := filterModulesForExecutionUser(mods, true)
-	if len(rootMods) != 3 || rootMods[0].ID != "shell-zsh" || rootMods[1].ID != "kernel-sysctl" || rootMods[2].ID != "arch-root-mise" {
+	if len(rootMods) != 4 || rootMods[1].ID != "arch-base" || rootMods[3].ID != "arch-mise" {
 		t.Fatalf("root modules = %#v", rootMods)
 	}
 
 	normalMods := filterModulesForExecutionUser(mods, false)
-	if len(normalMods) != 4 || normalMods[0].ID != "shell-zsh" || normalMods[1].ID != "archdevkit-menu" || normalMods[2].ID != "kernel-sysctl" || normalMods[3].ID != "go" {
+	if len(normalMods) != 4 || normalMods[1].ID != "arch-base" || normalMods[3].ID != "arch-mise" {
 		t.Fatalf("normal user modules were unexpectedly filtered: %#v", normalMods)
 	}
 }

@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# OS Init Arch 默认配置
+# 修改这里可以改变交互式和参数式安装的默认行为。
+
+# =========================
+# 全局行为
+# =========================
+ASSUME_YES=0
+DRY_RUN=0
+OS_INIT_ARCH_USE_STATE=1
+OS_INIT_ARCH_STATE_DIR="${HOME}/.local/state/os-init/arch"
+OS_INIT_ARCH_LOAD_CONFIG_FILE="${OS_INIT_ARCH_LOAD_CONFIG_FILE:-1}"
+OS_INIT_ARCH_CONFIG_FILE="${OS_INIT_ARCH_CONFIG_FILE:-${HOME}/.config/os-init/config.env}"
+OS_INIT_ARCH_JSON_SCHEMA_VERSION="${OS_INIT_ARCH_JSON_SCHEMA_VERSION:-1}"
+
+# =========================
+# 中国大陆网络默认配置
+# =========================
+ENABLE_CHINA_MIRROR=1
+ENABLE_GITHUB_PROXY=1
+GITHUB_PROXY="https://hubproxy.babadafafafafa.cn/"
+
+# =========================
+# DNS：systemd-resolved 系统解析基线
+# =========================
+ENABLE_DNS=1
+DNS_SERVERS=(223.5.5.5 223.6.6.6 119.29.29.29 114.114.114.114)
+DNS_FALLBACK_SERVERS=(180.76.76.76 114.114.115.115)
+DNS_FOREIGN_FALLBACK_SERVERS=(1.1.1.1 8.8.8.8)
+DNS_DNSSEC="no"
+DNS_OVER_TLS="no"
+DNS_CACHE="yes"
+DNS_LLMNR="no"
+DNS_MULTICAST_DNS="no"
+DNS_CONFIGURE_NETWORKMANAGER=1
+DNS_LINK_RESOLV_CONF=1
+DNS_RESTART_NETWORKMANAGER=0
+
+# =========================
+# archlinuxcn
+# =========================
+INSTALL_ARCHLINUXCN=1
+# 中国大陆默认使用 USTC archlinuxcn 镜像，减少首次安装时的解析和跨境网络波动。
+ARCHLINUXCN_SERVER='https://mirrors.ustc.edu.cn/archlinuxcn/$arch'
+INSTALL_ARCHLINUXCN_MIRRORLIST=1
+
+# =========================
+# Ops Toolkit：可更新的运维脚本仓库和稳定命令入口
+# =========================
+ENABLE_OPS_TOOLKIT=1 # 1=随 dev/workstation 安装，0=dev/workstation 跳过；直接执行 ops-toolkit 命令不受此项限制
+OPS_TOOLKIT_REPO="https://github.com/fanhuadesenlinnn/ops-toolkit.git"
+OPS_TOOLKIT_BRANCH=""
+OPS_TOOLKIT_DIR="${HOME}/.local/share/ops-toolkit"
+OPS_TOOLKIT_BIN_DIR="${HOME}/.local/bin"
+OPS_TOOLKIT_COMMAND="ops"
+
+# =========================
+# 字体
+# =========================
+INSTALL_CN_FONTS=1
+INSTALL_NERD_FONTS=1
+INSTALL_MONACO_FONT=1
+MONACO_AS_SYSTEM_FONT=1
+SYSTEM_FONT_FAMILY="Monaco"
+SYSTEM_MONOSPACE_FONT_FAMILY="Monaco"
+SYSTEM_CJK_FONT_FAMILY="Noto Sans CJK SC"
+SYSTEM_EMOJI_FONT_FAMILY="Noto Color Emoji"
+# Monaco 通过 archlinuxcn 源安装，避免维护本地字体文件或第三方下载 URL。
+MONACO_FONT_PACKAGE="ttf-monaco"
+
+# =========================
+# Hyprland
+# =========================
+ENABLE_SDDM=1
+ENABLE_BLUETOOTH=1
+ENABLE_FCITX5=1
+INPUT_METHOD_ENGINE="rime"
+RIME_SCHEMA="luna_pinyin_simp"
+INSTALL_RIME_CONFIG=1
+RIME_CONFIG_REPO="https://github.com/fanhuadesenlinnn/rime-config.git"
+RIME_CONFIG_BRANCH=""
+RIME_CONFIG_DIR="${HOME}/.local/share/fcitx5/rime"
+GPU_TYPE="auto" # auto / intel / amd / nvidia / vmware / virtio / qxl / virtualbox / none
+VMWARE_HYPRLAND_MONITOR_MODE="1920x1080@60"
+# VMware SVGA3D can pass EGL detection but still fail native Wayland GL clients.
+# Default to llvmpipe so Alacritty/Neovide work with or without VMware 3D acceleration.
+VMWARE_FORCE_SOFTWARE_RENDERER=1
+VM_HYPRLAND_MONITOR_MODE="1920x1080@60"
+VM_HYPRLAND_DYNAMIC_RESIZE=1
+VM_HYPRLAND_LOW_LATENCY=1
+HYPRLAND_CONFIG_MODE="hyprdots" # hyprdots / template / skip
+HYPRDOTS_SOURCE_DIR="${SCRIPT_DIR}/files/hyprdots"
+HYPRDOTS_SOURCE_COMMIT="0158219"
+HYPRDOTS_LOCAL_BIN_DIR="${HOME}/.local/bin"
+HYPRDOTS_WALLPAPER_DIR="${HOME}/Pictures/Wallpaper"
+INSTALL_HYPRDOTS_OBSIDIAN=0
+HYPRDOTS_CONFIG_MODULES=(
+  hypr
+  waybar
+  rofi
+  dunst
+  yazi
+  btop
+  alacritty
+  gtk-3.0
+  gtk-4.0
+)
+
+TERMINAL_APP="${HOME}/.local/bin/os-init-arch-terminal"
+APP_LAUNCHER="rofi"
+FILE_MANAGER="yazi"
+BROWSER_PACKAGE="google-chrome"
+BROWSER_APP="google-chrome-stable"
+
+# =========================
+# sing-box：Arch 专属代理扩展（Mihomo 由通用模块管理）
+# =========================
+PROXY_AUTO_ENABLE_SERVICE=1 # 1=安装后启用并启动服务，0=只安装和生成配置
+SING_BOX_PACKAGE="sing-box"
+SING_BOX_CONFIG_DIR="${HOME}/.config/sing-box"
+SING_BOX_CONFIG_FILE="${SING_BOX_CONFIG_DIR}/config.json"
+SING_BOX_CONFIG_SOURCE="${SCRIPT_DIR}/files/sing-box/config.json.tpl" # 本地 config.json/.tpl 或 URL；为空则渲染默认模板
+SING_BOX_MIXED_PORT=7890

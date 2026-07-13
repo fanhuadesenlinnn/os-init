@@ -11,7 +11,7 @@
 | 平台 | 支持范围 |
 | --- | --- |
 | macOS | Apple Silicon、Intel；软件优先通过 Homebrew 安装 |
-| Arch Linux / Manjaro | 普通模块及完整 ArchDevKit 初始化菜单 |
+| Arch Linux / Manjaro | 独立 Arch 能力、开发环境与完整工作站组合；支持 root 和普通用户 |
 | Debian / Ubuntu | 系统优化、Shell、终端工具、Docker、Mihomo、开发工具 |
 | Fedora / Rocky Linux / RHEL | 系统优化、Shell、终端工具、Docker、Mihomo、开发工具 |
 
@@ -118,32 +118,31 @@ OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装�
 
 mise 模块同时安装并管理 Node.js 24、Python 3.13 和 Go 1.24。
 
-在 Arch Linux 上直接以 root 运行时，菜单会提供独立的 `mise + Node.js 24 + Python 3.13 + Go 1.24` 模块。mise 通过官方 pacman 仓库安装，运行时、镜像配置和 Shell 激活写入 `/root`；普通用户仍通过 ArchDevKit 的 `runtime` 使用同一组目标版本。
+在 Arch Linux 上，root 和普通用户使用同一个 mise 模块。普通用户只在 pacman 阶段通过 sudo 提权，运行时与 Shell 配置写入自己的 HOME；root 模式写入 `/root`。
 
-### ArchDevKit
+### Arch Linux 能力与组合
 
-Arch Linux 会显示独立的 ArchDevKit 菜单，用于最小化安装后的完整环境初始化。
+Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，也可以通过组合预设一次安装。
 
-| 目标或动作 | 用途 |
+| 模块或组合 | 用途 |
 | --- | --- |
-| base | 基础工具、排障工具、现代 CLI、tmux、AUR helper |
-| archlinuxcn | 软件源、keyring、mirrorlist |
-| dns | systemd-resolved、NetworkManager DNS、国内 DNS 基线 |
-| git / ops-toolkit | Git、GitHub CLI、OpenSSH、运维工具入口 |
-| runtime | mise 管理 Node.js 24、Python 3.13、Go 1.24 |
-| nvim / docker / fonts | 开发环境、容器和字体 |
-| shell / proxy / desktop | Zsh、Starship、代理、Hyprland 桌面和输入法 |
-| dev / workstation | 组合安装方案 |
-| status / doctor / config | 状态检查、诊断和配置管理 |
+| Arch 基础环境 / AUR Helper | 基础工具、排障工具、现代 CLI、tmux、paru 和 yay |
+| archlinuxcn / Arch DNS | 软件源、keyring、mirrorlist、systemd-resolved 和 NetworkManager |
+| Arch Git / Ops Toolkit | Git、GitHub CLI、OpenSSH 和运维工具入口 |
+| Arch 字体 / sing-box | 中文字体、Emoji、Nerd Font、Monaco 和 systemd 代理服务 |
+| Arch Hyprland 桌面 | Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 与虚拟机适配 |
+| Arch 开发环境 | 基础工具、mise、Neovim、Docker、字体、Shell 和 Mihomo 的组合 |
+| Arch 完整工作站 | Arch 开发环境加完整 Hyprland 桌面 |
+| Arch 状态详情 / 系统诊断 | 状态、配置指纹、网络、systemd、桌面与修复建议 |
 
-ArchDevKit 配置和状态保存在：
+所有能力共用 OS Init 配置，Arch 专用执行状态位于：
 
 ```text
-~/.config/archdevkit/config.env
-~/.local/state/archdevkit
+~/.config/os-init/config.env
+~/.local/state/os-init/arch
 ```
 
-ArchDevKit 的 `shell` 和 `desktop` 目标会管理完整的 Shell 或桌面配置。执行前请在确认页核对受影响路径。
+root 模式不会运行 `makepkg`；AUR Helper 会安全跳过。其他系统操作直接以 root 执行，用户配置写入 `/root`。普通用户运行时，系统操作通过 sudo，用户配置保持普通用户所有权。
 
 ## 配置
 
@@ -182,14 +181,14 @@ OS_INIT_CONFIG_PROMPT=0
 - macOS 软件逐个执行，成功、失败、耗时和日志互不影响。
 - Shell 配置修改后，打开新终端或执行 `exec zsh` 使其生效。
 - Docker 用户组变化通常需要重新登录。
-- Arch Linux 可以从 ArchDevKit 菜单运行 `status`、`doctor` 和配置校验。
+- Arch Linux 可以从普通模块菜单运行“Arch 状态详情”和“Arch 系统诊断”。
 
 ## 数据与权限
 
 - 普通 Homebrew formula 和 cask 不使用 sudo。
 - 修改系统目录、systemd、内核参数或 Linux 系统包时，会在确认后请求 sudo。
 - Linux 可以直接以 root 运行；此时 root 是目标用户，用户配置写入 `/root`，且不依赖 sudo 软件包。
-- root 模式不显示 ArchDevKit；ArchDevKit 的 AUR、桌面和用户服务流程仍要求普通用户运行。Arch root 可从通用模块安装 mise 管理的 Node.js 24、Python 3.13 和 Go 1.24。
+- Arch root 与普通用户看到相同的通用能力；仅 AUR 构建在 root 模式下安全跳过。
 - OS Init 写入 Shell 配置时使用带名称的管理块，卸载时只移除对应管理块。
 - 用户配置和应用数据默认保留；只有明确启用相应的清理参数时才删除。
 - Docker 数据目录默认保留。

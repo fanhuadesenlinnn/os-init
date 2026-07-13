@@ -108,35 +108,23 @@
 
 ## 软件安装
 
-### ArchDevKit 独立子系统
+### Arch Linux 通用能力
 
-该菜单仅在 Arch Linux 显示。os-init 将 ArchDevKit 作为独立子系统嵌入到 `modules/archdevkit/vendor`，外层通过 `modules/archdevkit/run.sh` 调用原始入口。
+Arch Linux 不再运行独立子系统。能力直接注册为普通 OS Init 模块，并可与其他模块放在同一个执行计划中：
 
-- ArchDevKit 保留自己的配置文件：`~/.config/archdevkit/config.env`。
-- ArchDevKit 保留自己的状态目录：`~/.local/state/archdevkit`。
-- os-init 不会把 ArchDevKit 配置强行并入 `~/.config/os-init/config.env`。
-- ArchDevKit 安装目标通过“原版交互菜单”入口选择；状态检查、诊断、配置初始化、配置校验和状态重置保留为独立动作入口。
-- os-init 原生 TUI 会把菜单答案转成 `OS_INIT_ARCHDEVKIT_*` 临时环境，再由 `modules/archdevkit/run.sh` 写入临时 `config.env`，调用 `bash install.sh install <target> --config-file <tmp> --yes`；更新模式会追加 `--force`。
-- ArchDevKit 原项目不提供系统卸载流程，因此 os-init 的卸载模式不会伪装成卸载；需要重跑时使用更新模式或 ArchDevKit 的 `reset-state`。
+- `Arch 基础环境`：通过 pacman 安装基础、排障和现代 CLI 工具，并写入 tmux 配置。
+- `AUR Helper`：普通用户安装 paru/yay；root 模式不运行 makepkg，并安全跳过。
+- `archlinuxcn`：备份和修改 `/etc/pacman.conf`，安装 keyring 和可选 mirrorlist。
+- `Arch 系统 DNS`：写入 `/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf` 和 NetworkManager drop-in，可链接 `/etc/resolv.conf`。
+- `Arch Git / GitHub CLI`：安装 git、gh、OpenSSH，并写入目标用户 Git 配置。
+- `Ops Toolkit`：克隆到 `~/.local/share/ops-toolkit` 并在 `~/.local/bin` 创建命令入口。
+- `Arch 字体环境`：安装中文、Emoji、Nerd Font、Monaco，并调整目标用户 fontconfig/GTK 配置。
+- `sing-box`：安装 Arch 原生软件包、目标用户配置和 systemd 用户服务。
+- `Arch Hyprland 桌面`：保留 SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 和虚拟机适配。
+- `Arch 开发环境` / `Arch 完整工作站`：由执行计划的强依赖组合上述能力与共享的 mise、Neovim、Docker、Shell、终端样式和 Mihomo 模块。
+- `Arch 状态详情` / `Arch 系统诊断`：保留状态指纹、服务、网络、桌面和建议动作检查。
 
-ArchDevKit 向导覆盖原项目能力：
-
-- `base`：通过 pacman 安装基础工具、排障工具、现代 CLI、tmux、AUR helper。
-- `archlinuxcn`：备份并修改 `/etc/pacman.conf`，安装 `archlinuxcn-keyring` 和可选 mirrorlist。
-- `dns`：写入 `/etc/systemd/resolved.conf.d/90-archdevkit-dns.conf`、`/etc/NetworkManager/conf.d/90-archdevkit-dns.conf`，可修改 `/etc/resolv.conf` 指向 systemd-resolved。
-- `runtime`：通过 pacman 安装 mise，再由 mise 安装 Node.js 24、Python 3.13、Go 1.24，并写入 `~/.config/archdevkit/mise-china.env`。
-- `git`：安装 git、GitHub CLI、OpenSSH，并写入全局 Git 配置。
-- `ops-toolkit`：克隆仓库到 `~/.local/share/ops-toolkit`，在 `~/.local/bin` 生成命令入口。
-- `nvim`：安装 Neovim 并写入 ArchDevKit 的 Neovim 配置。
-- `docker`：通过 pacman 安装 Docker/Compose，写入 `/etc/docker/daemon.json`，启用 `docker.service`，可把用户加入 `docker` 组。
-- `fonts`：安装中文字体、Emoji、Nerd Font、Monaco，并调整 fontconfig/GTK 字体。
-- `shell`：安装 Zsh、Oh My Zsh、插件和 Starship 终端样式，会生成或覆盖 `~/.zshrc`，并向 `~/.bashrc` 写入终端样式 managed block；如配置 `SHELL_PROMPT_ENGINE=powerlevel10k`，会安装 Powerlevel10k 并写入 `~/.p10k.zsh`。
-- `proxy`：安装 Mihomo 或 sing-box，写入代理配置、systemd 服务和 shell 代理模板。
-- `desktop`：安装 Hyprland、SDDM、Fcitx5/Rime、浏览器、终端和 hyprdots，会写入 Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等用户配置。
-- `dev` / `workstation`：保留 ArchDevKit 原有组合套餐。
-- `status` / `doctor` / `config` / `reset-state`：保留 ArchDevKit 原有状态、诊断、配置和状态重置能力。
-
-如果希望 Shell 配置保持 os-init 的温和管理块方式，不要使用 ArchDevKit 的 `shell` 模块，改用 os-init 自带 Shell 工具模块。
+配置统一读取 `~/.config/os-init/config.env`；Arch 专用状态位于 `~/.local/state/os-init/arch`。共享能力只保留一份实现，因此单独安装和组合安装会得到相同的状态检测及配置行为。
 
 ### Shell rc 管理约定
 
@@ -205,8 +193,8 @@ ArchDevKit 向导覆盖原项目能力：
 ### mise 运行时管理
 
 - mise 是 macOS 和 Arch Linux 唯一的 Node.js、Python、Go 版本管理器，不再提供 nvm、fnm、pyenv 或 asdf 安装入口。
-- macOS 与 Arch Linux root 模式复用 `modules/mise/install.sh`；Arch root 通过官方 pacman 仓库安装 mise，并把配置和运行时写入 `/root`。
-- Arch 普通用户继续通过 ArchDevKit `runtime` 使用 mise，root 模式不进入 ArchDevKit。
+- macOS 与 Arch Linux 复用 `modules/mise/install.sh`；Arch 通过官方 pacman 仓库安装 mise。
+- Arch root 和普通用户使用同一个模块。普通用户只在 pacman 阶段提权；mise 运行时和 Shell 配置始终写入目标用户 HOME。
 - 全局版本为 Node.js 24、Python 3.13、Go 1.24，并跟随各版本系列的最新补丁版本。
 - 登录 Shell 使用 shims，交互式 Shell 使用完整 activate；安装时清理由 OS Init 写入的旧 nvm/fnm/pyenv/asdf 管理块，但保留用户数据。
 - 中国大陆默认配置 Node/Go SDK 下载镜像以及 npm、pip、uv、Go module 镜像；SDK 镜像失败时使用官方源重试，始终保留校验。

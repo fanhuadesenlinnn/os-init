@@ -70,16 +70,6 @@ func Build(selected []modules.Module, target platform.Target, opts Options) Plan
 		return plan
 	}
 
-	if archDevKitCount(selected) > 0 && len(selected) > 1 {
-		plan.Issues = append(plan.Issues, Issue{
-			Blocking:  true,
-			MessageZH: "ArchDevKit 是独立初始化流程，一次只能执行一个 ArchDevKit 动作，不能和普通模块混在同一批次。",
-			MessageEN: "ArchDevKit is an independent initialization flow. Run exactly one ArchDevKit action at a time and do not mix it with normal modules.",
-			ModuleIDs: moduleIDs(selected),
-		})
-		return plan
-	}
-
 	available, registryOrder := availableModules(target, selected)
 	planned := append([]modules.Module(nil), selected...)
 	plannedByID := map[string]modules.Module{}
@@ -251,9 +241,6 @@ func moduleLess(a, b modules.Module, registryOrder map[string]int) bool {
 }
 
 func moduleRank(m modules.Module) int {
-	if m.Category == "archdevkit" {
-		return 0
-	}
 	if m.Category == "optimization" {
 		switch m.ID {
 		case "network-ipv4":
@@ -359,22 +346,4 @@ func dedupeModules(selected []modules.Module) []modules.Module {
 		out = append(out, m)
 	}
 	return out
-}
-
-func archDevKitCount(selected []modules.Module) int {
-	count := 0
-	for _, m := range selected {
-		if m.Category == "archdevkit" {
-			count++
-		}
-	}
-	return count
-}
-
-func moduleIDs(selected []modules.Module) []string {
-	ids := make([]string, 0, len(selected))
-	for _, m := range selected {
-		ids = append(ids, m.ID)
-	}
-	return ids
 }

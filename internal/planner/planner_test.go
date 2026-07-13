@@ -77,24 +77,25 @@ func TestBuild_DoesNotAddStrongDependenciesForUninstall(t *testing.T) {
 	}
 }
 
-func TestBuild_BlocksArchDevKitMixedBatch(t *testing.T) {
+func TestBuild_ExpandsArchWorkstationPreset(t *testing.T) {
 	t.Parallel()
 
 	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 	byID := modulesByID(modules.ForTarget(target))
 
 	plan := planner.Build(
-		[]modules.Module{byID["archdevkit-status"], byID["docker"]},
+		[]modules.Module{byID["arch-workstation"]},
 		target,
 		planner.Options{Mode: planner.ModeInstall},
 	)
 
-	issue, ok := plan.BlockingIssue()
-	if !ok {
-		t.Fatalf("expected blocking issue, got %#v", plan.Issues)
+	if _, ok := plan.BlockingIssue(); ok {
+		t.Fatalf("Arch preset should compose with normal modules: %#v", plan.Issues)
 	}
-	if !issue.Blocking {
-		t.Fatalf("issue should be blocking: %#v", issue)
+	for _, id := range []string{"arch-dev", "arch-desktop", "arch-mise", "docker", "neovim"} {
+		if !hasModule(plan.Modules, id) {
+			t.Fatalf("expanded preset missing %s: %v", id, ids(plan.Modules))
+		}
 	}
 }
 

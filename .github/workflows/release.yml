@@ -41,8 +41,10 @@ jobs:
       - name: Run os-init package strategy checks
         run: bash tooling/test-lib-strategy.sh
 
-      - name: Run embedded ArchDevKit checks
-        run: bash modules/archdevkit/vendor/scripts/test.sh
+      - name: Run Arch capability checks
+        run: |
+          bash modules/arch/scripts/test.sh
+          shellcheck -x $(find modules/arch -type f -name '*.sh' -print)
 
   build:
     needs: test
@@ -133,15 +135,15 @@ jobs:
           ### 主要能力
 
           - Linux 支持直接以 root 运行，用户配置写入 `/root`，且无需安装 sudo
-          - root 模式隐藏 ArchDevKit，并跳过 Docker 用户组与重新登录步骤
-          - Arch Linux root 模式通过 pacman 安装 mise，并在 `/root` 管理 Node.js 24、Python 3.13 和 Go 1.24
+          - Arch Linux 能力对 root 和普通用户使用相同模块；root 模式跳过不安全的 AUR 构建
+          - Arch Linux 通过 pacman 安装 mise，并在目标用户 HOME 管理 Node.js 24、Python 3.13 和 Go 1.24
           - macOS 与 Arch Linux 共享 mise 运行时、国内镜像、官方源回退和安装验证逻辑
           - 中国大陆默认启用 Node/Go SDK、npm、pip、uv 和 Go module 镜像，SDK 镜像失败自动回退官方源
           - 登录 Shell 使用 mise shims，交互式 Shell 使用完整 activate，兼顾终端、IDE 和 GUI 应用
           - 移除 nvm/fnm/pyenv/asdf 运行时管理入口，迁移时只清理 OS Init 管理块并保留用户运行时数据
           - macOS Homebrew 软件逐项执行，日志、耗时和退出码互不影响
           - Motrix Next 使用 cask 级 Homebrew trust 和完整 tap 引用
-          - ArchDevKit 安装 Docker 或 Mihomo 时，如果 systemd 暂时无法启动服务，不再中断整个 dev 安装流程
+          - Arch 开发环境与完整工作站通过普通模块强依赖组合，不维护重复安装器
           - 中英双语 TUI，覆盖菜单、确认信息、执行状态和结果页
           - GitHub 专用代理与资源下载配置
           - 终端样式模块：本地图形终端 rich、SSH simple、TTY plain 自动切换
@@ -155,11 +157,10 @@ jobs:
           - 模块级执行超时，避免安装器永久卡住
           - 按模块权限决定是否提前 sudo，Homebrew 模块不包 sudo
           - Homebrew 镜像变量统一注入
-          - Arch Linux 下显示独立 ArchDevKit 菜单，完整保留 ArchDevKit 子系统能力
+          - Arch Linux 提供基础工具、AUR、软件源、DNS、Git、Ops、字体、sing-box、诊断和完整 Hyprland 桌面能力
           - 模块执行计划器：强依赖自动补齐、软关联提示、稳定执行顺序
-          - 按当前系统生成启动配置，Arch Linux 自动包含 ArchDevKit 桥接配置
-          - ArchDevKit 默认 dev 开发环境，并默认启用 Mihomo/MetaCubeXD 代理能力
-          - ArchDevKit shell 默认使用 Starship 终端样式，并保留 Powerlevel10k 可选配置
+          - 按当前系统生成统一启动配置，Arch 能力读取 `~/.config/os-init/config.env`
+          - `arch-dev` 和 `arch-workstation` 保留开发环境及完整工作站组合能力
           - 安装总结页显示重新登录、shell 刷新、手动配置等后续动作
           - Go、Bash 和 ShellCheck 发布前检查
           NOTES

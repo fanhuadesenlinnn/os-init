@@ -176,8 +176,6 @@ func manualStepText(step string) string {
 		return "open Bitwarden and sign in or import your vault"
 	case "替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务":
 		return "replace the subscription or set MIHOMO_CONFIG_SOURCE before enabling the service"
-	case "ArchDevKit 保留独立配置和状态：~/.config/archdevkit/config.env、~/.local/state/archdevkit":
-		return "ArchDevKit keeps independent config and state at ~/.config/archdevkit/config.env and ~/.local/state/archdevkit"
 	case "桌面模块会写入 Hyprland、Waybar、Rofi、Dunst、Yazi、GTK 等用户配置":
 		return "the desktop module writes Hyprland, Waybar, Rofi, Dunst, Yazi, GTK, and related user config"
 	case "Motrix Next 未签名；如 macOS 拒绝打开，请先核对上游说明再决定是否移除隔离属性":
