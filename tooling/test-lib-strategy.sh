@@ -193,6 +193,38 @@ test_verified_download_rejects_wrong_digest() (
     [[ ! -e "$target" ]] || fail "digest mismatch should remove the downloaded target"
 )
 
+test_root_sudo_wrapper_runs_without_sudo_binary() (
+    local target="$TEST_HOME/root-sudo-wrapper"
+    id() {
+        if [[ "${1:-}" == "-u" ]]; then
+            printf '0\n'
+            return
+        fi
+        command id "$@"
+    }
+
+    sudo -n -E sh -c 'printf "root-mode\n" > "$1"' sh "$target"
+    [[ "$(cat "$target")" == "root-mode" ]] || fail "root sudo wrapper did not execute the command directly"
+)
+
+test_root_is_always_the_target_user() (
+    id() {
+        case "${1:-}" in
+            -u) printf '0\n' ;;
+            -un) printf 'root\n' ;;
+            *) command id "$@" ;;
+        esac
+    }
+    getent() {
+        printf 'root:x:0:0:root:/root:/bin/bash\n'
+    }
+    SUDO_USER=alice
+    HOME=/home/alice
+
+    [[ "$(real_user)" == "root" ]] || fail "root mode inherited SUDO_USER as its target"
+    [[ "$(real_home)" == "/root" ]] || fail "root mode inherited a non-root HOME"
+)
+
 test_macos_pkg_remove_does_not_install_homebrew
 test_pkg_install_uses_arch_strategy
 test_arch_packages_split_between_pacman_and_aur
@@ -202,5 +234,7 @@ test_unknown_owned_path_is_preserved
 test_verified_download_rejects_unchecked_proxy
 test_verified_download_accepts_expected_digest
 test_verified_download_rejects_wrong_digest
+test_root_sudo_wrapper_runs_without_sudo_binary
+test_root_is_always_the_target_user
 
 printf 'os-init lib strategy checks passed\n'

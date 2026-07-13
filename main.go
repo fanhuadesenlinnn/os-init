@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"os/user"
 	"strings"
 	"syscall"
 
@@ -42,6 +43,8 @@ func run(args []string) error {
 		}
 	}
 
+	normalizeRootHome(os.Geteuid(), user.LookupId)
+
 	m := tui.New(tui.Config{
 		Assets:  assets,
 		Version: version,
@@ -65,6 +68,17 @@ func run(args []string) error {
 		return err
 	}
 	return nil
+}
+
+func normalizeRootHome(effectiveUID int, lookup func(string) (*user.User, error)) {
+	if effectiveUID != 0 {
+		return
+	}
+	root, err := lookup("0")
+	if err != nil || root.HomeDir == "" {
+		return
+	}
+	_ = os.Setenv("HOME", root.HomeDir)
 }
 
 func usageText() string {

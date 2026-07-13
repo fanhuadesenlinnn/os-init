@@ -73,6 +73,7 @@ func New(cfg Config) Model {
 func (m Model) startMenu() (Model, tea.Cmd) {
 	target := platform.Detect()
 	mods := modules.ForTarget(target)
+	mods = filterModulesForExecutionUser(mods, os.Geteuid() == 0)
 	m.menu = newMenuModel(mods)
 	m.screen = screenMenu
 	return m, m.menu.Init()
@@ -287,6 +288,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.startMenu()
 
 	case switchScreenMsg:
+		if msg.to == screenArchDevKit && os.Geteuid() == 0 {
+			m.menu.notice = text("root 模式不支持 ArchDevKit，请使用通用 Linux 模块。", "ArchDevKit requires a normal user; use the general Linux modules in root mode.")
+			m.screen = screenMenu
+			return m, nil
+		}
 		m.screen = msg.to
 		switch msg.to {
 		case screenArchDevKit:
@@ -312,6 +318,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.showMode()
 
 	case archDevKitSelectedMsg:
+		if os.Geteuid() == 0 {
+			m.menu.notice = text("root 模式不支持 ArchDevKit，请使用通用 Linux 模块。", "ArchDevKit requires a normal user; use the general Linux modules in root mode.")
+			m.screen = screenMenu
+			return m, nil
+		}
 		m.requestedModules = []modules.Module{msg.module}
 		m.selectedModules = []modules.Module{msg.module}
 		m.executionEnv = msg.env
@@ -386,7 +397,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func selectionNeedsSudoPrime(selected []modules.Module, target platform.Target) bool {
-	return modules.SelectionNeedsPrivilege(selected, target)
+	return selectionNeedsSudoPrimeForUID(selected, target, os.Geteuid())
+}
+
+func selectionNeedsSudoPrimeForUID(selected []modules.Module, target platform.Target, effectiveUID int) bool {
+	return effectiveUID != 0 && modules.SelectionNeedsPrivilege(selected, target)
+}
+
+func filterModulesForExecutionUser(mods []modules.Module, root bool) []modules.Module {
+	if !root {
+		return mods
+	}
+
+	filtered := make([]modules.Module, 0, len(mods))
+	for _, mod := range mods {
+		if mod.Category == "archdevkit" {
+			continue
+		}
+		if mod.ID == "docker" {
+			mod.NeedsRelogin = false
+			mod.InstalledUserGroups = nil
+			activations := make([]string, 0, len(mod.Activates))
+			for _, activation := range mod.Activates {
+				if activation != modules.ActivationRelogin {
+					activations = append(activations, activation)
+				}
+			}
+			mod.Activates = activations
+		}
+		filtered = append(filtered, mod)
+	}
+	return filtered
 }
 
 // View renders the active screen.

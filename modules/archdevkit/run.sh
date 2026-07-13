@@ -38,6 +38,7 @@ source "$REPO_DIR/lib.sh"
 require_archdevkit() {
     [[ -x "$ARCHDEVKIT_DIR/install.sh" ]] || die "ArchDevKit 子系统缺少入口: $ARCHDEVKIT_DIR/install.sh"
     is_arch || die "ArchDevKit 仅支持 Arch Linux 系统"
+    [[ "$(id -u)" != "0" ]] || die "ArchDevKit 需要普通用户环境，root 模式请使用 OS Init 的通用 Linux 模块"
 }
 
 run_archdevkit() {

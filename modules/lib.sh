@@ -78,7 +78,9 @@ warn()    { log_line "$YELLOW" "警告" "Warning" "$1"; }
 die()     { log_line "$RED" "错误" "Error" "$1" >&2; exit 1; }
 
 sudo() {
-    if [[ "$(id -u)" == "0" ]] && ! type -P sudo &>/dev/null; then
+    # Root is the target user in root mode. Execute privileged commands
+    # directly so minimal/root-only systems do not need a sudo package.
+    if [[ "$(id -u)" == "0" ]]; then
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 -n|-E|-H|-S) shift ;;
@@ -200,6 +202,10 @@ detect_init() {
 }
 
 real_user() {
+    if [[ "$(id -u)" == "0" ]]; then
+        echo "root"
+        return
+    fi
     if [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
         echo "$SUDO_USER"
     else
@@ -210,6 +216,14 @@ real_user() {
 real_home() {
     local user
     user="$(real_user)"
+    if [[ "$(id -u)" == "0" ]]; then
+        if command -v getent &>/dev/null; then
+            getent passwd root | cut -d: -f6
+            return
+        fi
+        eval "printf '%s\n' ~root"
+        return
+    fi
     if [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
         if command -v getent &>/dev/null; then
             getent passwd "$user" | cut -d: -f6

@@ -132,6 +132,8 @@ jobs:
 
           ### 主要能力
 
+          - Linux 支持直接以 root 运行，用户配置写入 `/root`，且无需安装 sudo
+          - root 模式隐藏 ArchDevKit，并跳过 Docker 用户组与重新登录步骤
           - macOS 与 Arch Linux 统一使用 mise 管理 Node.js 24、Python 3.13 和 Go 1.24
           - 中国大陆默认启用 Node/Go SDK、npm、pip、uv 和 Go module 镜像，SDK 镜像失败自动回退官方源
           - 登录 Shell 使用 mise shims，交互式 Shell 使用完整 activate，兼顾终端、IDE 和 GUI 应用

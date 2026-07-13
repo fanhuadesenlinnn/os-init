@@ -20,8 +20,7 @@ import (
 //
 // No-op when:
 //   - the sudo binary is not on PATH (e.g. macOS without sudo);
-//   - the process is already root (sudo -v is a cheap success but we
-//     still start keep-alive so the cache stays warm uniformly);
+//   - the process is already root;
 //   - the prime call fails (e.g. user cancels). The caller continues —
 //     individual scripts that need sudo will prompt as usual.
 func Prime() (cancel func()) {
@@ -46,6 +45,9 @@ func Prime() (cancel func()) {
 // must run this through tea.ExecProcess so the terminal leaves raw/AltScreen mode
 // while the password prompt is active.
 func PrimeCommand() (*exec.Cmd, bool) {
+	if os.Geteuid() == 0 {
+		return nil, false
+	}
 	if _, err := exec.LookPath("sudo"); err != nil {
 		return nil, false
 	}

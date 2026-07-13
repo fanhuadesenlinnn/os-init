@@ -2,14 +2,19 @@
 
 ## Unreleased
 
+## v0.22.0 - 2026-07-13
+
 ### Added
 
+- Support running OS Init directly as root on Linux, with `/root` as the target home and no dependency on the sudo package.
 - Track ownership and original backups for system paths and packages managed by OS Init, so uninstall restores pre-existing resources and preserves unknown ones.
 - Require an expected SHA-256 for executable downloads routed through `GITHUB_PROXY`, with an explicit legacy compatibility override.
 - Show important affected paths and purge-only destructive paths on the confirmation page.
 
 ### Changed
 
+- Hide and defensively block ArchDevKit in root mode because its AUR, desktop, and user-service flows require a normal user.
+- Skip Docker group membership and relogin guidance when root is the target user.
 - Cancel the active installer process group and wait for it to stop before cleaning temporary files or exiting the TUI.
 - Preserve Neovim, Yazi, Byobu, Mihomo, Docker, Go, shell-tool, Homebrew cask/formula, and other pre-existing user/system resources during uninstall.
 - Snapshot network queue, ring-buffer, sysctl, and MSS state before tuning and restore that snapshot on uninstall.

@@ -255,12 +255,17 @@ EOF
 
 ensure_docker_group() {
     local user
+    user="$(real_user)"
+    if [[ "$user" == "root" ]]; then
+        skip "root 不需要加入 docker 用户组"
+        return
+    fi
+
     if ! getent group docker >/dev/null 2>&1; then
         install "创建 docker 用户组"
         sudo groupadd docker
     fi
 
-    user="$(real_user)"
     if id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
         skip "用户 $user 已在 docker 组"
     else
@@ -290,7 +295,9 @@ verify_docker() {
     else
         warn "Docker 服务未运行，请查看: systemctl status docker.service"
     fi
-    if id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
+    if [[ "$user" == "root" ]]; then
+        skip "root 可直接使用 Docker"
+    elif id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
         if [[ "$user" == "$(id -un)" ]] && ! id -nG | tr ' ' '\n' | grep -qx docker; then
             warn "用户 $user 已加入 docker 组，但当前终端会话尚未生效；请重新登录"
         else

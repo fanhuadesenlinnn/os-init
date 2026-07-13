@@ -176,13 +176,32 @@ func TestSelectionNeedsSudoPrime_IsPlatformAware(t *testing.T) {
 	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}
 	linux := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
 
-	if selectionNeedsSudoPrime([]modules.Module{byID["yazi"]}, darwin) {
+	if selectionNeedsSudoPrimeForUID([]modules.Module{byID["yazi"]}, darwin, 1000) {
 		t.Fatal("macOS Yazi should not trigger sudo prime")
 	}
-	if selectionNeedsSudoPrime([]modules.Module{byID["go"]}, darwin) {
+	if selectionNeedsSudoPrimeForUID([]modules.Module{byID["go"]}, darwin, 1000) {
 		t.Fatal("macOS Go uses Homebrew and should not trigger sudo prime")
 	}
-	if !selectionNeedsSudoPrime([]modules.Module{byID["yazi"]}, linux) {
+	if !selectionNeedsSudoPrimeForUID([]modules.Module{byID["yazi"]}, linux, 1000) {
 		t.Fatal("Linux Yazi should trigger sudo prime")
+	}
+}
+
+func TestSelectionNeedsSudoPrime_SkipsRoot(t *testing.T) {
+	mods := modules.AllModules()
+	var yazi modules.Module
+	for _, mod := range mods {
+		if mod.ID == "yazi" {
+			yazi = mod
+			break
+		}
+	}
+
+	linux := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	if selectionNeedsSudoPrimeForUID([]modules.Module{yazi}, linux, 0) {
+		t.Fatal("root should not prime sudo credentials")
+	}
+	if !selectionNeedsSudoPrimeForUID([]modules.Module{yazi}, linux, 1000) {
+		t.Fatal("a normal Linux user should still prime sudo credentials")
 	}
 }

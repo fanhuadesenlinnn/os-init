@@ -186,6 +186,8 @@ OS_INIT_CONFIG_PROMPT=0
 
 - 普通 Homebrew formula 和 cask 不使用 sudo。
 - 修改系统目录、systemd、内核参数或 Linux 系统包时，会在确认后请求 sudo。
+- Linux 可以直接以 root 运行；此时 root 是目标用户，用户配置写入 `/root`，且不依赖 sudo 软件包。
+- root 模式不显示 ArchDevKit；ArchDevKit 的 AUR、桌面和用户服务流程仍要求普通用户运行。
 - OS Init 写入 Shell 配置时使用带名称的管理块，卸载时只移除对应管理块。
 - 用户配置和应用数据默认保留；只有明确启用相应的清理参数时才删除。
 - Docker 数据目录默认保留。
