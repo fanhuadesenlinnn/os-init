@@ -22,16 +22,21 @@ if grep -Fq 'require_normal_user' "${SCRIPT_DIR}/install.sh"; then
   exit 1
 fi
 
-for removed in modules/runtime.sh modules/nvim.sh modules/docker.sh modules/shell_zsh.sh modules/proxy/mihomo.sh; do
+for removed in modules/runtime.sh modules/nvim.sh modules/docker.sh modules/shell_zsh.sh modules/proxy/sing_box.sh files/sing-box/config.json.tpl; do
   if [[ -e "${SCRIPT_DIR}/${removed}" ]]; then
     echo "duplicate cross-platform installer remains: ${removed}" >&2
     exit 1
   fi
 done
 
-if grep -RqsE --include='*.sh' --exclude=test.sh 'RUNTIME_MANAGER|NVIM_REPO|MIHOMO_CONFIG|ADD_USER_TO_DOCKER_GROUP' "${SCRIPT_DIR}"; then
+if grep -RqsE --include='*.sh' --exclude=test.sh 'RUNTIME_MANAGER|NVIM_REPO|SING_BOX|ADD_USER_TO_DOCKER_GROUP' "${SCRIPT_DIR}"; then
   echo "cross-platform installer configuration leaked into modules/arch" >&2
   exit 1
 fi
+
+grep -Fq 'install_package_from_pacman_prefer_archlinuxcn paru' "${SCRIPT_DIR}/lib/packages.sh"
+grep -Fq 'install_package_from_pacman_prefer_archlinuxcn yay' "${SCRIPT_DIR}/lib/packages.sh"
+grep -Fq 'mihomo_service_ready' "${SCRIPT_DIR}/modules/proxy/common.sh"
+grep -Fq 'https://example.com/your-subscription-url' "${SCRIPT_DIR}/files/mihomo/config.yaml.tpl"
 
 echo "Arch capability checks passed"

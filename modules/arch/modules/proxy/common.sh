@@ -2,7 +2,7 @@
 # Proxy 公共流程：套餐依赖、shell 模板、服务启用和验证输出。
 
 proxy_service_name() {
-  printf "os-init-arch-sing-box.service"
+  printf "%s" "${MIHOMO_SERVICE_NAME:-mihomo.service}"
 }
 
 install_proxy_shell_env_template() {
@@ -30,15 +30,24 @@ enable_proxy_service_if_needed() {
     return 0
   }
 
-  if [[ "${EUID}" -eq 0 ]]; then
+  if mihomo_service_ready; then
     enable_system_service_best_effort "$(proxy_service_name)"
   else
-    enable_user_service "$(proxy_service_name)"
+    log_warn "已跳过 Mihomo 服务启动；配置修正后执行：sudo systemctl enable --now ${MIHOMO_SERVICE_NAME:-mihomo.service}"
   fi
 }
 
 verify_proxy_env() {
   log_info "验证 Proxy 环境"
-  run_cmd sing-box version || true
-  log_info "sing-box mixed-port：127.0.0.1:${SING_BOX_MIXED_PORT:-7890}"
+  run_cmd mihomo -v || true
+  log_info "Mihomo 配置目录：${MIHOMO_CONFIG_DIR:-/etc/mihomo}"
+  log_info "Mihomo 配置文件：${MIHOMO_CONFIG_FILE:-/etc/mihomo/config.yaml}"
+  log_info "Mihomo 系统服务：${MIHOMO_SERVICE_NAME:-mihomo.service}"
+  log_info "Mihomo mixed-port：${MIHOMO_BIND_ADDRESS:-127.0.0.1}:${MIHOMO_MIXED_PORT:-7890}"
+  log_info "Mihomo 控制接口：http://${MIHOMO_CONTROLLER_HOST:-127.0.0.1}:${MIHOMO_CONTROLLER_PORT:-9090}"
+  log_info "Mihomo 规则源：原始 URL（不配置代理前缀）"
+  if [[ "${ENABLE_METACUBEXD:-0}" -eq 1 ]]; then
+    log_info "MetaCubeXD 面板由 Mihomo 托管：http://${MIHOMO_CONTROLLER_HOST:-127.0.0.1}:${MIHOMO_CONTROLLER_PORT:-9090}/ui/"
+    log_info "MetaCubeXD UI 目录：$(mihomo_safe_external_ui_dir)"
+  fi
 }

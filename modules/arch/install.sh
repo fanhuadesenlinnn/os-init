@@ -51,8 +51,8 @@ OS Init Arch - Arch Linux 工作站初始化工具
 用法：
   bash install.sh
   bash install.sh menu
-  bash install.sh plan [base|aur|dns|archlinuxcn|git|ops-toolkit|fonts|sing-box|desktop]
-  bash install.sh install [base|aur|dns|archlinuxcn|git|ops-toolkit|fonts|sing-box|desktop]
+  bash install.sh plan [base|aur|dns|archlinuxcn|git|ops-toolkit|fonts|mihomo|desktop]
+  bash install.sh install [base|aur|dns|archlinuxcn|git|ops-toolkit|fonts|mihomo|desktop]
   bash install.sh status [module] [--verbose]
   bash install.sh doctor
   bash install.sh reset-state [module|all]
@@ -90,7 +90,9 @@ OS Init Arch - Arch Linux 工作站初始化工具
   --rime-repo URL           指定 Rime 配置仓库
   --rime-branch NAME        指定 Rime 配置分支
   --no-rime-config          不安装 Rime 配置仓库
-  --sing-box-config PATH/URL 指定 sing-box 配置文件或 URL
+  --mihomo-config PATH/URL  指定 Mihomo 配置文件、模板或 URL
+  --metacubexd             安装 MetaCubeXD 面板
+  --no-metacubexd          不安装 MetaCubeXD 面板
 EOF
 }
 
@@ -115,7 +117,7 @@ parse_args() {
         TARGET_SET=1
         [[ "${ACTION}" == "menu" ]] && ACTION="install"
         shift ;;
-      sing-box)
+      mihomo)
         TARGET="proxy"
         TARGET_SET=1
         [[ "${ACTION}" == "menu" ]] && ACTION="install"
@@ -186,8 +188,10 @@ parse_args() {
       --rime-branch) RIME_CONFIG_BRANCH="${2:-}"; INSTALL_RIME_CONFIG=1; INPUT_METHOD_ENGINE="rime"; shift 2 ;;
       --rime-branch=*) RIME_CONFIG_BRANCH="${1#*=}"; INSTALL_RIME_CONFIG=1; INPUT_METHOD_ENGINE="rime"; shift ;;
       --no-rime-config) INSTALL_RIME_CONFIG=0; shift ;;
-      --sing-box-config) SING_BOX_CONFIG_SOURCE="${2:-}"; shift 2 ;;
-      --sing-box-config=*) SING_BOX_CONFIG_SOURCE="${1#*=}"; shift ;;
+      --mihomo-config) MIHOMO_CONFIG_SOURCE="${2:-}"; shift 2 ;;
+      --mihomo-config=*) MIHOMO_CONFIG_SOURCE="${1#*=}"; shift ;;
+      --metacubexd) ENABLE_METACUBEXD=1; shift ;;
+      --no-metacubexd) ENABLE_METACUBEXD=0; shift ;;
       -h|--help) ACTION="help"; shift ;;
       *) die "未知参数：$1" ;;
     esac

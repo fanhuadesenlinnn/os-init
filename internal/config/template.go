@@ -37,7 +37,7 @@ func renderUserConfig(target platform.Target, lang string) []byte {
 	case "darwin":
 		sections = append(sections, macOSConfigSections()...)
 	case "linux":
-		sections = append(sections, linuxConfigSections()...)
+		sections = append(sections, linuxConfigSections(target)...)
 		if target.Family == platform.FamilyArch {
 			sections = append(sections, archConfigSection())
 		}
@@ -178,13 +178,16 @@ func macOSConfigSections() []configSection {
 	}
 }
 
-func linuxConfigSections() []configSection {
-	return []configSection{
+func linuxConfigSections(target platform.Target) []configSection {
+	sections := []configSection{
 		shellResourceSection(),
 		developmentResourceSection(true),
 		dockerConfigSection(),
-		mihomoConfigSection(),
 	}
+	if target.Family == platform.FamilyArch {
+		return append(sections, archMihomoConfigSection())
+	}
+	return append(sections, mihomoConfigSection())
 }
 
 func shellResourceSection() configSection {
@@ -285,10 +288,29 @@ func archConfigSection() configSection {
 		TitleZ: "Arch Linux 能力",
 		TitleE: "Arch Linux Capabilities",
 		Entries: []configEntry{
-			{Key: "PROXY_AUTO_ENABLE_SERVICE", Value: "1", CommentZ: "安装 Arch sing-box 扩展后是否启用服务。", CommentE: "Enable the Arch sing-box service after installation."},
 			{Key: "ENABLE_DNS", Value: "1", CommentZ: "是否启用 Arch DNS 能力。", CommentE: "Enable the Arch DNS capability."},
 			{Key: "ENABLE_OPS_TOOLKIT", Value: "1", CommentZ: "是否启用 Ops Toolkit。", CommentE: "Enable Ops Toolkit."},
 			{Key: "GPU_TYPE", Value: "auto", CommentZ: "GPU 类型：auto、intel、amd、nvidia、vmware、virtio、qxl、virtualbox、none。", CommentE: "GPU type: auto, intel, amd, nvidia, vmware, virtio, qxl, virtualbox, or none."},
+		},
+	}
+}
+
+func archMihomoConfigSection() configSection {
+	return configSection{
+		TitleZ: "Arch Mihomo",
+		TitleE: "Arch Mihomo",
+		Entries: []configEntry{
+			{Key: "MIHOMO_PACKAGE", Value: "mihomo", CommentZ: "archlinuxcn 中的 Mihomo 包名。", CommentE: "Mihomo package name from archlinuxcn."},
+			{Key: "MIHOMO_CONFIG_SOURCE", Value: "", CommentZ: "本地 config.yaml、本地模板或远程 URL；留空使用内置完整模板。", CommentE: "Local config.yaml, local template, or remote URL; empty uses the bundled full template."},
+			{Key: "MIHOMO_MIXED_PORT", Value: "7890", CommentZ: "Mihomo mixed-port。", CommentE: "Mihomo mixed-port."},
+			{Key: "MIHOMO_ALLOW_LAN", Value: "0", CommentZ: "是否允许局域网访问。", CommentE: "Allow LAN access."},
+			{Key: "MIHOMO_BIND_ADDRESS", Value: "0.0.0.0", CommentZ: "Mihomo 代理监听地址。", CommentE: "Mihomo proxy bind address."},
+			{Key: "MIHOMO_CONTROLLER_HOST", Value: "0.0.0.0", CommentZ: "Mihomo 控制接口监听地址。", CommentE: "Mihomo controller bind host."},
+			{Key: "MIHOMO_CONTROLLER_PORT", Value: "9090", CommentZ: "Mihomo 控制接口端口。", CommentE: "Mihomo controller port."},
+			{Key: "MIHOMO_DNS_LISTEN", Value: "0.0.0.0:1053", CommentZ: "Mihomo DNS 监听地址。", CommentE: "Mihomo DNS listen address."},
+			{Key: "MIHOMO_SECRET", Value: "", CommentZ: "控制接口密钥；开放到 0.0.0.0 时强烈建议设置。", CommentE: "Controller secret; strongly recommended when binding to 0.0.0.0."},
+			{Key: "PROXY_AUTO_ENABLE_SERVICE", Value: "1", CommentZ: "配置预检通过后自动启用 mihomo.service。", CommentE: "Enable mihomo.service after configuration validation passes."},
+			{Key: "ENABLE_METACUBEXD", Value: "1", CommentZ: "安装并由 Mihomo 托管 MetaCubeXD。", CommentE: "Install MetaCubeXD and serve it through Mihomo."},
 		},
 	}
 }

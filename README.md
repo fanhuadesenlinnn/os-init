@@ -126,13 +126,13 @@ Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，
 
 | 模块或组合 | 用途 |
 | --- | --- |
-| Arch 基础环境 / AUR Helper | 基础工具、排障工具、现代 CLI、tmux、paru 和 yay |
+| Arch 基础环境 / AUR Helper | 基础工具、排障工具、现代 CLI、tmux；root 和普通用户均优先从 archlinuxcn 安装 paru/yay |
 | archlinuxcn / Arch DNS | 软件源、keyring、mirrorlist、systemd-resolved 和 NetworkManager |
 | Arch Git / Ops Toolkit | Git、GitHub CLI、OpenSSH 和运维工具入口 |
-| Arch 字体 / sing-box | 中文字体、Emoji、Nerd Font、Monaco 和 systemd 代理服务 |
+| Arch 字体 / Arch Mihomo | 中文字体、Emoji、Nerd Font、Monaco；Mihomo 完整配置预检、systemd 服务和 MetaCubeXD |
 | Arch Hyprland 桌面 | Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 与虚拟机适配 |
-| Arch 开发环境 | 基础工具、mise、Neovim、Docker、字体、Shell 和 Mihomo 的组合 |
-| Arch 完整工作站 | Arch 开发环境加完整 Hyprland 桌面 |
+| Arch 开发环境 | Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Starship + Shell 插件 + 终端样式 + Arch Mihomo |
+| Arch 完整工作站 | Arch 开发环境 + Arch Hyprland 桌面 |
 | Arch 状态详情 / 系统诊断 | 状态、配置指纹、网络、systemd、桌面与修复建议 |
 
 所有能力共用 OS Init 配置，Arch 专用执行状态位于：
@@ -142,7 +142,7 @@ Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，
 ~/.local/state/os-init/arch
 ```
 
-root 模式不会运行 `makepkg`；AUR Helper 会安全跳过。其他系统操作直接以 root 执行，用户配置写入 `/root`。普通用户运行时，系统操作通过 sudo，用户配置保持普通用户所有权。
+root 模式不会运行 `makepkg`，但会在配置 archlinuxcn 后直接用 pacman 安装预编译的 paru/yay。其他系统操作直接以 root 执行，用户配置写入 `/root`。普通用户运行时，系统操作通过 sudo，用户配置保持普通用户所有权；仅普通用户允许在软件源缺包时回退到 AUR 构建。
 
 ## 配置
 
@@ -188,7 +188,7 @@ OS_INIT_CONFIG_PROMPT=0
 - 普通 Homebrew formula 和 cask 不使用 sudo。
 - 修改系统目录、systemd、内核参数或 Linux 系统包时，会在确认后请求 sudo。
 - Linux 可以直接以 root 运行；此时 root 是目标用户，用户配置写入 `/root`，且不依赖 sudo 软件包。
-- Arch root 与普通用户看到相同的通用能力；仅 AUR 构建在 root 模式下安全跳过。
+- Arch root 与普通用户看到相同能力；root 可用 pacman 安装 archlinuxcn 预编译包，但不运行 AUR 构建。
 - OS Init 写入 Shell 配置时使用带名称的管理块，卸载时只移除对应管理块。
 - 用户配置和应用数据默认保留；只有明确启用相应的清理参数时才删除。
 - Docker 数据目录默认保留。

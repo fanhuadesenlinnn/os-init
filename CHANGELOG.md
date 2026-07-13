@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.25.0 - 2026-07-13
+
+### Changed
+
+- Replace the Arch sing-box capability with Arch Mihomo using the former Arch configuration validation, systemd adaptation, complete template, and MetaCubeXD deployment behavior.
+- Make Arch capability dependencies explicit so standalone AUR, Mihomo, fonts, Ops Toolkit, and desktop selections automatically include their prerequisites.
+- Show the complete module composition in the Arch development and workstation preset descriptions.
+- Install paru and yay from archlinuxcn with pacman for root and normal users; only normal users may fall back to makepkg.
+
+### Removed
+
+- Remove the Arch sing-box module, service, configuration, and template.
+
 ## v0.24.0 - 2026-07-13
 
 ### Added

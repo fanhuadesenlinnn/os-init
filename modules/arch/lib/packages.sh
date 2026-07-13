@@ -120,6 +120,7 @@ install_package_with_current_aur_helper() {
 install_aur_package_via_makepkg() {
   local package="$1" aur_url tmp_dir package_dir
   [[ -n "${package}" ]] || die "AUR 包名为空"
+  [[ "${EUID}" -ne 0 ]] || die "root 不能运行 makepkg：${package}；请启用包含该包的软件源或使用普通构建用户"
 
   ensure_aur_build_tools
 
@@ -154,6 +155,7 @@ ensure_preferred_paru_helper() {
   if install_package_from_pacman_prefer_archlinuxcn paru; then
     return 0
   fi
+  [[ "${EUID}" -ne 0 ]] || return 1
   if install_package_with_current_aur_helper paru; then
     return 0
   fi
@@ -167,6 +169,10 @@ ensure_companion_yay_helper() {
   if install_package_from_pacman_prefer_archlinuxcn yay; then
     return 0
   fi
+  if [[ "${EUID}" -eq 0 ]]; then
+    log_warn "root 模式下 pacman/archlinuxcn 未提供 yay，不会运行 AUR 构建"
+    return 1
+  fi
   if install_package_with_current_aur_helper yay; then
     return 0
   fi
@@ -179,8 +185,12 @@ ensure_aur_helper() {
   local helper
 
   if [[ "${EUID}" -eq 0 ]]; then
-    log_warn "root 模式不能运行 makepkg，跳过 AUR Helper"
-    return 1
+    log_info "root 模式优先通过 pacman/archlinuxcn 安装 paru 和 yay"
+    install_package_from_pacman_prefer_archlinuxcn paru || \
+      die "pacman/archlinuxcn 未提供 paru；root 不会运行 makepkg"
+    install_package_from_pacman_prefer_archlinuxcn yay || \
+      die "pacman/archlinuxcn 未提供 yay；root 不会运行 makepkg"
+    return 0
   fi
 
   if need_cmd paru; then
@@ -289,8 +299,7 @@ install_packages_or_aur() {
     fi
 
     if [[ "${EUID}" -eq 0 ]]; then
-      log_warn "root 模式不能构建 AUR 包，已跳过：${missing_packages[*]}"
-      return 0
+      die "pacman/archlinuxcn 仍未提供软件包：${missing_packages[*]}；root 不能运行 makepkg"
     fi
 
     for package in "${missing_packages[@]}"; do

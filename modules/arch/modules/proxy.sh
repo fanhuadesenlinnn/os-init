@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
-# Arch sing-box 扩展。Mihomo 由 OS Init 通用模块负责。
+# Arch Mihomo 能力：保留原 Arch 配置预检、systemd 适配和 MetaCubeXD 部署。
 
 PROXY_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=modules/proxy/config_source.sh
 source "${PROXY_MODULE_DIR}/proxy/config_source.sh"
-# shellcheck source=modules/proxy/sing_box.sh
-source "${PROXY_MODULE_DIR}/proxy/sing_box.sh"
+# shellcheck source=modules/proxy/mihomo.sh
+source "${PROXY_MODULE_DIR}/proxy/mihomo.sh"
 # shellcheck source=modules/proxy/common.sh
 source "${PROXY_MODULE_DIR}/proxy/common.sh"
 
@@ -16,9 +16,12 @@ install_proxy_env() {
     return 0
   fi
 
-  log_info "开始安装 sing-box 环境"
-  install_sing_box
-  configure_sing_box
+  log_info "开始安装 Mihomo 环境"
+  install_mihomo
+  configure_mihomo
+  if [[ "${ENABLE_METACUBEXD:-0}" -eq 1 ]]; then
+    install_metacubexd
+  fi
 
   install_proxy_shell_env_template
   enable_proxy_service_if_needed

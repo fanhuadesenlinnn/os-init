@@ -92,9 +92,24 @@ func TestBuild_ExpandsArchWorkstationPreset(t *testing.T) {
 	if _, ok := plan.BlockingIssue(); ok {
 		t.Fatalf("Arch preset should compose with normal modules: %#v", plan.Issues)
 	}
-	for _, id := range []string{"arch-dev", "arch-desktop", "arch-mise", "docker", "neovim"} {
+	for _, id := range []string{"arch-dev", "arch-desktop", "arch-mise", "docker", "neovim", "arch-mihomo"} {
 		if !hasModule(plan.Modules, id) {
 			t.Fatalf("expanded preset missing %s: %v", id, ids(plan.Modules))
+		}
+	}
+}
+
+func TestBuild_ExpandsDependenciesForStandaloneArchMihomo(t *testing.T) {
+	t.Parallel()
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
+	byID := modulesByID(modules.ForTarget(target))
+	plan := planner.Build([]modules.Module{byID["arch-mihomo"]}, target, planner.Options{Mode: planner.ModeInstall})
+	if _, ok := plan.BlockingIssue(); ok {
+		t.Fatalf("Arch Mihomo plan should be valid: %#v", plan.Issues)
+	}
+	for _, id := range []string{"arch-archlinuxcn", "arch-aur", "arch-mihomo"} {
+		if !hasModule(plan.Modules, id) {
+			t.Fatalf("standalone Arch Mihomo missing %s: %v", id, ids(plan.Modules))
 		}
 	}
 }

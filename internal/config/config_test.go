@@ -119,11 +119,19 @@ func TestRenderUserConfig_ArchIncludesNativeCapabilities(t *testing.T) {
 	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyArch}, "zh_CN"))
 	for _, want := range []string{
 		"Arch Linux 能力",
+		"Arch Mihomo",
+		"MIHOMO_BIND_ADDRESS=0.0.0.0",
+		"MIHOMO_DNS_LISTEN=0.0.0.0:1053",
 		"PROXY_AUTO_ENABLE_SERVICE=1",
 		"GPU_TYPE=auto",
 	} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("arch config should contain %q, got %q", want, data)
+		}
+	}
+	for _, unwanted := range []string{"MIHOMO_DOWNLOAD_BASE=", "SING_BOX_PACKAGE="} {
+		if strings.Contains(data, unwanted) {
+			t.Fatalf("arch config should not contain %q, got %q", unwanted, data)
 		}
 	}
 }

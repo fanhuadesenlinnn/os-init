@@ -43,6 +43,7 @@ harden_archlinuxcn_siglevel() {
 }
 
 install_archlinuxcn() {
+  local tmp_file
   if is_done "archlinuxcn"; then
     log_info "archlinuxcn 源已处理，跳过"
     return 0
@@ -58,12 +59,16 @@ install_archlinuxcn() {
     if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
       echo "+ append archlinuxcn block to /etc/pacman.conf"
     else
-      sudo tee -a /etc/pacman.conf >/dev/null <<EOF
+      tmp_file="$(mktemp)"
+      cp -a /etc/pacman.conf "${tmp_file}"
+      cat >> "${tmp_file}" <<EOF
 
 [archlinuxcn]
 SigLevel = Optional TrustAll
 Server = ${ARCHLINUXCN_SERVER}
 EOF
+      run_sudo install -m 0644 "${tmp_file}" /etc/pacman.conf
+      rm -f "${tmp_file}"
     fi
   fi
 

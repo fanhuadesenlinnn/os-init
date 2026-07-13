@@ -85,6 +85,24 @@ func TestConfirmView_EnglishUsesSingularModule(t *testing.T) {
 	}
 }
 
+func TestConfirmView_EnglishArchMihomoContainsNoChineseMetadata(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "en_US")
+
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
+	var selected modules.Module
+	for _, mod := range modules.ForTarget(target) {
+		if mod.ID == "arch-mihomo" {
+			selected = mod
+			break
+		}
+	}
+	plan := planner.Build([]modules.Module{selected}, target, planner.Options{Mode: planner.ModeInstall})
+	model := newConfirmModelForPlan(plan, modeInstall, target)
+	if view := model.View(); containsHan(view) {
+		t.Fatalf("English Arch Mihomo confirmation contains Chinese text: %q", view)
+	}
+}
+
 func TestLocalizedExecutionLine_HidesLegacyChineseOutput(t *testing.T) {
 	t.Setenv("OS_INIT_LANG", "en_US")
 

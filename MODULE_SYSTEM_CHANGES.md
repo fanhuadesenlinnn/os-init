@@ -113,13 +113,13 @@
 Arch Linux 不再运行独立子系统。能力直接注册为普通 OS Init 模块，并可与其他模块放在同一个执行计划中：
 
 - `Arch 基础环境`：通过 pacman 安装基础、排障和现代 CLI 工具，并写入 tmux 配置。
-- `AUR Helper`：普通用户安装 paru/yay；root 模式不运行 makepkg，并安全跳过。
+- `AUR Helper`：root 和普通用户均优先从 archlinuxcn 用 pacman 安装 paru/yay；仅普通用户可回退到 makepkg。
 - `archlinuxcn`：备份和修改 `/etc/pacman.conf`，安装 keyring 和可选 mirrorlist。
 - `Arch 系统 DNS`：写入 `/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf` 和 NetworkManager drop-in，可链接 `/etc/resolv.conf`。
 - `Arch Git / GitHub CLI`：安装 git、gh、OpenSSH，并写入目标用户 Git 配置。
 - `Ops Toolkit`：克隆到 `~/.local/share/ops-toolkit` 并在 `~/.local/bin` 创建命令入口。
 - `Arch 字体环境`：安装中文、Emoji、Nerd Font、Monaco，并调整目标用户 fontconfig/GTK 配置。
-- `sing-box`：安装 Arch 原生软件包、目标用户配置和 systemd 用户服务。
+- `Arch Mihomo + MetaCubeXD`：从 pacman/archlinuxcn 安装，写入 `/etc/mihomo`、在 `/var/lib/mihomo` 按发行版 systemd unit 运行方式预检配置，并部署 MetaCubeXD。
 - `Arch Hyprland 桌面`：保留 SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 和虚拟机适配。
 - `Arch 开发环境` / `Arch 完整工作站`：由执行计划的强依赖组合上述能力与共享的 mise、Neovim、Docker、Shell、终端样式和 Mihomo 模块。
 - `Arch 状态详情` / `Arch 系统诊断`：保留状态指纹、服务、网络、桌面和建议动作检查。

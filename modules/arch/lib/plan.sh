@@ -12,7 +12,7 @@ plan_has_module() {
 modules_for_target() {
   case "$1" in
     base|aur|dns|archlinuxcn|git|ops|ops-toolkit|ops_toolkit|fonts) module_key "$1" ;;
-    proxy|sing-box) echo proxy ;;
+    proxy|mihomo) echo proxy ;;
     desktop|hyprland) echo desktop_hyprland ;;
     *) die "未知 Arch 能力：$1" ;;
   esac

@@ -104,18 +104,18 @@ func AllModules() []Module {
 
 		// ── Arch Linux capabilities and presets ──
 		archLinuxModule("arch-base", "base", "Arch 基础环境", "基础工具、排障工具、现代 CLI 和 tmux 配置", KindInstallOnly, "rg"),
-		archLinuxModule("arch-aur", "aur", "AUR Helper", "为普通用户安装 paru 和 yay；root 模式安全跳过", KindInstallOnly, ""),
+		archLinuxModule("arch-aur", "aur", "AUR Helper", "优先从 archlinuxcn 用 pacman 安装 paru 和 yay；普通用户可回退 AUR 构建", KindInstallOnly, ""),
 		archLinuxModule("arch-archlinuxcn", "archlinuxcn", "archlinuxcn 软件源", "配置软件源、keyring 和 mirrorlist", KindSystemTuning, ""),
 		archLinuxModule("arch-dns", "dns", "Arch 系统 DNS", "systemd-resolved、NetworkManager 和国内 DNS 基线", KindSystemTuning, ""),
 		archLinuxModule("arch-git", "git", "Arch Git / GitHub CLI", "git、gh、OpenSSH 和基础 Git 配置", KindInstallOnly, "gh"),
 		archLinuxModule("arch-ops-toolkit", "ops-toolkit", "Ops Toolkit", "克隆运维脚本仓库并生成稳定命令入口", KindShellIntegration, "ops"),
 		archLinuxModule("arch-fonts", "fonts", "Arch 字体环境", "中文、Emoji、Nerd Font、Monaco 和 fontconfig", KindInstallOnly, "fc-cache"),
-		archLinuxModule("arch-sing-box", "sing-box", "sing-box", "Arch 原生 sing-box、systemd 服务和 Shell 代理模板", KindSystemService, "sing-box"),
+		archLinuxModule("arch-mihomo", "mihomo", "Arch Mihomo + MetaCubeXD", "Mihomo、完整配置预检、systemd 服务和 MetaCubeXD", KindSystemService, "mihomo"),
 		archLinuxModule("arch-desktop", "desktop", "Arch Hyprland 桌面", "Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots 和虚拟机适配", KindSystemService, "Hyprland"),
 		archLinuxAction("arch-doctor", "doctor", "Arch 系统诊断", "检查 Arch 通用模块、网络、服务和桌面环境"),
 		archLinuxAction("arch-status", "status", "Arch 状态详情", "显示 Arch 通用能力的详细状态与建议"),
-		archPreset("arch-dev", "Arch 开发环境", "基础工具、开发运行时、容器、Shell、字体和代理组合", archDevDependencies()),
-		archPreset("arch-workstation", "Arch 完整工作站", "Arch 开发环境加 Hyprland 桌面能力", []string{"arch-dev", "arch-desktop"}),
+		archPreset("arch-dev", "Arch 开发环境", "Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Starship + Shell 插件 + 终端样式 + Arch Mihomo", archDevDependencies()),
+		archPreset("arch-workstation", "Arch 完整工作站", "Arch 开发环境 + Arch Hyprland 桌面", []string{"arch-dev", "arch-desktop"}),
 
 		// ── Installations / macOS Apps ──
 		macOSCask("macOS 开发应用", "google-chrome", "Google Chrome", "浏览器", "/Applications/Google Chrome.app"),
@@ -199,7 +199,7 @@ func AllModules() []Module {
 		macOSFormula("llmfit", "llmfit", "命令行工具", "llmfit"),
 
 		// ── Installations / Network ──
-		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, AffectedPaths: []string{"/usr/local/bin/mihomo", "/etc/mihomo", "/etc/systemd/system/mihomo.service", "/var/lib/mihomo"}, DestructivePaths: []string{"/etc/mihomo、/var/lib/mihomo (仅 PURGE_DATA=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/mihomo、systemd 服务和系统二进制", InstalledCmd: "mihomo", InstalledCheck: "/etc/mihomo/config.yaml", InstalledSystemdServices: []string{"mihomo.service"}, InstalledShellBlocks: []string{"proxy-env"}},
+		{ID: "mihomo", Script: "mihomo/install.sh", Label: "Mihomo", Description: "代理核心、配置测试、MetaCubeXD 面板", Category: "installation", Subsection: "网络代理", OS: "linux", Families: []string{"debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationShellProfile}, ManualSteps: []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}, AffectedPaths: []string{"/usr/local/bin/mihomo", "/etc/mihomo", "/etc/systemd/system/mihomo.service", "/var/lib/mihomo"}, DestructivePaths: []string{"/etc/mihomo、/var/lib/mihomo (仅 PURGE_DATA=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "写入 /etc/mihomo、systemd 服务和系统二进制", InstalledCmd: "mihomo", InstalledCheck: "/etc/mihomo/config.yaml", InstalledSystemdServices: []string{"mihomo.service"}, InstalledShellBlocks: []string{"proxy-env"}},
 
 		// ── Installations / Dev Tools ──
 		{ID: "docker", Script: "docker/install.sh", Label: "Docker", Description: "静态二进制、Compose 插件、daemon 配置", Category: "installation", Subsection: "开发工具", OS: "linux", Families: []string{"arch", "debian", "redhat"}, Requires: []string{"systemd"}, Kind: KindSystemService, Activates: []string{ActivationSystemd, ActivationRelogin}, NeedsRelogin: true, AffectedPaths: []string{"/usr/local/bin/docker*", "/etc/docker/daemon.json", "/etc/systemd/system/docker.service", "/var/lib/os-init/ownership"}, DestructivePaths: []string{"/var/lib/docker、/var/lib/containerd (仅 PURGE_DATA=1)", "/etc/docker (仅 PURGE_CONFIG=1)"}, Privilege: PrivilegeSystem, PrivilegeReason: "安装系统二进制、写入 Docker systemd 服务和用户组", InstalledCommands: [][]string{{"docker", "--version"}, {"dockerd", "--version"}, {"docker", "compose", "version"}}, InstalledSystemdServices: []string{"docker.service", "containerd.service"}, InstalledUserGroups: []string{"docker"}},
@@ -215,7 +215,8 @@ func archLinuxModule(id, component, label, description string, kind ModuleKind, 
 	case "base":
 		m.AffectedPaths = []string{"pacman 基础工具包", "$HOME/.tmux.conf"}
 	case "aur":
-		m.AffectedPaths = []string{"paru / yay（仅普通用户；root 安全跳过）"}
+		m.AffectedPaths = []string{"archlinuxcn 预编译 paru / yay；普通用户的 AUR 构建回退"}
+		m.DependsOn = []string{"arch-archlinuxcn"}
 	case "dns":
 		m.AffectedPaths = []string{"/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf", "/etc/NetworkManager/conf.d/90-os-init-arch-dns.conf", "/etc/resolv.conf"}
 		m.InstalledCheck = "/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf"
@@ -228,14 +229,23 @@ func archLinuxModule(id, component, label, description string, kind ModuleKind, 
 		m.InstalledCommands = [][]string{{"git", "--version"}, {"gh", "--version"}}
 	case "ops-toolkit":
 		m.AffectedPaths = []string{"$HOME/.local/share/ops-toolkit", "$HOME/.local/bin/ops 和脚本命令"}
+		m.DependsOn = []string{"arch-git"}
 	case "fonts":
 		m.AffectedPaths = []string{"pacman/archlinuxcn 字体包", "$HOME/.config/fontconfig/fonts.conf", "$HOME/.config/gtk-{3,4}.0/settings.ini"}
+		m.DependsOn = []string{"arch-archlinuxcn"}
 	case "desktop":
 		m.AffectedPaths = []string{"pacman/AUR 桌面包", "/etc/systemd/system/display-manager.service", "$HOME/.config/hypr|waybar|rofi|dunst|yazi|btop|alacritty", "$HOME/.local/bin"}
 		m.Activates = []string{ActivationSystemd, ActivationManual}
-	case "sing-box":
-		m.AffectedPaths = []string{"pacman/archlinuxcn: sing-box", "$HOME/.config/sing-box/config.json", "$HOME/.config/systemd/user/os-init-arch-sing-box.service 或 /etc/systemd/system/os-init-arch-sing-box.service"}
+		m.DependsOn = []string{"arch-base", "arch-aur", "arch-archlinuxcn", "arch-git", "arch-fonts"}
+	case "mihomo":
+		m.AffectedPaths = []string{"pacman/archlinuxcn: mihomo 和 metacubexd-bin", "/etc/mihomo", "/var/lib/mihomo", "mihomo.service", "$HOME/.bashrc|.zshrc"}
+		m.Requires = []string{"systemd"}
 		m.Activates = []string{ActivationSystemd, ActivationShellProfile}
+		m.DependsOn = []string{"arch-aur", "arch-archlinuxcn"}
+		m.InstalledCheck = "/etc/mihomo/config.yaml"
+		m.InstalledSystemdServices = []string{"mihomo.service"}
+		m.InstalledShellBlocks = []string{"proxy-env"}
+		m.ManualSteps = []string{"替换订阅或提供 MIHOMO_CONFIG_SOURCE 后再启用服务"}
 	}
 	return m
 }
@@ -249,7 +259,7 @@ func archPreset(id, label, description string, dependencies []string) Module {
 }
 
 func archDevDependencies() []string {
-	return []string{"arch-base", "arch-aur", "arch-archlinuxcn", "arch-dns", "arch-git", "arch-ops-toolkit", "arch-mise", "neovim", "docker", "arch-fonts", "shell-zsh", "shell-starship", "shell-autosuggestions", "shell-syntax-hl", "terminal-style", "mihomo"}
+	return []string{"arch-base", "arch-aur", "arch-archlinuxcn", "arch-dns", "arch-git", "arch-ops-toolkit", "arch-mise", "neovim", "docker", "arch-fonts", "shell-zsh", "shell-starship", "shell-autosuggestions", "shell-syntax-hl", "terminal-style", "arch-mihomo"}
 }
 
 func macOSCask(subsection, component, label, description, installedCheck string) Module {

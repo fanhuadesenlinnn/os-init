@@ -7,10 +7,13 @@ module. Development and workstation flows are dependency presets.
 ## Decision
 
 - Keep Arch-specific implementation in `modules/arch`.
-- Reuse the shared mise, Neovim, Docker, Mihomo, and Shell implementations.
+- Reuse the shared mise, Neovim, Docker, and Shell implementations.
+- Keep Mihomo as an Arch capability because its package-provided systemd unit,
+  full configuration template, validation flow, and MetaCubeXD deployment are
+  materially different from the generic Linux binary installer.
 - Represent `arch-dev` and `arch-workstation` as planner dependencies.
-- Support root and normal users in every Arch entrypoint; safely skip AUR
-  builds in root mode.
+- Install prebuilt paru/yay from archlinuxcn for root and normal users; only a
+  normal user may fall back to AUR builds.
 - Keep Arch diagnostics and detailed state actions as ordinary modules.
 - Do not maintain a separate menu, configuration file, executor, or summary.
 

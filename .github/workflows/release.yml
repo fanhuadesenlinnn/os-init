@@ -135,7 +135,7 @@ jobs:
           ### 主要能力
 
           - Linux 支持直接以 root 运行，用户配置写入 `/root`，且无需安装 sudo
-          - Arch Linux 能力对 root 和普通用户使用相同模块；root 模式跳过不安全的 AUR 构建
+          - Arch Linux 能力对 root 和普通用户使用相同模块；paru/yay 优先从 archlinuxcn 用 pacman 安装
           - Arch Linux 通过 pacman 安装 mise，并在目标用户 HOME 管理 Node.js 24、Python 3.13 和 Go 1.24
           - macOS 与 Arch Linux 共享 mise 运行时、国内镜像、官方源回退和安装验证逻辑
           - 中国大陆默认启用 Node/Go SDK、npm、pip、uv 和 Go module 镜像，SDK 镜像失败自动回退官方源
@@ -157,7 +157,7 @@ jobs:
           - 模块级执行超时，避免安装器永久卡住
           - 按模块权限决定是否提前 sudo，Homebrew 模块不包 sudo
           - Homebrew 镜像变量统一注入
-          - Arch Linux 提供基础工具、AUR、软件源、DNS、Git、Ops、字体、sing-box、诊断和完整 Hyprland 桌面能力
+          - Arch Linux 提供基础工具、AUR、软件源、DNS、Git、Ops、字体、Mihomo/MetaCubeXD、诊断和完整 Hyprland 桌面能力
           - 模块执行计划器：强依赖自动补齐、软关联提示、稳定执行顺序
           - 按当前系统生成统一启动配置，Arch 能力读取 `~/.config/os-init/config.env`
           - `arch-dev` 和 `arch-workstation` 保留开发环境及完整工作站组合能力

@@ -102,6 +102,12 @@ func localizedMetadata(value string) string {
 	if !langIsEnglish() {
 		return value
 	}
+	switch value {
+	case "archlinuxcn 预编译 paru / yay；普通用户的 AUR 构建回退":
+		return "prebuilt paru / yay from archlinuxcn; normal-user AUR build fallback"
+	case "pacman/archlinuxcn: mihomo 和 metacubexd-bin":
+		return "pacman/archlinuxcn: mihomo and metacubexd-bin"
+	}
 	replacer := strings.NewReplacer(
 		"Homebrew/pacman 软件包，或 Linux ", "Homebrew/pacman packages, or Linux ",
 		"OS Init 所有权状态目录", "OS Init ownership state directory",
@@ -199,7 +205,7 @@ var moduleLabelEN = map[string]string{
 	"arch-git":              "Arch Git / GitHub CLI",
 	"arch-ops-toolkit":      "Ops Toolkit",
 	"arch-fonts":            "Arch font environment",
-	"arch-sing-box":         "sing-box",
+	"arch-mihomo":           "Arch Mihomo + MetaCubeXD",
 	"arch-desktop":          "Arch Hyprland desktop",
 	"arch-doctor":           "Arch system diagnostics",
 	"arch-status":           "Arch detailed status",
@@ -304,18 +310,18 @@ var moduleDescriptionEN = map[string]string{
 	"docker":                              "Static binary, Compose plugin, and daemon config",
 	"arch-mise":                           "Arch runtimes, mainland mirrors, and target-user shell activation",
 	"arch-base":                           "Base, troubleshooting, modern CLI tools, and tmux configuration",
-	"arch-aur":                            "Install paru and yay for a normal user; safely skip in root mode",
+	"arch-aur":                            "Install paru and yay from archlinuxcn with pacman; normal users may fall back to AUR builds",
 	"arch-archlinuxcn":                    "Configure the repository, keyring, and mirrorlist",
 	"arch-dns":                            "systemd-resolved, NetworkManager, and a mainland-friendly DNS baseline",
 	"arch-git":                            "git, gh, OpenSSH, and base Git settings",
 	"arch-ops-toolkit":                    "Clone the operations toolkit and create stable command entrypoints",
 	"arch-fonts":                          "Chinese, Emoji, Nerd Font, Monaco, and fontconfig",
-	"arch-sing-box":                       "Arch-native sing-box, user service, and shell proxy template",
+	"arch-mihomo":                         "Mihomo, full config validation, systemd service, and MetaCubeXD",
 	"arch-desktop":                        "Hyprland, SDDM, Fcitx5/Rime, browser, hyprdots, and VM integration",
 	"arch-doctor":                         "Check Arch capabilities, network, services, and desktop environment",
 	"arch-status":                         "Show detailed Arch capability status and suggestions",
-	"arch-dev":                            "Base tools, runtimes, containers, shell, fonts, and proxy preset",
-	"arch-workstation":                    "Arch development environment plus the Hyprland desktop capability",
+	"arch-dev":                            "Arch base + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + fonts + Zsh + Starship + shell plugins + terminal style + Arch Mihomo",
+	"arch-workstation":                    "Arch development environment + Arch Hyprland desktop",
 	"go":                                  "Go toolchain",
 	"neovim":                              "Terminal editor, macOS GUI client, and personal configuration",
 }

@@ -44,6 +44,10 @@ preflight_install() {
   if plan_needs_git_command "${modules_text}" && ! need_cmd git; then
     log_warn "当前缺少 git，相关模块会在执行时按需安装 git 包"
   fi
+  if plan_has_module "${modules_text}" "proxy" && \
+     [[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" == "0.0.0.0" && -z "${MIHOMO_SECRET:-}" ]]; then
+    log_warn "Mihomo 控制接口监听 0.0.0.0 且 secret 为空，局域网可访问控制 API"
+  fi
 }
 
 show_summary() {
@@ -96,12 +100,8 @@ show_summary() {
     fi
   fi
   if is_done "proxy"; then
-    add_summary_tip "sing-box 配置文件：${SING_BOX_CONFIG_FILE:-${HOME}/.config/sing-box/config.json}。"
-    if [[ "${EUID}" -eq 0 ]]; then
-      add_summary_tip "sing-box 服务状态可用 systemctl status os-init-arch-sing-box 查看。"
-    else
-      add_summary_tip "sing-box 服务状态可用 systemctl --user status os-init-arch-sing-box 查看。"
-    fi
+    add_summary_tip "Mihomo 配置文件：${MIHOMO_CONFIG_FILE:-/etc/mihomo/config.yaml}。"
+    add_summary_tip "Mihomo 服务状态可用 systemctl status ${MIHOMO_SERVICE_NAME:-mihomo.service} 查看。"
   fi
   add_summary_tip "查看模块状态可执行：bash install.sh status。"
   if [[ "${tip_no}" -eq 0 ]]; then

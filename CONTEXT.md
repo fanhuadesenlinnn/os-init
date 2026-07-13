@@ -33,9 +33,10 @@ the current platform.
   planner, confirmation page, executor, and summary.
 - A normal Arch user runs system work through sudo and user work without sudo.
 - In root mode, system work executes directly and user configuration targets
-  `/root`; AUR builds are skipped because makepkg requires a normal user.
+  `/root`; paru/yay use prebuilt archlinuxcn packages, while makepkg remains
+  restricted to a normal build user.
 - `arch-dev` composes base, repository, DNS, Git, Ops Toolkit, mise, Neovim,
-  Docker, fonts, Shell, terminal styling, and Mihomo.
+  Docker, fonts, Shell, terminal styling, and Arch Mihomo/MetaCubeXD.
 - `arch-workstation` adds the Hyprland desktop capability to `arch-dev`.
 - Private accounts, subscriptions, and personal application data remain out of
   scope unless the user explicitly supplies them.

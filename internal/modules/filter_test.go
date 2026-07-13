@@ -117,10 +117,16 @@ func TestForTarget_ShowsArchCapabilitiesOnlyOnArchLinux(t *testing.T) {
 	t.Parallel()
 
 	arch := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
-	for _, id := range []string{"arch-base", "arch-mise", "arch-dev", "arch-workstation"} {
+	for _, id := range []string{"arch-base", "arch-mise", "arch-mihomo", "arch-dev", "arch-workstation"} {
 		if !hasModule(arch, id) {
 			t.Fatalf("%s should appear on Arch Linux", id)
 		}
+	}
+	if hasModule(arch, "mihomo") {
+		t.Fatal("Arch should use arch-mihomo instead of the generic Linux Mihomo module")
+	}
+	if hasModule(arch, "arch-sing-box") {
+		t.Fatal("removed Arch sing-box capability should not appear")
 	}
 
 	debian := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"})
@@ -136,6 +142,30 @@ func TestForTarget_ShowsArchCapabilitiesOnlyOnArchLinux(t *testing.T) {
 	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
 	if hasModule(darwin, "arch-base") {
 		t.Fatal("Arch capabilities should be hidden on macOS")
+	}
+}
+
+func TestArchCapabilityDependenciesAreExplicit(t *testing.T) {
+	t.Parallel()
+	mods := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
+	byID := make(map[string]Module, len(mods))
+	for _, mod := range mods {
+		byID[mod.ID] = mod
+	}
+	for id, wants := range map[string][]string{
+		"arch-aur":     {"arch-archlinuxcn"},
+		"arch-mihomo":  {"arch-aur", "arch-archlinuxcn"},
+		"arch-desktop": {"arch-base", "arch-aur", "arch-archlinuxcn", "arch-git", "arch-fonts"},
+	} {
+		got := byID[id].DependsOn
+		if len(got) != len(wants) {
+			t.Fatalf("%s dependencies = %v, want %v", id, got, wants)
+		}
+		for i := range wants {
+			if got[i] != wants[i] {
+				t.Fatalf("%s dependencies = %v, want %v", id, got, wants)
+			}
+		}
 	}
 }
 

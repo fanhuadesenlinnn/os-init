@@ -107,6 +107,20 @@ doctor_check_display_manager() {
   fi
 }
 
+doctor_check_mihomo_config() {
+  local config_file="${MIHOMO_CONFIG_FILE:-/etc/mihomo/config.yaml}"
+  if need_cmd mihomo; then
+    doctor_check "mihomo-bin" "ok" "mihomo 命令可用"
+  else
+    doctor_check "mihomo-bin" "warn" "mihomo 尚未安装"
+  fi
+  if [[ -f "${config_file}" ]]; then
+    doctor_check "mihomo-config" "ok" "已发现 ${config_file}"
+  else
+    doctor_check "mihomo-config" "ok" "未发现已安装配置，Arch Mihomo 会写入 ${config_file}"
+  fi
+}
+
 doctor_check_base_tools_json() {
   local name command_name command_path
 
@@ -154,7 +168,13 @@ show_doctor() {
   doctor_check_config_file
   doctor_check_config_warnings
 
+  if [[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" == "0.0.0.0" && -z "${MIHOMO_SECRET:-}" ]]; then
+    doctor_check "mihomo-secret" "warn" "控制接口开放到 0.0.0.0 且 secret 为空"
+  else
+    doctor_check "mihomo-secret" "ok" "控制接口配置正常"
+  fi
   doctor_check_display_manager
+  doctor_check_mihomo_config
   if [[ "${OUTPUT_JSON:-0}" -eq 1 ]]; then
     doctor_check_base_tools_json
   fi

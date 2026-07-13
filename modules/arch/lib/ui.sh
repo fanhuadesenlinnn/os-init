@@ -9,13 +9,13 @@ ask_arch_target() {
 
 Arch Linux 能力：
   1. base           基础命令行工具和 tmux
-  2. aur            paru/yay（仅普通用户）
+  2. aur            paru/yay（优先使用 archlinuxcn 预编译包）
   3. archlinuxcn    软件源、keyring 和 mirrorlist
   4. dns            systemd-resolved DNS
   5. git            Git / GitHub CLI / OpenSSH
   6. ops-toolkit    运维脚本命令入口
   7. fonts          中文、Emoji、Nerd Font 和 Monaco
-  8. sing-box       sing-box 与 systemd 服务
+  8. mihomo         Mihomo、配置预检、systemd 与 MetaCubeXD
   9. desktop        Hyprland 完整桌面
 
 dev/workstation 组合请从 OS Init 主菜单选择。
@@ -29,7 +29,7 @@ EOF
       5|git) echo git; return ;;
       6|ops|ops-toolkit) echo ops-toolkit; return ;;
       7|fonts) echo fonts; return ;;
-      8|proxy|sing-box) echo sing-box; return ;;
+      8|proxy|mihomo) echo mihomo; return ;;
       9|desktop|hyprland) echo desktop; return ;;
       *) log_warn "请输入 1-9 或能力名称" ;;
     esac
