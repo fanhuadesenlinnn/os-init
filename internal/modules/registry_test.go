@@ -368,7 +368,7 @@ func TestLegacyRuntimeManagersAreRemoved(t *testing.T) {
 
 func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 	t.Parallel()
-	data, err := os.ReadFile(filepath.Join("..", "..", "modules", "macos", "cli.sh"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "modules", "mise", "install.sh"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,6 +380,8 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 		`mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"`,
 		`mise activate zsh --shims`,
 		`mise activate zsh`,
+		`mise activate bash --shims`,
+		`sudo_env pacman -S --needed --noconfirm mise`,
 		`https://registry.npmmirror.com`,
 		`https://pypi.tuna.tsinghua.edu.cn/simple`,
 		`https://goproxy.cn,direct`,
@@ -388,6 +390,19 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 		if !strings.Contains(script, want) {
 			t.Fatalf("mise installer should contain %q", want)
 		}
+	}
+
+	macData, err := os.ReadFile(filepath.Join("..", "..", "modules", "macos", "cli.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(macData), `bash "$REPO_DIR/mise/install.sh"`) {
+		t.Fatal("macOS CLI installer should delegate mise to the shared installer")
+	}
+
+	rootMise := findModule(t, modules.AllModules(), "arch-root-mise")
+	if !rootMise.RootOnly || rootMise.Script != "mise/install.sh" || !contains(rootMise.Families, "arch") {
+		t.Fatalf("Arch root mise module is not scoped correctly: %#v", rootMise)
 	}
 }
 

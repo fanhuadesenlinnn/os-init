@@ -118,6 +118,8 @@ OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装�
 
 mise 模块同时安装并管理 Node.js 24、Python 3.13 和 Go 1.24。
 
+在 Arch Linux 上直接以 root 运行时，菜单会提供独立的 `mise + Node.js 24 + Python 3.13 + Go 1.24` 模块。mise 通过官方 pacman 仓库安装，运行时、镜像配置和 Shell 激活写入 `/root`；普通用户仍通过 ArchDevKit 的 `runtime` 使用同一组目标版本。
+
 ### ArchDevKit
 
 Arch Linux 会显示独立的 ArchDevKit 菜单，用于最小化安装后的完整环境初始化。
@@ -187,7 +189,7 @@ OS_INIT_CONFIG_PROMPT=0
 - 普通 Homebrew formula 和 cask 不使用 sudo。
 - 修改系统目录、systemd、内核参数或 Linux 系统包时，会在确认后请求 sudo。
 - Linux 可以直接以 root 运行；此时 root 是目标用户，用户配置写入 `/root`，且不依赖 sudo 软件包。
-- root 模式不显示 ArchDevKit；ArchDevKit 的 AUR、桌面和用户服务流程仍要求普通用户运行。
+- root 模式不显示 ArchDevKit；ArchDevKit 的 AUR、桌面和用户服务流程仍要求普通用户运行。Arch root 可从通用模块安装 mise 管理的 Node.js 24、Python 3.13 和 Go 1.24。
 - OS Init 写入 Shell 配置时使用带名称的管理块，卸载时只移除对应管理块。
 - 用户配置和应用数据默认保留；只有明确启用相应的清理参数时才删除。
 - Docker 数据目录默认保留。

@@ -163,6 +163,7 @@ var modulePrivilegeReasonEN = map[string]string{
 	"yazi":                  "Linux installs binaries in /usr/local/bin",
 	"mihomo":                "writes /etc/mihomo, a systemd service, and system-wide binaries",
 	"docker":                "installs system-wide binaries and configures Docker services and the docker group",
+	"arch-root-mise":        "installs mise through pacman and manages runtimes for root",
 	"go":                    "Linux installs or updates /usr/local/go",
 	"neovim":                "Linux installs binaries in /opt and /usr/local/bin",
 }
@@ -186,6 +187,7 @@ var moduleLabelEN = map[string]string{
 	"yazi":                       "Yazi",
 	"mihomo":                     "Mihomo",
 	"docker":                     "Docker",
+	"arch-root-mise":             "mise + Node.js 24 + Python 3.13 + Go 1.24",
 	"go":                         "Go",
 	"neovim":                     "Neovim + Neovide + config-yuan",
 	"archdevkit-menu":            "Original interactive menu",
@@ -304,6 +306,7 @@ var moduleDescriptionEN = map[string]string{
 	"macos-cli-llmfit":                    "Command-line tool",
 	"mihomo":                              "Proxy core, config validation, and MetaCubeXD dashboard",
 	"docker":                              "Static binary, Compose plugin, and daemon config",
+	"arch-root-mise":                      "Root runtimes, mainland mirrors, and shell activation",
 	"go":                                  "Go toolchain",
 	"neovim":                              "Terminal editor, macOS GUI client, and personal configuration",
 	"archdevkit-menu":                     "Choose install target and options with the original ArchDevKit flow",

@@ -405,16 +405,28 @@ func selectionNeedsSudoPrimeForUID(selected []modules.Module, target platform.Ta
 }
 
 func filterModulesForExecutionUser(mods []modules.Module, root bool) []modules.Module {
-	if !root {
-		return mods
+	hasRootMise := false
+	if root {
+		for _, mod := range mods {
+			if mod.ID == "arch-root-mise" {
+				hasRootMise = true
+				break
+			}
+		}
 	}
 
 	filtered := make([]modules.Module, 0, len(mods))
 	for _, mod := range mods {
-		if mod.Category == "archdevkit" {
+		if mod.RootOnly && !root {
 			continue
 		}
-		if mod.ID == "docker" {
+		if root && mod.Category == "archdevkit" {
+			continue
+		}
+		if hasRootMise && mod.ID == "go" {
+			continue
+		}
+		if root && mod.ID == "docker" {
 			mod.NeedsRelogin = false
 			mod.InstalledUserGroups = nil
 			activations := make([]string, 0, len(mod.Activates))

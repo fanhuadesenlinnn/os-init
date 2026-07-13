@@ -134,10 +134,11 @@ jobs:
 
           - Linux 支持直接以 root 运行，用户配置写入 `/root`，且无需安装 sudo
           - root 模式隐藏 ArchDevKit，并跳过 Docker 用户组与重新登录步骤
-          - macOS 与 Arch Linux 统一使用 mise 管理 Node.js 24、Python 3.13 和 Go 1.24
+          - Arch Linux root 模式通过 pacman 安装 mise，并在 `/root` 管理 Node.js 24、Python 3.13 和 Go 1.24
+          - macOS 与 Arch Linux 共享 mise 运行时、国内镜像、官方源回退和安装验证逻辑
           - 中国大陆默认启用 Node/Go SDK、npm、pip、uv 和 Go module 镜像，SDK 镜像失败自动回退官方源
           - 登录 Shell 使用 mise shims，交互式 Shell 使用完整 activate，兼顾终端、IDE 和 GUI 应用
-          - 移除 nvm/fnm 安装入口，迁移时只清理 OS Init 管理块并保留用户运行时数据
+          - 移除 nvm/fnm/pyenv/asdf 运行时管理入口，迁移时只清理 OS Init 管理块并保留用户运行时数据
           - macOS Homebrew 软件逐项执行，日志、耗时和退出码互不影响
           - Motrix Next 使用 cask 级 Homebrew trust 和完整 tap 引用
           - ArchDevKit 安装 Docker 或 Mihomo 时，如果 systemd 暂时无法启动服务，不再中断整个 dev 安装流程

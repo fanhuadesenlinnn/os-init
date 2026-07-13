@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## v0.23.0 - 2026-07-13
+
+### Added
+
+- Add a root-only Arch Linux mise module that installs mise from pacman and manages Node.js 24, Python 3.13, and Go 1.24 under `/root`.
+- Configure zsh and bash login/interactive shells with mise shims, full activation, and mainland China npm, pip, uv, and Go mirrors.
+
+### Changed
+
+- Extract the macOS mise runtime behavior into a shared macOS/Arch installer with official-source fallback and post-install verification.
+- Hide the separate system Go module in Arch root mode so mise remains the single runtime-management path.
+- Remove OS Init-managed nvm, fnm, pyenv, and asdf shell blocks when adopting mise.
+- Preserve pre-existing mise packages, configuration, and runtime data during uninstall unless `PURGE_CONFIG=1` explicitly requests cleanup.
+
 ## v0.22.0 - 2026-07-13
 
 ### Added

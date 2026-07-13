@@ -32,15 +32,17 @@ func TestFilterModulesForExecutionUserRemovesArchDevKitForRoot(t *testing.T) {
 		{ID: "shell-zsh", Category: "installation"},
 		{ID: "archdevkit-menu", Category: "archdevkit"},
 		{ID: "kernel-sysctl", Category: "optimization"},
+		{ID: "arch-root-mise", Category: "installation", RootOnly: true},
+		{ID: "go", Category: "installation"},
 	}
 
 	rootMods := filterModulesForExecutionUser(mods, true)
-	if len(rootMods) != 2 || rootMods[0].ID != "shell-zsh" || rootMods[1].ID != "kernel-sysctl" {
+	if len(rootMods) != 3 || rootMods[0].ID != "shell-zsh" || rootMods[1].ID != "kernel-sysctl" || rootMods[2].ID != "arch-root-mise" {
 		t.Fatalf("root modules = %#v", rootMods)
 	}
 
 	normalMods := filterModulesForExecutionUser(mods, false)
-	if len(normalMods) != len(mods) {
+	if len(normalMods) != 4 || normalMods[0].ID != "shell-zsh" || normalMods[1].ID != "archdevkit-menu" || normalMods[2].ID != "kernel-sysctl" || normalMods[3].ID != "go" {
 		t.Fatalf("normal user modules were unexpectedly filtered: %#v", normalMods)
 	}
 }

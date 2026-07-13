@@ -204,9 +204,11 @@ ArchDevKit 向导覆盖原项目能力：
 
 ### mise 运行时管理
 
-- mise 是 macOS 和 Arch Linux 唯一的 Node.js、Python、Go 版本管理器，不再提供 nvm 或 fnm 安装入口。
+- mise 是 macOS 和 Arch Linux 唯一的 Node.js、Python、Go 版本管理器，不再提供 nvm、fnm、pyenv 或 asdf 安装入口。
+- macOS 与 Arch Linux root 模式复用 `modules/mise/install.sh`；Arch root 通过官方 pacman 仓库安装 mise，并把配置和运行时写入 `/root`。
+- Arch 普通用户继续通过 ArchDevKit `runtime` 使用 mise，root 模式不进入 ArchDevKit。
 - 全局版本为 Node.js 24、Python 3.13、Go 1.24，并跟随各版本系列的最新补丁版本。
-- 登录 Shell 使用 shims，交互式 Shell 使用完整 activate；安装时清理由 OS Init 写入的旧 nvm/fnm 管理块，但保留用户数据。
+- 登录 Shell 使用 shims，交互式 Shell 使用完整 activate；安装时清理由 OS Init 写入的旧 nvm/fnm/pyenv/asdf 管理块，但保留用户数据。
 - 中国大陆默认配置 Node/Go SDK 下载镜像以及 npm、pip、uv、Go module 镜像；SDK 镜像失败时使用官方源重试，始终保留校验。
 
 ### Git 配置
