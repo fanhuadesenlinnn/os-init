@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.27.0 - 2026-07-13
+
+### Changed
+
+- Fold Powerlevel10k, zsh-autosuggestions, and zsh-syntax-highlighting into the single Zsh + Oh My Zsh lifecycle and menu entry.
+
+### Removed
+
+- Remove Starship and the Starship-based terminal-style module, templates, configuration, update tracking, and preset dependencies.
+- Clean up shell blocks, templates, and installations owned by the former Starship modules when the Zsh module next runs.
+
 ## v0.26.0 - 2026-07-13
 
 ### Changed

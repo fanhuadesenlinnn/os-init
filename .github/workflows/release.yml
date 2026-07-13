@@ -150,8 +150,7 @@ jobs:
           - Arch 开发环境与完整工作站通过普通模块强依赖组合，不维护重复安装器
           - 中英双语 TUI，覆盖菜单、确认信息、执行状态和结果页
           - GitHub 专用代理与资源下载配置
-          - 终端样式模块：本地图形终端 rich、SSH simple、TTY plain 自动切换
-          - Starship 同时支持 bash 和 zsh，不再强制依赖 zsh
+          - Zsh、Oh My Zsh、Powerlevel10k、命令建议与语法高亮由一个模块统一管理完整生命周期
           - Mihomo 安装与 systemd 配置
           - 分平台安装策略：macOS 优先 Homebrew，Arch Linux 优先 pacman/paru/yay，其它 Linux 尽量使用官方二进制
           - Docker：Arch Linux 通过 pacman/AUR 安装组件，其它 Linux 使用静态二进制和 Compose CLI 插件

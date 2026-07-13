@@ -76,7 +76,7 @@ tar xzf os-init_darwin_arm64.tar.gz
 
 | 分组 | 可选模块 |
 | --- | --- |
-| Shell | Zsh + Oh My Zsh、Starship、direnv、zsh-autosuggestions、zsh-syntax-highlighting、Git 配置 |
+| Shell | Zsh + Oh My Zsh（含 Powerlevel10k、zsh-autosuggestions、zsh-syntax-highlighting）、direnv、Git 配置 |
 | 终端 | 自动终端样式、ncdu、Yazi；Linux 可选 byobu + tmux |
 | 开发 | Go、Neovim + Neovide + config-yuan |
 | Linux 服务 | Docker、Mihomo |
@@ -132,7 +132,7 @@ Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，
 | Arch Git / Ops Toolkit | Git、GitHub CLI、OpenSSH 和运维工具入口 |
 | Arch 字体 / Arch Mihomo | 中文字体、Emoji、Nerd Font、Monaco；Mihomo 完整配置预检、systemd 服务和 MetaCubeXD |
 | Arch Hyprland 桌面 | Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 与虚拟机适配 |
-| Arch 开发环境 | Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Starship + Shell 插件 + 终端样式 + Arch Mihomo |
+| Arch 开发环境 | Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Arch Mihomo |
 | Arch 完整工作站 | Arch 开发环境 + Arch Hyprland 桌面 |
 | Arch 状态详情 / 系统诊断 | 状态、配置指纹、网络、systemd、桌面与修复建议 |
 

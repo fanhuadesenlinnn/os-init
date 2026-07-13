@@ -36,12 +36,6 @@ type versionChecker struct {
 // checkers defines modules that have GitHub release version tracking.
 var versionCheckers = []versionChecker{
 	{
-		moduleID:   "shell-starship",
-		repo:       "starship/starship",
-		versionCmd: []string{"starship", "--version"},
-		versionRe:  regexp.MustCompile(`(\d+\.\d+\.\d+)`),
-	},
-	{
 		moduleID:   "go",
 		repo:       "",
 		versionCmd: []string{"go", "version"},

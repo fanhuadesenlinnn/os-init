@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install shell tooling: zsh, oh-my-zsh, starship, direnv, zsh plugins, byobu, git
+# Install shell tooling: zsh, oh-my-zsh, bundled zsh plugins, direnv, byobu, git
 # Author: Dusan Panic <dpanic@gmail.com>
 # Replicates a full zsh dev environment from scratch
 # Safe to re-run -- idempotent (skips already-installed components)
@@ -16,7 +16,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
-ALL_COMPONENTS=(zsh starship direnv autosuggestions syntax-highlighting git)
+ALL_COMPONENTS=(zsh direnv git)
 is_linux && ALL_COMPONENTS+=(byobu)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
@@ -24,48 +24,22 @@ if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     COMPONENTS=("${ALL_COMPONENTS[@]}")
 fi
 
-append_component() {
-    local next="$1" c
-    if ((${#COMPONENTS_NORMALIZED[@]} > 0)); then
-        for c in "${COMPONENTS_NORMALIZED[@]}"; do
-            [[ "$c" == "$next" ]] && return 0
-        done
-    fi
-    COMPONENTS_NORMALIZED+=("$next")
-}
-
-normalize_components() {
-    local c
-    COMPONENTS_NORMALIZED=()
-    for c in "${COMPONENTS[@]}"; do
-        case "$c" in
-            plugins)
-                append_component autosuggestions
-                append_component syntax-highlighting
-                ;;
-            *)
-                append_component "$c"
-                ;;
-        esac
-    done
-    COMPONENTS=("${COMPONENTS_NORMALIZED[@]}")
-    unset COMPONENTS_NORMALIZED
-}
-normalize_components
-
 want() {
     local c
     for c in "${COMPONENTS[@]}"; do [[ "$c" == "$1" ]] && return 0; done
     return 1
 }
 
-want_zsh_plugin() {
-    want "zsh" || want "autosuggestions" || want "syntax-highlighting"
+validate_components() {
+    local c
+    for c in "${COMPONENTS[@]}"; do
+        case "$c" in
+            zsh|direnv|git|byobu) ;;
+            *) die "$(os_init_text "未知 Shell 组件: $c" "unknown shell component: $c")" ;;
+        esac
+    done
 }
-
-tool_prefers_package_manager() {
-    is_macos || is_arch
-}
+validate_components
 
 login_shell_for_user() {
     local user="$1" shell=""
@@ -111,13 +85,6 @@ set_default_zsh() {
     if ! sudo chsh -s "$shell_path" "$user"; then
         die "无法非交互式切换默认 shell，请确认 sudo 验证成功且 $shell_path 已写入 /etc/shells"
     fi
-}
-
-starship_prompt_enabled() {
-    local zshrc
-    [[ "$UNINSTALL" != true ]] && want "starship" && return 0
-    zshrc="$(os_init_zshrc 2>/dev/null || true)"
-    [[ -n "$zshrc" && -f "$zshrc" ]] && grep -Fq "# >>> os-init starship >>>" "$zshrc"
 }
 
 ensure_macos_oh_my_zsh_commands() {
@@ -203,7 +170,6 @@ has_oh_my_zsh_source_outside_os_init_block() {
 
 configure_oh_my_zsh() {
     local content before_regex source_line="" theme="powerlevel10k/powerlevel10k"
-    starship_prompt_enabled && theme=""
 
     before_regex='^[[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh'
     if ! has_oh_my_zsh_source_outside_os_init_block; then
@@ -231,9 +197,25 @@ EOF
     os_init_upsert_zsh_block "oh-my-zsh" "$content" "$before_regex"
 }
 
-configure_starship_shells() {
-    os_init_upsert_zsh_block "starship" "$(os_init_starship_block_content zsh)"
-    os_init_upsert_bash_block "starship" "$(os_init_starship_block_content bash)"
+cleanup_legacy_starship() {
+    local config_dir starship_path
+    os_init_remove_interactive_shell_block "terminal-style"
+    os_init_remove_zsh_block "starship"
+    os_init_remove_bash_block "starship"
+
+    config_dir="$(real_home)/.config/os-init/terminal"
+    os_init_restore_owned_user_path "terminal-starship-rich.toml" "$config_dir/starship-rich.toml" || true
+    os_init_restore_owned_user_path "terminal-starship-simple.toml" "$config_dir/starship-simple.toml" || true
+    os_init_restore_owned_user_path "terminal-starship-plain.toml" "$config_dir/starship-plain.toml" || true
+
+    if os_init_package_owned "starship-package"; then
+        remove "legacy OS Init Starship package"
+        pkg_remove starship 2>/dev/null || true
+        os_init_forget_package_ownership "starship-package"
+    elif starship_path="$(command -v starship 2>/dev/null)" && os_init_owned_path "starship-bin"; then
+        remove "legacy OS Init Starship binary"
+        os_init_restore_owned_path "starship-bin" "$starship_path" || true
+    fi
 }
 
 configure_direnv_zsh() {
@@ -251,9 +233,8 @@ STEP=0
 count_steps() {
     local total=0
 	want "zsh" && total=$((total + 1))
-	want "starship" && total=$((total + 1))
 	want "direnv" && total=$((total + 1))
-	want_zsh_plugin && total=$((total + 1))
+	want "zsh" && total=$((total + 1))
 	want "git" && total=$((total + 1))
 	want "byobu" && total=$((total + 1))
     echo "$total"
@@ -271,52 +252,25 @@ echo ""
 if [[ "$UNINSTALL" == true ]]; then
     ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
-    if want_zsh_plugin; then
+    if want "zsh"; then
+        cleanup_legacy_starship
         echo "[REMOVE] zsh plugins..."
-        if want "zsh" || want "autosuggestions"; then
-			if [[ -f "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned" ]]; then
-				remove "zsh-autosuggestions"
-				rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
-			elif [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
-				warn "保留非 OS Init 创建的 zsh-autosuggestions"
-            else
-                skip "zsh-autosuggestions not found"
-            fi
-        fi
-        if want "zsh" || want "syntax-highlighting"; then
-			if [[ -f "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned" ]]; then
-                remove "zsh-syntax-highlighting"
-				rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
-			elif [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-				warn "保留非 OS Init 创建的 zsh-syntax-highlighting"
-            else
-                skip "zsh-syntax-highlighting not found"
-            fi
-        fi
-        zshrc_file="$(os_init_zshrc || true)"
-        if [[ -n "$zshrc_file" && -f "$zshrc_file" ]]; then
-            configure_oh_my_zsh
-        fi
-    fi
-
-    if want "starship"; then
-        echo "$(os_init_text "[删除]" "[REMOVE]") starship..."
-		if command -v starship &>/dev/null; then
-			if tool_prefers_package_manager && os_init_package_owned "starship-package"; then
-                remove "通过包管理器卸载 starship"
-				pkg_remove starship 2>/dev/null || true
-				os_init_forget_package_ownership "starship-package"
-			elif ! tool_prefers_package_manager; then
-				os_init_restore_owned_path "starship-bin" "$(command -v starship)" || true
-			else
-				warn "保留非 OS Init 安装的 starship"
-            fi
+        if [[ -f "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned" ]]; then
+			remove "zsh-autosuggestions"
+			rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+		elif [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
+			warn "保留非 OS Init 创建的 zsh-autosuggestions"
         else
-            skip "starship not installed"
+            skip "zsh-autosuggestions not found"
         fi
-        os_init_remove_zsh_block "starship"
-        os_init_remove_bash_block "starship"
-		[[ -d "$HOME/.oh-my-zsh" ]] && configure_oh_my_zsh
+        if [[ -f "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned" ]]; then
+            remove "zsh-syntax-highlighting"
+			rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+		elif [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+			warn "保留非 OS Init 创建的 zsh-syntax-highlighting"
+        else
+            skip "zsh-syntax-highlighting not found"
+        fi
     fi
 
     if want "direnv"; then
@@ -408,65 +362,12 @@ fi
 if want "zsh"; then
     next "zsh + oh-my-zsh"
 
+	cleanup_legacy_starship
     ensure_zsh_package
 	ensure_macos_oh_my_zsh_commands
     set_default_zsh
     ensure_oh_my_zsh
 	ensure_powerlevel10k
-fi
-
-# ── starship ──────────────────────────────────────────────────────────────────
-if want "starship"; then
-    next "starship"
-
-    if tool_prefers_package_manager; then
-        if command -v starship &>/dev/null; then
-            if [[ "$UPDATE" == true ]]; then
-                update "$(os_init_text "通过包管理器更新 starship" "updating starship via package manager")"
-                if is_macos; then
-                    brew_upgrade starship 2>/dev/null || skip "starship 已是最新"
-                else
-					pkg_install starship
-                fi
-            else
-                skip "starship $(starship --version | head -1) already installed"
-            fi
-        else
-			install "$(os_init_text "通过包管理器安装 starship" "installing starship via package manager")"
-			pkg_install starship
-			os_init_mark_package_ownership "starship-package"
-        fi
-    elif command -v starship &>/dev/null; then
-        if [[ "$UPDATE" == true ]]; then
-            update "updating starship"
-		STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
-		os_init_prepare_owned_path "starship-bin" "$(command -v starship)"
-			download_file_verified "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER" "${STARSHIP_INSTALL_SHA256:-}"
-            sh "$STARSHIP_INSTALLER" -y
-            rm -f "$STARSHIP_INSTALLER"
-        else
-            skip "starship $(starship --version | head -1) already installed"
-        fi
-    else
-        install "installing starship"
-		STARSHIP_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/starship-install.XXXXXX")"
-		os_init_prepare_owned_path "starship-bin" /usr/local/bin/starship
-		download_file_verified "$(resource_url STARSHIP_INSTALL_URL "https://starship.rs/install.sh")" "$STARSHIP_INSTALLER" "${STARSHIP_INSTALL_SHA256:-}"
-        sh "$STARSHIP_INSTALLER" -y
-        rm -f "$STARSHIP_INSTALLER"
-    fi
-
-    mkdir -p "$HOME/.config"
-    if [[ -f "$HOME/.config/starship.toml" ]]; then
-        skip "$HOME/.config/starship.toml already exists (not overwriting)"
-    else
-        install "$(os_init_text "复制 starship.toml" "copying starship.toml")"
-        if [[ -f "$REPO_DIR/terminal/starship-rich.toml" ]]; then
-            cp "$REPO_DIR/terminal/starship-rich.toml" "$HOME/.config/starship.toml"
-        else
-            cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
-        fi
-    fi
 fi
 
 # ── direnv ────────────────────────────────────────────────────────────────────
@@ -483,45 +384,38 @@ if want "direnv"; then
 fi
 
 # ── zsh plugins ───────────────────────────────────────────────────────────────
-if want_zsh_plugin; then
+if want "zsh"; then
     next "zsh plugins"
 
-    ensure_zsh_package
-	want "zsh" || ensure_macos_oh_my_zsh_commands
-    ensure_oh_my_zsh
     ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
     mkdir -p "$ZSH_CUSTOM/plugins"
 
-    if want "zsh" || want "autosuggestions"; then
-        if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
-            if [[ "$UPDATE" == true ]]; then
-                update "updating zsh-autosuggestions"
-                git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
-            else
-                skip "zsh-autosuggestions already installed"
-            fi
+    if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
+        if [[ "$UPDATE" == true ]]; then
+            update "updating zsh-autosuggestions"
+            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
         else
-            install "cloning zsh-autosuggestions"
-			git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
-				"$ZSH_CUSTOM/plugins/zsh-autosuggestions"
-			touch "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned"
+            skip "zsh-autosuggestions already installed"
         fi
+    else
+        install "cloning zsh-autosuggestions"
+		git_clone_depth 1 "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")" \
+			"$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+		touch "$ZSH_CUSTOM/plugins/zsh-autosuggestions/.os-init-owned"
     fi
 
-    if want "zsh" || want "syntax-highlighting"; then
-        if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-            if [[ "$UPDATE" == true ]]; then
-                update "updating zsh-syntax-highlighting"
-                git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
-            else
-                skip "zsh-syntax-highlighting already installed"
-            fi
+    if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+        if [[ "$UPDATE" == true ]]; then
+            update "updating zsh-syntax-highlighting"
+            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
         else
-            install "cloning zsh-syntax-highlighting"
-			git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
-				"$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
-			touch "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned"
+            skip "zsh-syntax-highlighting already installed"
         fi
+    else
+        install "cloning zsh-syntax-highlighting"
+		git_clone_depth 1 "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")" \
+			"$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+		touch "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/.os-init-owned"
     fi
 fi
 
@@ -635,11 +529,8 @@ if want "git"; then
 fi
 
 # ── shell integrations ───────────────────────────────────────────────────────
-if want "zsh" || want_zsh_plugin || { want "starship" && [[ -d "$HOME/.oh-my-zsh" ]]; }; then
+if want "zsh"; then
     configure_oh_my_zsh
-fi
-if want "starship"; then
-    configure_starship_shells
 fi
 if want "direnv"; then
     configure_direnv_zsh

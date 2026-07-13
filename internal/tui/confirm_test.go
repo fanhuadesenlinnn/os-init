@@ -124,21 +124,21 @@ func TestConfirmView_ShowsPlannedDependencyAdditions(t *testing.T) {
 
 	plan := planner.Plan{
 		Modules: []modules.Module{
-			{ID: "shell-zsh", Label: "zsh + oh-my-zsh"},
-			{ID: "shell-autosuggestions", Label: "zsh-autosuggestions"},
+			{ID: "arch-git", Label: "Arch Git / GitHub CLI"},
+			{ID: "arch-ops-toolkit", Label: "Ops Toolkit"},
 		},
 		AddedDependencies: []planner.DependencyAddition{
 			{
-				ModuleID:        "shell-zsh",
-				Label:           "zsh + oh-my-zsh",
-				RequiredByID:    "shell-autosuggestions",
-				RequiredByLabel: "zsh-autosuggestions",
+				ModuleID:        "arch-git",
+				Label:           "Arch Git / GitHub CLI",
+				RequiredByID:    "arch-ops-toolkit",
+				RequiredByLabel: "Ops Toolkit",
 			},
 		},
 	}
 
 	view := newConfirmModelForPlan(plan, modeInstall, platform.Target{GOOS: "linux"}).View()
-	if !strings.Contains(view, "自动补齐依赖") || !strings.Contains(view, "zsh + oh-my-zsh") {
+	if !strings.Contains(view, "自动补齐依赖") || !strings.Contains(view, "Arch Git / GitHub CLI") {
 		t.Fatalf("confirm view should show dependency additions, got %q", view)
 	}
 }

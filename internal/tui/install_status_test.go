@@ -118,20 +118,20 @@ func TestInstallStatusChecker_ShellIntegrationRequiresManagedBlock(t *testing.T)
 	home := t.TempDir()
 	checker := testStatusChecker(t, home)
 	checker.lookPath = func(name string) (string, error) {
-		if name == "starship" {
-			return "/bin/starship", nil
+		if name == "zsh" {
+			return "/bin/zsh", nil
 		}
 		return "", errors.New("missing")
 	}
 
-	mod := modules.Module{Verify: modules.All(modules.Command("starship"), modules.ShellBlock("starship"))}
+	mod := modules.Module{Verify: modules.All(modules.Command("zsh"), modules.ShellBlock("oh-my-zsh"))}
 	if checker.moduleInstalled(context.Background(), mod) {
-		t.Fatal("starship should not be complete without the shell block")
+		t.Fatal("zsh should not be complete without the shell block")
 	}
 
-	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init starship >>>\neval \"$(starship init zsh)\"\n# <<< os-init starship <<<\n")
+	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init oh-my-zsh >>>\nsource \"$ZSH/oh-my-zsh.sh\"\n# <<< os-init oh-my-zsh <<<\n")
 	if !checker.moduleInstalled(context.Background(), mod) {
-		t.Fatal("starship should be complete with command and managed shell block")
+		t.Fatal("zsh should be complete with command and managed shell block")
 	}
 }
 

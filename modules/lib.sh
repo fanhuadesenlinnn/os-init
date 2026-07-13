@@ -101,11 +101,10 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_SCRIPT_TIMEOUT
-    OS_INIT_TERMINAL_STYLE OS_INIT_TERMINAL_ENABLE_ALIASES OS_INIT_TERMINAL_BAT_THEME
 	DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY OS_INIT_ALLOW_UNVERIFIED_PROXY
 	HOMEBREW_INSTALL_URL HOMEBREW_INSTALL_SHA256 HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
-	STARSHIP_INSTALL_URL STARSHIP_INSTALL_SHA256 DIRENV_PACKAGE
+	DIRENV_PACKAGE
     ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
 	MISE_NODE_VERSION MISE_PYTHON_VERSION MISE_GO_VERSION MISE_NODE_MIRROR_URL MISE_GO_DOWNLOAD_MIRROR
 	NPM_CONFIG_REGISTRY PIP_INDEX_URL UV_DEFAULT_INDEX GOPROXY
@@ -1190,58 +1189,6 @@ os_init_remove_interactive_shell_block() {
         [[ -n "$file" ]] || continue
         os_init_remove_block "$file" "$name"
     done < <(os_init_interactive_shell_rc_files)
-}
-
-os_init_starship_block_content() {
-    local shell_name="$1" default_style
-    default_style="${OS_INIT_TERMINAL_STYLE:-auto}"
-    cat <<EOF
-: "\${OS_INIT_TERMINAL_STYLE:=${default_style}}"
-export OS_INIT_TERMINAL_STYLE
-
-_os_init_starship_config() {
-    local style config_dir candidate
-    style="\${OS_INIT_TERMINAL_STYLE:-auto}"
-
-    case "\$style" in
-        none|off|0|false|disable|disabled)
-            return 1
-            ;;
-        rich|simple|plain)
-            ;;
-        auto|"")
-            if [[ -z "\${TERM:-}" || "\${TERM:-}" == "dumb" ]]; then
-                style="plain"
-            elif [[ -n "\${SSH_CONNECTION:-}\${SSH_TTY:-}" ]]; then
-                style="simple"
-            elif [[ -n "\${DISPLAY:-}\${WAYLAND_DISPLAY:-}" || "\${COLORTERM:-}" == "truecolor" || "\${COLORTERM:-}" == "24bit" ]]; then
-                style="rich"
-            else
-                style="simple"
-            fi
-            ;;
-        *)
-            style="simple"
-            ;;
-    esac
-
-    config_dir="\${OS_INIT_TERMINAL_CONFIG_DIR:-\${HOME}/.config/os-init/terminal}"
-    candidate="\${config_dir}/starship-\${style}.toml"
-    if [[ -f "\$candidate" ]]; then
-        export STARSHIP_CONFIG="\$candidate"
-        return 0
-    fi
-    if [[ -f "\${HOME}/.config/starship.toml" ]]; then
-        export STARSHIP_CONFIG="\${HOME}/.config/starship.toml"
-    fi
-    return 0
-}
-
-if command -v starship >/dev/null 2>&1 && _os_init_starship_config; then
-    eval "\$(starship init ${shell_name})"
-fi
-unset -f _os_init_starship_config >/dev/null 2>&1 || true
-EOF
 }
 
 json_escape() {

@@ -12,66 +12,43 @@ import (
 func TestBuild_AddsStrongDependenciesForInstall(t *testing.T) {
 	t.Parallel()
 
-	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 	byID := modulesByID(modules.ForTarget(target))
 
 	plan := planner.Build(
-		[]modules.Module{byID["shell-autosuggestions"]},
+		[]modules.Module{byID["arch-ops-toolkit"]},
 		target,
 		planner.Options{Operation: modules.OperationInstall},
 	)
 
-	if !hasModule(plan.Modules, "shell-zsh") {
-		t.Fatalf("plan should add shell-zsh dependency, got %v", ids(plan.Modules))
+	if !hasModule(plan.Modules, "arch-git") {
+		t.Fatalf("plan should add arch-git dependency, got %v", ids(plan.Modules))
 	}
-	if got, want := ids(plan.Modules), []string{"shell-zsh", "shell-autosuggestions"}; !sameOrderPrefix(got, want) {
+	if got, want := ids(plan.Modules), []string{"arch-git", "arch-ops-toolkit"}; !sameOrderPrefix(got, want) {
 		t.Fatalf("plan order = %v, want prefix %v", got, want)
 	}
 	if len(plan.AddedDependencies) != 1 {
 		t.Fatalf("added dependencies = %v, want 1", plan.AddedDependencies)
 	}
-	if plan.AddedDependencies[0].ModuleID != "shell-zsh" {
-		t.Fatalf("added dependency = %q, want shell-zsh", plan.AddedDependencies[0].ModuleID)
-	}
-}
-
-func TestBuild_AddsStarshipForTerminalStyleWithoutForcingZsh(t *testing.T) {
-	t.Parallel()
-
-	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
-	byID := modulesByID(modules.ForTarget(target))
-
-	plan := planner.Build(
-		[]modules.Module{byID["terminal-style"]},
-		target,
-		planner.Options{Operation: modules.OperationInstall},
-	)
-
-	if !hasModule(plan.Modules, "shell-starship") {
-		t.Fatalf("plan should add shell-starship dependency, got %v", ids(plan.Modules))
-	}
-	if hasModule(plan.Modules, "shell-zsh") {
-		t.Fatalf("terminal style should not force shell-zsh, got %v", ids(plan.Modules))
-	}
-	if got, want := ids(plan.Modules), []string{"shell-starship", "terminal-style"}; !sameOrderPrefix(got, want) {
-		t.Fatalf("plan order = %v, want prefix %v", got, want)
+	if plan.AddedDependencies[0].ModuleID != "arch-git" {
+		t.Fatalf("added dependency = %q, want arch-git", plan.AddedDependencies[0].ModuleID)
 	}
 }
 
 func TestBuild_DoesNotAddStrongDependenciesForUninstall(t *testing.T) {
 	t.Parallel()
 
-	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 	byID := modulesByID(modules.ForTarget(target))
 
 	plan := planner.Build(
-		[]modules.Module{byID["shell-autosuggestions"]},
+		[]modules.Module{byID["arch-ops-toolkit"]},
 		target,
 		planner.Options{Operation: modules.OperationUninstall},
 	)
 
-	if hasModule(plan.Modules, "shell-zsh") {
-		t.Fatalf("uninstall plan should not add shell-zsh, got %v", ids(plan.Modules))
+	if hasModule(plan.Modules, "arch-git") {
+		t.Fatalf("uninstall plan should not add arch-git, got %v", ids(plan.Modules))
 	}
 	if len(plan.AddedDependencies) != 0 {
 		t.Fatalf("uninstall plan should not add dependencies, got %v", plan.AddedDependencies)

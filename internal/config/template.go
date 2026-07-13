@@ -29,7 +29,6 @@ func renderUserConfig(target platform.Target, lang string) []byte {
 
 	sections := []configSection{
 		commonConfigSection(langValue),
-		terminalConfigSection(),
 		githubConfigSection(),
 	}
 
@@ -102,33 +101,6 @@ func commonConfigSection(lang string) configSection {
 	}
 }
 
-func terminalConfigSection() configSection {
-	return configSection{
-		TitleZ: "终端体验",
-		TitleE: "Terminal Experience",
-		Entries: []configEntry{
-			{
-				Key:      "OS_INIT_TERMINAL_STYLE",
-				Value:    "auto",
-				CommentZ: "终端提示符样式：auto 自动判断；rich 适合本地图形终端；simple 适合 SSH；plain 适合 TTY/救援环境；none 禁用 starship。",
-				CommentE: "Terminal prompt style: auto detects the session; rich for local graphical terminals; simple for SSH; plain for TTY/rescue shells; none disables starship.",
-			},
-			{
-				Key:      "OS_INIT_TERMINAL_ENABLE_ALIASES",
-				Value:    "1",
-				CommentZ: "是否写入终端常用 alias：1 启用 eza/bat 友好别名，0 不启用。",
-				CommentE: "Enable terminal aliases: 1 enables eza/bat-friendly aliases, 0 disables them.",
-			},
-			{
-				Key:      "OS_INIT_TERMINAL_BAT_THEME",
-				Value:    "\"Catppuccin Mocha\"",
-				CommentZ: "bat 默认主题。仅在 bat 已安装时生效。",
-				CommentE: "Default bat theme. Only applies when bat is installed.",
-			},
-		},
-	}
-}
-
 func githubConfigSection() configSection {
 	return configSection{
 		TitleZ: "GitHub 资源代理",
@@ -195,8 +167,6 @@ func shellResourceSection() configSection {
 		TitleZ: "Shell 资源",
 		TitleE: "Shell Resources",
 		Entries: []configEntry{
-			{Key: "STARSHIP_INSTALL_URL", Value: "https://starship.rs/install.sh", CommentZ: "starship 安装脚本地址。", CommentE: "starship install script URL."},
-			{Key: "STARSHIP_INSTALL_SHA256", Value: "", CommentZ: "starship 安装脚本 SHA-256。", CommentE: "Expected SHA-256 for the starship installer."},
 			{Key: "ZSH_AUTOSUGGESTIONS_REPO", Value: "https://github.com/zsh-users/zsh-autosuggestions.git", CommentZ: "zsh-autosuggestions 插件仓库地址。", CommentE: "zsh-autosuggestions plugin repository URL."},
 			{Key: "ZSH_SYNTAX_HIGHLIGHTING_REPO", Value: "https://github.com/zsh-users/zsh-syntax-highlighting.git", CommentZ: "zsh-syntax-highlighting 插件仓库地址。", CommentE: "zsh-syntax-highlighting plugin repository URL."},
 		},

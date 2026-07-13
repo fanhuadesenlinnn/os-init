@@ -18,7 +18,7 @@ func TestExpandGroupResult_ReturnsOneSummaryResultPerModule(t *testing.T) {
 	group := modules.ScriptGroup{
 		Script:       "shell/install.sh",
 		Label:        "zsh + oh-my-zsh",
-		ModuleLabels: []string{"zsh + oh-my-zsh", "starship 提示符"},
+		ModuleLabels: []string{"zsh + oh-my-zsh", "direnv"},
 	}
 	result := runner.Result{
 		Module:   "shell/install.sh",
@@ -31,7 +31,7 @@ func TestExpandGroupResult_ReturnsOneSummaryResultPerModule(t *testing.T) {
 		t.Fatalf("expected 2 summary results, got %d", len(got))
 	}
 	labels := []string{got[0].Module, got[1].Module}
-	want := []string{"zsh + oh-my-zsh", "starship 提示符"}
+	want := []string{"zsh + oh-my-zsh", "direnv"}
 	if !reflect.DeepEqual(labels, want) {
 		t.Fatalf("unexpected labels: got %v, want %v", labels, want)
 	}

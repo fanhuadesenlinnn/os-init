@@ -124,7 +124,7 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 - `Arch 字体环境`：安装中文、Emoji、Nerd Font、Monaco，并调整目标用户 fontconfig/GTK 配置。
 - `Arch Mihomo + MetaCubeXD`：从 pacman/archlinuxcn 安装，写入 `/etc/mihomo`、在 `/var/lib/mihomo` 按发行版 systemd unit 运行方式预检配置，并部署 MetaCubeXD。
 - `Arch Hyprland 桌面`：保留 SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 和虚拟机适配。
-- `Arch 开发环境` / `Arch 完整工作站`：由执行计划的强依赖组合上述能力与共享的 mise、Neovim、Docker、Shell、终端样式和 Mihomo 模块。
+- `Arch 开发环境` / `Arch 完整工作站`：由执行计划的强依赖组合上述能力与共享的 mise、Neovim、Docker、Zsh 和 Mihomo 模块。
 - `Arch 状态详情` / `Arch 系统诊断`：保留状态指纹、服务、网络、桌面和建议动作检查。
 
 配置统一读取 `~/.config/os-init/config.env`；Arch 专用状态位于 `~/.local/state/os-init/arch`。共享能力只保留一份实现，因此单独安装和组合安装会得到相同的状态检测及配置行为。
@@ -145,53 +145,23 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 - 使用 Oh My Zsh 官方安装脚本安装，设置 `RUNZSH=no`、`CHSH=no`、`KEEP_ZSHRC=yes`，避免安装器接管现有 rc 文件和默认 shell；已安装时通过 Git 更新。
 - macOS 会自动补装 `git`、`fzf`、`kubectl`；缺少 `docker` 命令时安装 OrbStack，并提示首次打开初始化。
 - 克隆 Powerlevel10k 到 `~/.oh-my-zsh/custom/themes/powerlevel10k`。
+- 克隆或更新：
+  - `~/.oh-my-zsh/custom/plugins/zsh-autosuggestions`
+  - `~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting`
 - 在 `~/.zshrc` 写入或更新 `os-init oh-my-zsh` 管理块：
   - `export ZSH="$HOME/.oh-my-zsh"`
-  - 默认 `ZSH_THEME="powerlevel10k/powerlevel10k"`；启用 Starship 时置空，避免双提示符。
+  - `ZSH_THEME="powerlevel10k/powerlevel10k"`
   - `plugins=(git zsh-autosuggestions zsh-syntax-highlighting fzf docker kubectl)`
   - 必要时 `source "$ZSH/oh-my-zsh.sh"`
-- 卸载时删除 `~/.oh-my-zsh`；不删除 zsh 包，不恢复默认 shell。
-
-### starship
-
-- 下载并执行 starship 安装脚本。
-- 如果 `~/.config/starship.toml` 不存在，复制 rich 风格模板作为兼容配置。
-- 在 `~/.zshrc` 和 `~/.bashrc` 写入或更新 `os-init starship` 管理块。
-- 管理块会在 shell 启动时按 `OS_INIT_TERMINAL_STYLE` 选择模板：
-  - `auto`：本地图形终端使用 `rich`，SSH 使用 `simple`，TTY/救援环境使用 `plain`。
-  - `rich`：类 macOS/iTerm2 的彩色 powerline 风格，适合 Nerd Font 和 truecolor。
-  - `simple`：SSH 推荐，保留清晰颜色，不依赖 Nerd Font 图标。
-  - `plain`：最兼容，尽量少样式，适合 TTY、救援环境或未知终端。
-  - `none`：不启用 starship。
-- 卸载时删除 `starship` 二进制。
-
-### 终端样式
-
-- 写入 `~/.config/os-init/terminal/starship-rich.toml`。
-- 写入 `~/.config/os-init/terminal/starship-simple.toml`。
-- 写入 `~/.config/os-init/terminal/starship-plain.toml`。
-- 如目标模板已存在且内容不同，会在同目录生成 `.bak.YYYYMMDD-HHMMSS` 备份。
-- 在 `~/.zshrc` 和 `~/.bashrc` 写入 `os-init terminal-style` 管理块：
-  - `OS_INIT_TERMINAL_ENABLE_ALIASES=1` 时，为 `eza` 写入 `ls`、`ll`、`la`、`tree` alias。
-  - 未安装 `eza` 时，`ll`、`la` 降级为系统 `ls`。
-  - 未安装 `bat` 但存在 `batcat` 时，写入 `bat` alias。
-  - `OS_INIT_TERMINAL_BAT_THEME` 控制 bat 默认主题。
-- 卸载时删除 `os-init terminal-style` 管理块和 os-init 自己写入的三套模板；不卸载 starship。
+- 安装、更新和卸载 Powerlevel10k、zsh-autosuggestions、zsh-syntax-highlighting 都由该模块统一负责，不再作为独立菜单项。
+- 首次运行新版 Zsh 模块时会清理旧版 OS Init 管理的 Starship shell 块、模板和安装，避免与 Powerlevel10k 形成双提示符。
+- 卸载时删除 OS Init 创建的主题、插件和 `~/.oh-my-zsh`；不删除 zsh 包。
 
 ### direnv
 
 - Linux 通过发行版包管理器安装 `direnv`；macOS 通过 Homebrew 安装。
 - 在 `~/.zshrc` 写入或更新 `os-init direnv` 管理块，执行 `eval "$(direnv hook zsh)"`。
 - 卸载时通过包管理器移除 `direnv`。
-
-### zsh 插件
-
-- 安装 zsh 主模块时会克隆或更新：
-  - `~/.oh-my-zsh/custom/plugins/zsh-autosuggestions`
-  - `~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting`
-- 两个插件仍可独立选择；选择 zsh 主模块时会自动安装它们。
-- 会确保 zsh 和 oh-my-zsh 已存在，并更新 `os-init oh-my-zsh` 管理块里的 `plugins=(...)`。
-- 卸载时删除上述插件目录。
 
 ### mise 运行时管理
 

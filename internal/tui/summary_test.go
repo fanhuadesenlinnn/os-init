@@ -15,7 +15,7 @@ func TestSummaryView_ShowsNextStepsForSuccessfulModules(t *testing.T) {
 		[]runner.Result{
 			{Module: "Docker", ExitCode: 0},
 			{Module: "OrbStack", ExitCode: 0},
-			{Module: "starship 提示符", ExitCode: 0},
+			{Module: "zsh + oh-my-zsh", ExitCode: 0},
 		},
 		[]modules.Module{
 			{
@@ -30,8 +30,8 @@ func TestSummaryView_ShowsNextStepsForSuccessfulModules(t *testing.T) {
 				ManualSteps: []string{"打开 OrbStack 完成首次初始化"},
 			},
 			{
-				ID:        "shell-starship",
-				Label:     "starship 提示符",
+				ID:        "shell-zsh",
+				Label:     "zsh + oh-my-zsh",
 				Activates: []string{modules.ActivationZshrc},
 			},
 		},

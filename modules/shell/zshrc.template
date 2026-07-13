@@ -1,8 +1,8 @@
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
-# Starship handles the prompt -- leave ZSH_THEME empty
-ZSH_THEME=""
+# Powerlevel10k is the prompt managed by the zsh module.
+ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Auto-update oh-my-zsh daily without prompting
 export UPDATE_ZSH_DAYS=1
@@ -11,7 +11,7 @@ zstyle ':omz:update' mode auto
 # Prevent oh-my-zsh from mangling pasted URLs
 DISABLE_MAGIC_FUNCTIONS=true
 
-# Let starship/tmux handle the terminal title
+# Let the terminal multiplexer handle the terminal title.
 DISABLE_AUTO_TITLE="true"
 
 # Plugins: git is built into oh-my-zsh; zsh-autosuggestions and
@@ -26,5 +26,4 @@ source $ZSH/oh-my-zsh.sh
 
 # --- Shell integrations ---
 
-eval "$(starship init zsh)"
 eval "$(direnv hook zsh)"

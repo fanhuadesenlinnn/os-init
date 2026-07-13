@@ -196,29 +196,14 @@ func TestCatalogRolesHaveDistinctExecutionSemantics(t *testing.T) {
 func TestShellModules_DeclareDependenciesAndActivation(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
-	starship := findModule(t, mods, "shell-starship")
-	if starship.Kind != modules.KindShellIntegration {
-		t.Fatalf("shell-starship kind = %q, want %q", starship.Kind, modules.KindShellIntegration)
+	zsh := findModule(t, mods, "shell-zsh")
+	if zsh.Kind != modules.KindShellIntegration || !contains(zsh.Activates, modules.ActivationZshrc) {
+		t.Fatalf("shell-zsh should own the complete zsh integration lifecycle: %#v", zsh)
 	}
-	if contains(starship.DependsOn, "shell-zsh") {
-		t.Fatalf("shell-starship should not force zsh, got %v", starship.DependsOn)
-	}
-	if !contains(starship.Activates, modules.ActivationShellProfile) {
-		t.Fatalf("shell-starship should activate shell profile files, got %v", starship.Activates)
-	}
-
-	style := findModule(t, mods, "terminal-style")
-	if !contains(style.DependsOn, "shell-starship") {
-		t.Fatalf("terminal-style should depend on shell-starship, got %v", style.DependsOn)
-	}
-
-	auto := findModule(t, mods, "shell-autosuggestions")
-	if got := auto.Components; !reflect.DeepEqual(got, []string{"autosuggestions"}) {
-		t.Fatalf("autosuggestions should have its own component, got %v", got)
-	}
-	syntax := findModule(t, mods, "shell-syntax-hl")
-	if got := syntax.Components; !reflect.DeepEqual(got, []string{"syntax-highlighting"}) {
-		t.Fatalf("syntax highlighting should have its own component, got %v", got)
+	for _, removedID := range []string{"shell-starship", "shell-autosuggestions", "shell-syntax-hl", "terminal-style"} {
+		if hasModuleID(mods, removedID) {
+			t.Fatalf("removed module %q is still registered", removedID)
+		}
 	}
 }
 
@@ -365,7 +350,7 @@ func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 			t.Fatalf("%s should declare zsh block checks", id)
 		}
 	}
-	for _, id := range []string{"shell-starship", "terminal-style", "go", "yazi", "neovim"} {
+	for _, id := range []string{"go", "yazi", "neovim"} {
 		mod := findModule(t, mods, id)
 		if !checkHasKind(mod.Verify, modules.CheckShellBlock) {
 			t.Fatalf("%s should declare shell block checks", id)
@@ -517,7 +502,7 @@ func TestGroupByScript_MergesComponents(t *testing.T) {
 	t.Parallel()
 	selected := []modules.Module{
 		{ID: "shell-zsh", Script: "shell/install.sh", Components: []string{"zsh"}},
-		{ID: "shell-starship", Script: "shell/install.sh", Components: []string{"starship"}},
+		{ID: "shell-direnv", Script: "shell/install.sh", Components: []string{"direnv"}},
 		{ID: "docker", Script: "docker/install.sh"},
 	}
 	groups := modules.GroupByScript(selected)
@@ -527,10 +512,10 @@ func TestGroupByScript_MergesComponents(t *testing.T) {
 	if len(groups[0].Components) != 2 {
 		t.Errorf("expected 2 components for shell, got %d", len(groups[0].Components))
 	}
-	if groups[0].Components[0] != "zsh" || groups[0].Components[1] != "starship" {
+	if groups[0].Components[0] != "zsh" || groups[0].Components[1] != "direnv" {
 		t.Errorf("wrong components: %v", groups[0].Components)
 	}
-	if len(groups[0].ModuleIDs) != 2 || groups[0].ModuleIDs[0] != "shell-zsh" || groups[0].ModuleIDs[1] != "shell-starship" {
+	if len(groups[0].ModuleIDs) != 2 || groups[0].ModuleIDs[0] != "shell-zsh" || groups[0].ModuleIDs[1] != "shell-direnv" {
 		t.Errorf("wrong module IDs: %v", groups[0].ModuleIDs)
 	}
 	if len(groups[1].Components) != 0 {
@@ -541,17 +526,17 @@ func TestGroupByScript_MergesComponents(t *testing.T) {
 func TestGroupByScript_DeduplicatesComponentsButKeepsModuleLabels(t *testing.T) {
 	t.Parallel()
 	selected := []modules.Module{
-		{ID: "shell-autosuggestions", Script: "shell/install.sh", Components: []string{"autosuggestions"}, Label: "zsh-autosuggestions"},
-		{ID: "shell-syntax-hl", Script: "shell/install.sh", Components: []string{"syntax-highlighting"}, Label: "zsh-syntax-highlighting"},
+		{ID: "component-a", Script: "shell/install.sh", Components: []string{"shared"}, Label: "Component A"},
+		{ID: "component-b", Script: "shell/install.sh", Components: []string{"shared"}, Label: "Component B"},
 	}
 	groups := modules.GroupByScript(selected)
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	if got := groups[0].Components; !reflect.DeepEqual(got, []string{"autosuggestions", "syntax-highlighting"}) {
-		t.Fatalf("components should stay distinct, got %v", got)
+	if got := groups[0].Components; !reflect.DeepEqual(got, []string{"shared"}) {
+		t.Fatalf("components should be deduplicated, got %v", got)
 	}
-	if got := groups[0].ModuleLabels; !reflect.DeepEqual(got, []string{"zsh-autosuggestions", "zsh-syntax-highlighting"}) {
+	if got := groups[0].ModuleLabels; !reflect.DeepEqual(got, []string{"Component A", "Component B"}) {
 		t.Fatalf("module labels should be preserved, got %v", got)
 	}
 }
