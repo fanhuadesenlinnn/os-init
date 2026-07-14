@@ -30,7 +30,17 @@ jobs:
           cache: true
 
       - name: Run tests
-        run: go test ./...
+        run: |
+          set -o pipefail
+          go test ./... 2>&1 | tee go-test.log
+
+      - name: Upload Go test failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-test-log
+          path: go-test.log
+          if-no-files-found: error
 
       - name: Run shell script checks
         run: |
