@@ -50,6 +50,15 @@ source "${SCRIPT_DIR}/lib/doctor.sh"
 OUTPUT_JSON=0
 STATUS_VERBOSE=0
 
+provider_preflight() {
+  log_info "执行 Arch 能力运行前检查"
+  require_arch
+  require_cmd pacman
+  if [[ "${EUID}" -ne 0 ]]; then
+    require_cmd sudo
+  fi
+}
+
 provider_main() {
   local component="${1:-}" module
   [[ "${OS_INIT_PROVIDER_MODE:-0}" -eq 1 ]] || \
@@ -70,9 +79,11 @@ provider_main() {
     *) die "Arch 能力不支持操作：${OS_INIT_PROVIDER_OPERATION:-}" ;;
   esac
 
-  preflight_install "${module}"
+  provider_preflight
   module_install_func "${module}"
   mark_module_installed "${module}"
 }
 
-provider_main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  provider_main "$@"
+fi
