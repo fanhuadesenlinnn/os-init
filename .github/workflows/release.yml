@@ -45,12 +45,21 @@ jobs:
       - name: Run shell script checks
         run: |
           set -euo pipefail
+          : > shellcheck.log
           bash -n modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
           if ! command -v shellcheck >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y shellcheck
           fi
-          shellcheck modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
+          shellcheck modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh 2>&1 | tee shellcheck.log
+
+      - name: Upload ShellCheck failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shellcheck-log
+          path: shellcheck.log
+          if-no-files-found: error
 
       - name: Run os-init package strategy checks
         run: bash tooling/test-lib-strategy.sh
