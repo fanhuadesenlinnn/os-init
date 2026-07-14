@@ -155,12 +155,8 @@ state_status_json() {
 }
 
 show_status() {
-  local modules=() target="${TARGET:-all}"
-  if [[ "${target}" == "all" ]]; then
-    read -r -a modules <<<"$(all_modules)"
-  else
-    read -r -a modules <<<"$(modules_for_target "${target}")"
-  fi
+  local modules=()
+  read -r -a modules <<<"$(all_modules)"
 
   if [[ "${OUTPUT_JSON:-0}" -eq 1 ]]; then
     state_status_json "${modules[@]}"
