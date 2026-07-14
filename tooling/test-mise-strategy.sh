@@ -26,7 +26,7 @@ MISE_NODE_VERSION=24
 MISE_PYTHON_VERSION=3.13
 MISE_GO_VERSION=1.24
 MISE_NODE_MIRROR_URL=https://invalid.example/node/
-MISE_GO_DOWNLOAD_MIRROR=https://golang.google.cn/dl/
+MISE_GO_DOWNLOAD_MIRROR=https://invalid.example/go
 
 attempt=0
 declare -a mirror_calls=()
@@ -67,12 +67,14 @@ os_init_mark_user_ownership() { :; }
 install_mise_runtimes
 
 [[ "$attempt" -eq 2 ]] || fail "expected one mirror attempt and one official retry, got $attempt"
-[[ "${mirror_calls[0]}" == "https://invalid.example/node/|https://golang.google.cn/dl/" ]] || \
-    fail "first attempt did not preserve configured mirrors: ${mirror_calls[0]}"
+[[ "${mirror_calls[0]}" == "https://invalid.example/node/|https://invalid.example/go" ]] || \
+    fail "first attempt did not preserve the custom mirrors: ${mirror_calls[0]}"
 [[ "${mirror_calls[1]}" == "https://nodejs.org/dist/|https://dl.google.com/go" ]] || \
     fail "official retry did not override inherited mirror environment: ${mirror_calls[1]}"
+
+MISE_GO_DOWNLOAD_MIRROR=https://golang.google.cn/dl/
 [[ "$(resolve_mise_go_download_mirror)" == "https://dl.google.com/go" ]] || \
-    fail "legacy golang.google.cn mirror was not normalized"
+    fail "legacy golang.google.cn mirror was not normalized before use"
 grep -Fxq 'MISE_GO_DOWNLOAD_MIRROR=https://dl.google.com/go' "$ROOT_DIR/modules/config/defaults.env" || \
     fail "defaults.env does not use the mise-compatible Go mirror"
 
