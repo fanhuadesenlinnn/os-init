@@ -8,12 +8,6 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
-parse_update_flag "$@"
-
-if ! is_macos && ! is_arch; then
-    die "mise 模块仅支持 macOS 和 Arch Linux"
-fi
-
 home="$(real_home)"
 env_file="$home/.config/os-init/mise-china.env"
 mise_config="$home/.config/mise/config.toml"
@@ -103,15 +97,47 @@ EOF
     printf '%s\n' "$content" > "$env_file"
 }
 
+resolve_mise_go_download_mirror() {
+    local mirror
+    mirror="${MISE_GO_DOWNLOAD_MIRROR:-https://dl.google.com/go}"
+    mirror="${mirror%/}"
+    case "$mirror" in
+        https://golang.google.cn/dl)
+            # golang.google.cn/dl is a download page and does not provide the
+            # <archive>.sha256 sidecar format required by mise core:go.
+            printf '%s\n' "https://dl.google.com/go"
+            ;;
+        *)
+            printf '%s\n' "$mirror"
+            ;;
+    esac
+}
+
 configure_mise_settings() {
-    local node_mirror go_mirror
+    local node_mirror go_mirror configured_go_mirror
     node_mirror="${MISE_NODE_MIRROR_URL:-https://npmmirror.com/mirrors/node/}"
-    go_mirror="${MISE_GO_DOWNLOAD_MIRROR:-https://golang.google.cn/dl/}"
+    configured_go_mirror="${MISE_GO_DOWNLOAD_MIRROR:-https://dl.google.com/go}"
+    go_mirror="$(resolve_mise_go_download_mirror)"
+    if [[ "${configured_go_mirror%/}" != "$go_mirror" ]]; then
+        warn "Go 下载地址 ${configured_go_mirror} 不兼容 mise 校验文件格式，改用 ${go_mirror}"
+    fi
     os_init_prepare_owned_user_path "mise-config" "$mise_config"
     mise settings set prefer_offline true
     mise settings set node.corepack true
     mise settings set node.mirror_url "$node_mirror"
     mise settings set go.download_mirror "$go_mirror"
+}
+
+mise_use_global_runtimes() {
+    local node_version="$1" python_version="$2" go_version="$3"
+    mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"
+}
+
+mise_use_global_runtimes_from_official_sources() {
+    local node_version="$1" python_version="$2" go_version="$3"
+    MISE_NODE_MIRROR_URL="https://nodejs.org/dist/" \
+    MISE_GO_DOWNLOAD_MIRROR="https://dl.google.com/go" \
+        mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"
 }
 
 install_mise_runtimes() {
@@ -122,11 +148,11 @@ install_mise_runtimes() {
 
     [[ -e "$mise_data" ]] || created_data=true
     install "通过 mise 安装 Node.js ${node_version}、Python ${python_version} 和 Go ${go_version}"
-    if ! mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"; then
-        warn "国内运行时镜像安装失败，使用官方源重试"
+    if ! mise_use_global_runtimes "$node_version" "$python_version" "$go_version"; then
+        warn "运行时镜像安装失败，使用官方源重试"
         mise settings set node.mirror_url "https://nodejs.org/dist/"
         mise settings set go.download_mirror "https://dl.google.com/go"
-        if ! mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"; then
+        if ! mise_use_global_runtimes_from_official_sources "$node_version" "$python_version" "$go_version"; then
             die "mise 使用官方源安装运行时仍然失败"
         fi
         configure_mise_settings
@@ -214,24 +240,37 @@ purge_mise_data() {
     fi
 }
 
-title="$(os_init_text "安装" "install")"
-[[ "$UPDATE" == true ]] && title="$(os_init_text "更新" "update")"
-[[ "$UNINSTALL" == true ]] && title="$(os_init_text "卸载" "uninstall")"
-echo "=== mise + Node.js + Python + Go $title ==="
-echo ""
+mise_main() {
+    local title
+    parse_update_flag "$@"
 
-if [[ "$UNINSTALL" == true ]]; then
-    remove_mise_shells
-    purge_mise_data
-    uninstall_mise_package
-else
-    install_mise_package
-    remove_legacy_runtime_blocks
-    write_mise_china_env
-    configure_mise_settings
-    install_mise_runtimes
-    configure_mise_shells
+    if ! is_macos && ! is_arch; then
+        die "mise 模块仅支持 macOS 和 Arch Linux"
+    fi
+
+    title="$(os_init_text "安装" "install")"
+    [[ "$UPDATE" == true ]] && title="$(os_init_text "更新" "update")"
+    [[ "$UNINSTALL" == true ]] && title="$(os_init_text "卸载" "uninstall")"
+    echo "=== mise + Node.js + Python + Go $title ==="
+    echo ""
+
+    if [[ "$UNINSTALL" == true ]]; then
+        remove_mise_shells
+        purge_mise_data
+        uninstall_mise_package
+    else
+        install_mise_package
+        remove_legacy_runtime_blocks
+        write_mise_china_env
+        configure_mise_settings
+        install_mise_runtimes
+        configure_mise_shells
+    fi
+
+    echo ""
+    echo "=== mise + Node.js + Python + Go $title $(os_init_text "完成" "complete") ==="
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    mise_main "$@"
 fi
-
-echo ""
-echo "=== mise + Node.js + Python + Go $title $(os_init_text "完成" "complete") ==="
