@@ -2,6 +2,7 @@ package modules_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -269,6 +270,42 @@ func TestMacOSScriptComponentsMatchRegistry(t *testing.T) {
 
 	assertSameStringSet(t, caskFromRegistry, caskFromScript, "macOS cask components")
 	assertSameStringSet(t, formulaFromRegistry, formulaFromScript, "macOS formula components")
+}
+
+func TestSharedScriptComponentsMatchRegistry(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		script string
+		array  string
+		label  string
+	}{
+		{script: "kernel/optimize.sh", array: "ALL_COMPONENTS", label: "kernel components"},
+		{script: "shell/install.sh", array: "SUPPORTED_COMPONENTS", label: "shell components"},
+		{script: "terminal/install.sh", array: "ALL_COMPONENTS", label: "terminal components"},
+	}
+	for _, tc := range cases {
+		fromScript := shellArray(t, filepath.Join("..", "..", "modules", filepath.FromSlash(tc.script)), tc.array)
+		assertSameStringSet(t, componentsForScript(tc.script), fromScript, tc.label)
+	}
+}
+
+func TestSharedScriptsRejectUnknownComponents(t *testing.T) {
+	for _, script := range []string{"kernel/optimize.sh", "shell/install.sh", "terminal/install.sh"} {
+		script := script
+		t.Run(script, func(t *testing.T) {
+			path := filepath.Join("..", "..", "modules", filepath.FromSlash(script))
+			cmd := exec.Command("bash", path, "__unknown_component__")
+			cmd.Env = append(os.Environ(), "HOME="+t.TempDir(), "OS_INIT_LANG=en_US")
+			output, err := cmd.CombinedOutput()
+			if err == nil {
+				t.Fatalf("unknown component unexpectedly succeeded: %s", output)
+			}
+			if !strings.Contains(strings.ToLower(string(output)), "unknown") {
+				t.Fatalf("unknown component failure was not explicit: %s", output)
+			}
+		})
+	}
 }
 
 func TestMacOSCustomHomebrewRoutes(t *testing.T) {

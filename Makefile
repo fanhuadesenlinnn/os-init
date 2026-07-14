@@ -1,4 +1,4 @@
-.PHONY: build run lint test lib-strategy-test arch-test check clean
+.PHONY: build run lint test lib-strategy-test mise-strategy-test release-strategy-test arch-test distro-contract-test check clean
 
 BINARY ?= os-init
 VERSION ?= dev
@@ -21,11 +21,25 @@ test:
 lib-strategy-test:
 	bash tooling/test-lib-strategy.sh
 
+mise-strategy-test:
+	bash tooling/test-mise-strategy.sh
+
+release-strategy-test:
+	bash tooling/test-release-strategy.sh
+
 arch-test:
 	bash modules/arch/scripts/test.sh
 	shellcheck -x $$(find modules/arch -type f -name '*.sh' -print)
 
-check: test lint lib-strategy-test arch-test
+distro-contract-test: build
+	@if [ "$$(uname -s)" = Linux ]; then \
+		family="$$(./$(BINARY) --system-info | sed -n 's/^family=//p')"; \
+		bash tooling/test-distro-contract.sh "$$family" "./$(BINARY)"; \
+	else \
+		echo "Skipping distro contract: Linux required"; \
+	fi
+
+check: test lint lib-strategy-test mise-strategy-test release-strategy-test arch-test
 
 clean:
 	rm -rf os-init kickstart dist

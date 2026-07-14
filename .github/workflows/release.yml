@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-      - "release/v*"
     tags:
       - "v*"
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   BINARY_NAME: os-init
@@ -29,52 +28,129 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run tests
-        run: |
-          set -o pipefail
-          go test ./... 2>&1 | tee go-test.log
-
-      - name: Upload Go test failure log
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: go-test-log
-          path: go-test.log
-          if-no-files-found: error
-
-      - name: Run shell script checks
+      - name: Install ShellCheck
         run: |
           set -euo pipefail
-          : > shellcheck.log
-          bash -n modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh
           if ! command -v shellcheck >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y shellcheck
           fi
-          shellcheck modules/lib.sh modules/provider.sh modules/*/*.sh tooling/*.sh 2>&1 | tee shellcheck.log
+          shellcheck --version
 
-      - name: Upload ShellCheck failure log
+      - name: Run complete checks
+        run: |
+          set -o pipefail
+          make check 2>&1 | tee check.log
+
+      - name: Run Arch provider contracts in Arch Linux
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/workspace" \
+            -w /workspace \
+            archlinux:base \
+            bash modules/arch/scripts/test.sh
+
+      - name: Upload check failure log
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: shellcheck-log
-          path: shellcheck.log
+          name: ubuntu-check-log
+          path: check.log
           if-no-files-found: error
 
-      - name: Run os-init package strategy checks
-        run: bash tooling/test-lib-strategy.sh
+  macos-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
 
-      - name: Run mise mirror fallback checks
-        run: bash tooling/test-mise-strategy.sh
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
 
-      - name: Run Arch capability checks
+      - name: Install ShellCheck
         run: |
-          bash modules/arch/scripts/test.sh
-          shellcheck -x $(find modules/arch -type f -name '*.sh' -print)
+          brew list shellcheck >/dev/null 2>&1 || brew install shellcheck
+          shellcheck --version
+
+      - name: Run complete checks
+        run: make check
+
+  linux-matrix-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu:24.04
+            family: debian
+            arch: amd64
+          - image: ubuntu:24.04
+            family: debian
+            arch: arm64
+          - image: debian:12
+            family: debian
+            arch: amd64
+          - image: fedora:42
+            family: redhat
+            arch: amd64
+          - image: rockylinux:9
+            family: redhat
+            arch: amd64
+          - image: archlinux:base
+            family: arch
+            arch: amd64
+          - image: manjarolinux/base:latest
+            family: arch
+            arch: amd64
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up emulation
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build target binary
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p dist-contract
+          CGO_ENABLED=0 GOOS=linux GOARCH="${TARGET_ARCH}" \
+            go build -trimpath -o "dist-contract/os-init-${TARGET_ARCH}" .
+
+      - name: Run distribution contract
+        env:
+          IMAGE: ${{ matrix.image }}
+          FAMILY: ${{ matrix.family }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --platform "linux/${TARGET_ARCH}" \
+            -v "${GITHUB_WORKSPACE}:/workspace:ro" \
+            -w /workspace \
+            "${IMAGE}" \
+            bash tooling/test-distro-contract.sh \
+              "${FAMILY}" "/workspace/dist-contract/os-init-${TARGET_ARCH}"
+
+  system-integration:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/system-integration.yml
 
   build:
-    needs: test
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    needs: [test, macos-test, linux-matrix-test, system-integration]
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -107,7 +183,6 @@ jobs:
 
           case "${GITHUB_REF}" in
             refs/tags/v*) version="${GITHUB_REF_NAME#v}" ;;
-            refs/heads/release/v*) version="${GITHUB_REF_NAME#release/v}" ;;
             *) version="dev-${GITHUB_SHA::7}" ;;
           esac
 
@@ -135,8 +210,13 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
       - name: Download packages
         uses: actions/download-artifact@v8
         with:
@@ -147,48 +227,19 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum *.tar.gz > checksums.txt
-
-      - name: Resolve release tag
-        id: release
-        run: |
-          set -euo pipefail
-          if [[ "${GITHUB_REF}" == refs/heads/release/v* ]]; then
-            tag="${GITHUB_REF_NAME#release/}"
-          else
-            tag="${GITHUB_REF_NAME}"
-          fi
-          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          sha256sum ./*.tar.gz > checksums.txt
 
       - name: Write release notes
         env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          cat > release-notes.md <<NOTES
-          ## OS Init ${RELEASE_TAG}
-
-          面向中国大陆网络环境的 macOS / Linux 系统初始化发布包。
-
-          ### 本版本修复
-
-          - 将 mise 的默认 Go SDK 下载地址改为兼容 \`.sha256\` 校验文件的官方地址 \`https://dl.google.com/go\`。
-          - 自动识别旧配置中的 \`https://golang.google.cn/dl/\`，避免下载到 HTML 页面。
-          - 官方源重试时显式覆盖 \`MISE_NODE_MIRROR_URL\` 和 \`MISE_GO_DOWNLOAD_MIRROR\`，确保环境变量不会继续覆盖回退设置。
-          - 增加可执行回归测试，验证首次镜像失败后第二次实际使用官方源。
-
-          ### 发布包
-
-          - \`os-init_linux_amd64.tar.gz\`
-          - \`os-init_linux_arm64.tar.gz\`
-          - \`os-init_darwin_amd64.tar.gz\`
-          - \`os-init_darwin_arm64.tar.gz\`
-          - \`checksums.txt\`
-          NOTES
+          set -euo pipefail
+          bash tooling/release-notes.sh "${RELEASE_TAG}" > release-notes.md
 
       - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
@@ -206,7 +257,7 @@ jobs:
               dist/*.tar.gz \
               dist/checksums.txt \
               --repo "${GITHUB_REPOSITORY}" \
-              --target "${GITHUB_SHA}" \
               --title "OS Init ${RELEASE_TAG}" \
-              --notes-file release-notes.md
+              --notes-file release-notes.md \
+              --verify-tag
           fi

@@ -189,7 +189,7 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 
 ### ncdu
 
-- Linux 通过发行版包管理器安装 `ncdu`；macOS 通过 Homebrew 安装。
+- Linux 通过发行版包管理器安装 `ncdu`；macOS 通过 Homebrew 安装。Rocky Linux、RHEL 等基础仓库缺包时会启用 EPEL 后重试。
 - 卸载时通过包管理器移除 `ncdu`。
 
 ### Yazi

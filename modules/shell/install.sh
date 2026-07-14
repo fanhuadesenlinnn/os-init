@@ -16,6 +16,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
+SUPPORTED_COMPONENTS=(zsh direnv git byobu)
 ALL_COMPONENTS=(zsh direnv git)
 is_linux && ALL_COMPONENTS+=(byobu)
 parse_update_flag "$@"
@@ -33,10 +34,11 @@ want() {
 validate_components() {
     local c
     for c in "${COMPONENTS[@]}"; do
-        case "$c" in
-            zsh|direnv|git|byobu) ;;
-            *) die "$(os_init_text "未知 Shell 组件: $c" "unknown shell component: $c")" ;;
-        esac
+        local supported=false supported_component
+        for supported_component in "${SUPPORTED_COMPONENTS[@]}"; do
+            [[ "$c" == "$supported_component" ]] && supported=true && break
+        done
+        [[ "$supported" == true ]] || die "$(os_init_text "未知 Shell 组件: $c" "unknown shell component: $c")"
     done
 }
 validate_components

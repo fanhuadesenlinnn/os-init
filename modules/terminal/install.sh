@@ -21,6 +21,21 @@ if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     COMPONENTS=("${ALL_COMPONENTS[@]}")
 fi
 
+validate_components() {
+    local component supported supported_component
+    for component in "${COMPONENTS[@]}"; do
+        supported=false
+        for supported_component in "${ALL_COMPONENTS[@]}"; do
+            if [[ "$component" == "$supported_component" ]]; then
+                supported=true
+                break
+            fi
+        done
+        [[ "$supported" == true ]] || die "$(os_init_text "未知终端组件: $component" "unknown terminal component: $component")"
+    done
+}
+validate_components
+
 want() {
     local c
     for c in "${COMPONENTS[@]}"; do [[ "$c" == "$1" ]] && return 0; done
@@ -64,7 +79,10 @@ fi
 if want "ncdu"; then
     next "ncdu"
 
-    if command -v ncdu &>/dev/null; then
+    if command -v ncdu &>/dev/null && [[ "$UPDATE" == true ]]; then
+        update "updating ncdu"
+        pkg_install ncdu
+    elif command -v ncdu &>/dev/null; then
         skip "ncdu $(ncdu --version 2>/dev/null | head -1 || echo '?') already installed"
     else
 		install "installing ncdu"

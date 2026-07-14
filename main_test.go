@@ -6,12 +6,56 @@ import (
 	"os/user"
 	"strings"
 	"testing"
+
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
-func TestUsageTextIncludesVersionFlag(t *testing.T) {
+func TestUsageTextDocumentsActualInterface(t *testing.T) {
 	t.Setenv("OS_INIT_LANG", "en_US")
-	if got := usageText(); !strings.Contains(got, "os-init --version") {
-		t.Fatalf("usage text should mention --version, got %q", got)
+	got := usageText()
+	for _, want := range []string{
+		"Usage:",
+		"os-init [options]",
+		"-h, --help",
+		"-v, --version",
+		"--system-info",
+		"~/.config/os-init/config.env",
+		"environment > user configuration > system configuration > built-in defaults",
+		"OS_INIT_SCRIPT_TIMEOUT",
+		"logs/",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("usage text should contain %q, got %q", want, got)
+		}
+	}
+	for _, unsupported := range []string{"--install", "--update", "--uninstall"} {
+		if strings.Contains(got, unsupported) {
+			t.Fatalf("usage text should not advertise unsupported flag %q", unsupported)
+		}
+	}
+}
+
+func TestUsageTextHasChineseHelp(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "zh_CN")
+	got := usageText()
+	for _, want := range []string{"交互式系统初始化工具", "配置优先级", "常用环境变量", "系统权限"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("Chinese usage text should contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestSystemInfoTextIsMachineReadable(t *testing.T) {
+	target := platform.Target{
+		GOOS:      "linux",
+		ID:        "rocky",
+		Family:    platform.FamilyRedHat,
+		VersionID: "9.4",
+		Init:      "systemd",
+	}
+	want := "goos=linux\nid=rocky\nfamily=redhat\nversion_id=9.4\ninit=systemd\n"
+	if got := systemInfoText(target); got != want {
+		t.Fatalf("system info = %q, want %q", got, want)
 	}
 }
 

@@ -62,6 +62,29 @@ test_pkg_install_uses_arch_strategy() (
     assert_call "arch_install:neovim yazi"
 )
 
+test_redhat_install_retries_with_epel() (
+    OS=linux
+    OS_FAMILY=redhat
+    local attempt=0
+    local -a calls=()
+    create_fake_command dnf
+
+    sudo_env() {
+        calls+=("sudo:$*")
+        if [[ "$*" == "dnf install -y ncdu" ]]; then
+            attempt=$((attempt + 1))
+            [[ "$attempt" -gt 1 ]]
+            return
+        fi
+        return 0
+    }
+    enable_redhat_epel() { calls+=("epel:$1"); }
+
+    pkg_install ncdu
+    [[ "$attempt" == 2 ]] || fail "RedHat package was not retried after EPEL"
+    assert_call "epel:dnf"
+)
+
 test_arch_packages_split_between_pacman_and_aur() (
     OS=linux
     OS_FAMILY=arch
@@ -93,6 +116,21 @@ test_arch_packages_split_between_pacman_and_aur() (
     assert_call "pacman:repo-tool"
     assert_call "ensure-aur"
     assert_call "aur:aur-tool"
+)
+
+test_arch_repository_lookup_syncs_database_first() (
+    OS=linux
+    OS_FAMILY=arch
+    _ARCH_PACKAGE_DATABASE_SYNCED=false
+    local -a calls=()
+    sudo_env() { calls+=("sudo:$*"); }
+    pacman() { calls+=("pacman:$*"); return 0; }
+
+    arch_package_available ncdu
+    arch_package_available tmux
+    assert_call "sudo:pacman -Sy --noconfirm"
+    [[ "${calls[0]}" == "sudo:pacman -Sy --noconfirm" ]] || fail "Arch lookup queried before database sync"
+    [[ "$(printf '%s\n' "${calls[@]}" | grep -Fc 'sudo:pacman -Sy --noconfirm')" == 1 ]] || fail "Arch database synced more than once"
 )
 
 test_arch_helper_bootstrap_prefers_paru_and_adds_yay() (
@@ -207,6 +245,22 @@ test_root_sudo_wrapper_runs_without_sudo_binary() (
     [[ "$(cat "$target")" == "root-mode" ]] || fail "root sudo wrapper did not execute the command directly"
 )
 
+test_root_sudo_wrapper_bypasses_logging_function() (
+    local tmp
+    id() {
+        if [[ "${1:-}" == "-u" ]]; then
+            printf '0\n'
+            return
+        fi
+        command id "$@"
+    }
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/os-init-root-install.XXXXXX")"
+    trap 'rm -rf "${tmp}"' EXIT
+    # shellcheck disable=SC2033
+    sudo install -m 0600 /dev/null "${tmp}/marker"
+    [[ -f "${tmp}/marker" ]] || fail "root sudo wrapper called the install logging function"
+)
+
 test_root_is_always_the_target_user() (
     id() {
         case "${1:-}" in
@@ -225,9 +279,22 @@ test_root_is_always_the_target_user() (
     [[ "$(real_home)" == "/root" ]] || fail "root mode inherited a non-root HOME"
 )
 
+test_config_loader_ignores_undeclared_keys() (
+    local config_file="$TEST_HOME/config-allowlist.env"
+    DOWNLOAD_TIMEOUT=30
+    unset UNDECLARED_OS_INIT_TEST || true
+    printf 'DOWNLOAD_TIMEOUT=45\nUNDECLARED_OS_INIT_TEST=unexpected\n' > "$config_file"
+
+    source_config_file "$config_file"
+    [[ "$DOWNLOAD_TIMEOUT" == "45" ]] || fail "declared config key was not loaded"
+    [[ -z "${UNDECLARED_OS_INIT_TEST:-}" ]] || fail "undeclared config key leaked into shell environment"
+)
+
 test_macos_pkg_remove_does_not_install_homebrew
 test_pkg_install_uses_arch_strategy
+test_redhat_install_retries_with_epel
 test_arch_packages_split_between_pacman_and_aur
+test_arch_repository_lookup_syncs_database_first
 test_arch_helper_bootstrap_prefers_paru_and_adds_yay
 test_owned_path_restores_preexisting_content
 test_unknown_owned_path_is_preserved
@@ -235,6 +302,8 @@ test_verified_download_rejects_unchecked_proxy
 test_verified_download_accepts_expected_digest
 test_verified_download_rejects_wrong_digest
 test_root_sudo_wrapper_runs_without_sudo_binary
+test_root_sudo_wrapper_bypasses_logging_function
 test_root_is_always_the_target_user
+test_config_loader_ignores_undeclared_keys
 
 printf 'os-init lib strategy checks passed\n'
