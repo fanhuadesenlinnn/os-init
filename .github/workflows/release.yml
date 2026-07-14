@@ -45,6 +45,9 @@ jobs:
       - name: Run os-init package strategy checks
         run: bash tooling/test-lib-strategy.sh
 
+      - name: Run mise mirror fallback checks
+        run: bash tooling/test-mise-strategy.sh
+
       - name: Run Arch capability checks
         run: |
           bash modules/arch/scripts/test.sh
@@ -149,10 +152,10 @@ jobs:
 
           ### 本版本修复
 
-          - 修复 Arch Linux provider 调用已删除 \`preflight_install\` 导致所有 Arch 能力无法执行的问题。
-          - 统一 Go 控制面与 Shell provider 的 Mihomo 组件标识，避免 \`mihomo\` 无法分发到代理安装模块。
-          - 清理 Arch 状态动作对旧计划层 \`modules_for_target\` 的残留引用。
-          - 增加 Arch 入口加载、组件分发、doctor/status 动作的契约测试。
+          - 将 mise 的默认 Go SDK 下载地址改为兼容 \`.sha256\` 校验文件的官方地址 \`https://dl.google.com/go\`。
+          - 自动识别旧配置中的 \`https://golang.google.cn/dl/\`，避免下载到 HTML 页面。
+          - 官方源重试时显式覆盖 \`MISE_NODE_MIRROR_URL\` 和 \`MISE_GO_DOWNLOAD_MIRROR\`，确保环境变量不会继续覆盖回退设置。
+          - 增加可执行回归测试，验证首次镜像失败后第二次实际使用官方源。
 
           ### 发布包
 
