@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 	"github.com/fanhuadesenlinnn/os-init/internal/tui"
 )
 
@@ -37,6 +38,9 @@ func run(args []string) error {
 			return nil
 		case "-v", "--version", "version":
 			fmt.Printf("os-init %s (%s)\n", version, commit)
+			return nil
+		case "--system-info":
+			fmt.Print(systemInfoText(platform.Detect()))
 			return nil
 		default:
 			return fmt.Errorf("%s\n\n%s", text("未知参数: ", "unknown argument: ")+args[0], usageText())
@@ -82,15 +86,84 @@ func normalizeRootHome(effectiveUID int, lookup func(string) (*user.User, error)
 }
 
 func usageText() string {
-	return text(`用法:
-  os-init
-  os-init --version
-  os-init --help
-`, `Usage:
-  os-init
-  os-init --version
-  os-init --help
+	return text(`OS Init - macOS / Linux 交互式系统初始化工具
+
+用法:
+  os-init [选项]
+
+不带选项时启动交互式界面。程序会根据当前系统显示可用模块，
+并可在确认后执行安装、更新或卸载。
+
+选项:
+  -h, --help          显示帮助
+  -v, --version       显示版本和提交信息
+      --system-info   显示系统、发行版家族和 init 检测结果
+
+常用示例:
+  os-init                         启动中文交互界面
+  OS_INIT_LANG=en_US os-init      启动英文交互界面
+  os-init --system-info           查看平台检测结果
+
+配置:
+  ~/.config/os-init/config.env    用户配置
+  /etc/os-init/config.env         系统配置（可选）
+  modules/config/config.env.example
+                                  完整配置示例（源码仓库）
+
+配置优先级:
+  环境变量 > 用户配置 > 系统配置 > 内置默认值
+
+常用环境变量:
+  OS_INIT_LANG                    zh_CN 或 en_US
+  OS_INIT_CONFIG_PROMPT           设为 0 可关闭启动配置提示
+  OS_INIT_SCRIPT_TIMEOUT          单个模块执行超时，例如 45m；0 表示不限制
+  GITHUB_PROXY                    GitHub 下载代理前缀
+
+运行信息:
+  日志保存在当前工作目录的 logs/ 下。需要系统权限的操作会在确认后请求 sudo。
+`, `OS Init - interactive macOS / Linux system initialization
+
+Usage:
+  os-init [options]
+
+With no options, OS Init starts its interactive interface. Available modules
+are filtered for the current system and can be installed, updated, or removed
+after confirmation.
+
+Options:
+  -h, --help          Show help
+  -v, --version       Show version and commit information
+      --system-info   Show detected OS, distribution family, and init system
+
+Examples:
+  os-init                         Start the interactive interface
+  OS_INIT_LANG=en_US os-init      Start with English text
+  os-init --system-info           Inspect platform detection
+
+Configuration:
+  ~/.config/os-init/config.env    User configuration
+  /etc/os-init/config.env         Optional system configuration
+  modules/config/config.env.example
+                                  Full example in the source repository
+
+Configuration precedence:
+  environment > user configuration > system configuration > built-in defaults
+
+Common environment variables:
+  OS_INIT_LANG                    zh_CN or en_US
+  OS_INIT_CONFIG_PROMPT           Set to 0 to hide the startup config prompt
+  OS_INIT_SCRIPT_TIMEOUT          Per-module timeout, for example 45m; 0 disables it
+  GITHUB_PROXY                    Prefix used for GitHub downloads
+
+Runtime information:
+  Logs are written under logs/ in the current working directory. Operations
+  requiring system access request sudo after confirmation.
 `)
+}
+
+func systemInfoText(target platform.Target) string {
+	return fmt.Sprintf("goos=%s\nid=%s\nfamily=%s\nversion_id=%s\ninit=%s\n",
+		target.GOOS, target.ID, target.Family, target.VersionID, target.Init)
 }
 
 func text(zh, en string) string {

@@ -23,6 +23,21 @@ if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     COMPONENTS=("${ALL_COMPONENTS[@]}")
 fi
 
+validate_components() {
+    local component supported supported_component
+    for component in "${COMPONENTS[@]}"; do
+        supported=false
+        for supported_component in "${ALL_COMPONENTS[@]}"; do
+            if [[ "$component" == "$supported_component" ]]; then
+                supported=true
+                break
+            fi
+        done
+        [[ "$supported" == true ]] || die "unknown kernel component: $component"
+    done
+}
+validate_components
+
 want() {
     local c
     for c in "${COMPONENTS[@]}"; do [[ "$c" == "$1" ]] && return 0; done

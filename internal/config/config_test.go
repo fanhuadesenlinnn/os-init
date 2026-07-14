@@ -100,7 +100,17 @@ func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"))
-	for _, want := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "NVIM_DOWNLOAD_BASE=", "YAZI_DOWNLOAD_BASE="} {
+	for _, want := range []string{
+		"DOCKER_DOWNLOAD_BASE=",
+		"MIHOMO_PACKAGE=",
+		"MIHOMO_ALLOW_LAN=0",
+		"MIHOMO_BIND_ADDRESS=0.0.0.0",
+		"MIHOMO_CONTROLLER_HOST=0.0.0.0",
+		"MIHOMO_DNS_LISTEN=0.0.0.0:1053",
+		"MIHOMO_SECRET=\n",
+		"NVIM_DOWNLOAD_BASE=",
+		"YAZI_DOWNLOAD_BASE=",
+	} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("linux config should contain %q, got %q", want, data)
 		}
@@ -290,6 +300,54 @@ func TestEmbeddedConfigKeysMatchShellWhitelist(t *testing.T) {
 	}
 	if diff := compareKeySets("defaults", defaultKeys, "shell whitelist", shellKeys); diff != "" {
 		t.Fatal(diff)
+	}
+}
+
+func TestGeneratedConfigValuesMatchEmbeddedDefaults(t *testing.T) {
+	t.Parallel()
+
+	defaults := ParseEnv(strings.NewReader(readRepoFile(t, "modules/config/defaults.env")))
+	targets := []platform.Target{
+		{GOOS: "darwin", Family: platform.FamilyDarwin},
+		{GOOS: "linux", Family: platform.FamilyDebian},
+		{GOOS: "linux", Family: platform.FamilyArch},
+	}
+	for _, target := range targets {
+		target := target
+		t.Run(target.GOOS+"/"+string(target.Family), func(t *testing.T) {
+			rendered := ParseEnv(strings.NewReader(string(renderUserConfig(target, "zh_CN"))))
+			for key, value := range rendered {
+				if defaultValue, ok := defaults[key]; ok && value != defaultValue {
+					t.Errorf("generated %s=%q, embedded default=%q", key, value, defaultValue)
+				}
+			}
+		})
+	}
+}
+
+func TestApplyIgnoresUndeclaredConfigKeys(t *testing.T) {
+	preserveEnv(t, "UNDECLARED_OS_INIT_TEST")
+	resetOriginalEnvForTest()
+	t.Cleanup(resetOriginalEnvForTest)
+	os.Unsetenv("UNDECLARED_OS_INIT_TEST")
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	configDir := filepath.Join(home, ".config", "os-init")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.env"), []byte("UNDECLARED_OS_INIT_TEST=unexpected\nDOWNLOAD_TIMEOUT=45\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	files := fstest.MapFS{embeddedDefaults: {Data: []byte("DOWNLOAD_TIMEOUT=30\n")}}
+	Apply(files)
+	if got := os.Getenv("UNDECLARED_OS_INIT_TEST"); got != "" {
+		t.Fatalf("undeclared config key leaked into process environment: %q", got)
+	}
+	if got := os.Getenv("DOWNLOAD_TIMEOUT"); got != "45" {
+		t.Fatalf("declared user config value = %q, want 45", got)
 	}
 }
 

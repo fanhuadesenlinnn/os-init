@@ -90,7 +90,10 @@ sudo() {
                 *) break ;;
             esac
         done
-        "$@"
+        # Bypass shell functions such as the logging helper named install().
+        # Privileged commands must resolve to the external executable just as
+        # they do when the real sudo binary is used for a normal user.
+        command "$@"
         return
     fi
     command sudo -n "$@"
@@ -239,11 +242,16 @@ OS_FAMILY="$(detect_linux_family)"
 INIT_SYSTEM="$(detect_init)"
 
 source_config_file() {
-    local file="$1" filtered
+    local file="$1" filtered allowed_keys
     if [[ -r "$file" ]]; then
         filtered="$(mktemp "${TMPDIR:-/tmp}/os-init-config.XXXXXX")" || die "无法创建临时配置快照"
-        awk '
+        printf -v allowed_keys ' %s' "${OS_INIT_CONFIG_KEYS[@]}"
+        awk -v allowed_keys="$allowed_keys" '
             BEGIN {
+                count = split(allowed_keys, keys, /[[:space:]]+/)
+                for (i = 1; i <= count; i++) {
+                    if (keys[i] != "") allowed[keys[i]] = 1
+                }
                 ignored["OS_INIT_PROXY"] = 1
                 ignored["os_init_proxy"] = 1
                 ignored["HTTP_PROXY"] = 1
@@ -263,7 +271,7 @@ source_config_file() {
                 split(line, parts, "=")
                 key = parts[1]
                 gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-                if (ignored[key]) next
+                if (!allowed[key] || ignored[key]) next
                 print
             }
         ' "$file" > "$filtered"
@@ -362,6 +370,48 @@ ensure_brew() {
     export_homebrew_env
 }
 
+enable_redhat_epel() {
+    local manager id="" version_id="" major=""
+    manager="$1"
+    if rpm -q epel-release &>/dev/null; then
+        return 0
+    fi
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        id="$(lower "${ID:-}")"
+        version_id="${VERSION_ID:-}"
+    fi
+    [[ "$id" != "fedora" ]] || return 1
+
+    install "启用 EPEL 软件源以补充 RedHat 系软件包"
+    if sudo_env "$manager" install -y epel-release; then
+        return 0
+    fi
+
+    major="${version_id%%.*}"
+    [[ "$major" =~ ^[0-9]+$ ]] || return 1
+    sudo_env "$manager" install -y \
+        "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${major}.noarch.rpm"
+}
+
+redhat_install_packages() {
+    local manager
+    if command -v dnf &>/dev/null; then
+        manager=dnf
+    elif command -v yum &>/dev/null; then
+        manager=yum
+    else
+        die "RedHat 系统未找到 dnf/yum"
+    fi
+
+    if sudo_env "$manager" install -y "$@"; then
+        return 0
+    fi
+    enable_redhat_epel "$manager" || die "RedHat 基础仓库缺少软件包且无法启用 EPEL: $*"
+    sudo_env "$manager" install -y "$@"
+}
+
 pkg_install() {
     if is_macos; then
         brew_install "$@"
@@ -371,13 +421,7 @@ pkg_install() {
     elif [[ "$OS_FAMILY" == "arch" ]]; then
         arch_install_packages_or_aur "$@"
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
-        if command -v dnf &>/dev/null; then
-            sudo_env dnf install -y "$@"
-        elif command -v yum &>/dev/null; then
-            sudo_env yum install -y "$@"
-        else
-            die "RedHat 系统未找到 dnf/yum"
-        fi
+        redhat_install_packages "$@"
     else
         die "不支持的包管理器家族: ${OS_FAMILY}"
     fi
@@ -427,9 +471,18 @@ is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }
 is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
 is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
 
+_ARCH_PACKAGE_DATABASE_SYNCED=false
+arch_sync_package_database() {
+    is_arch || return 0
+    [[ "$_ARCH_PACKAGE_DATABASE_SYNCED" == true ]] && return 0
+    sudo_env pacman -Sy --noconfirm
+    _ARCH_PACKAGE_DATABASE_SYNCED=true
+}
+
 arch_package_available() {
     local package="$1"
     is_arch || return 1
+    arch_sync_package_database
     pacman -Si "$package" &>/dev/null
 }
 
@@ -442,7 +495,8 @@ arch_package_installed() {
 arch_pacman_install() {
     [[ "$#" -gt 0 ]] || return 0
     install "通过 pacman 安装: $*"
-    sudo_env pacman -Sy --needed --noconfirm "$@"
+    arch_sync_package_database
+    sudo_env pacman -S --needed --noconfirm "$@"
 }
 
 arch_aur_helper_command() {

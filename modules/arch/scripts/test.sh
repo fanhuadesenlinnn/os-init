@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Test stubs are dispatched indirectly through module_install_func.
-# shellcheck disable=SC2317
+# Test stubs are dispatched indirectly through module_install_func. ShellCheck
+# renamed this diagnostic between supported releases.
+# shellcheck disable=SC2317,SC2329
 set -euo pipefail
 
 ARCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -56,44 +57,48 @@ for removed_control in lib/plan.sh lib/runner.sh lib/recovery.sh lib/ui.sh prese
   fi
 done
 
-(
-  # Loading the real entrypoint catches missing sourced functions without
-  # executing a provider operation.
-  # shellcheck source=modules/arch/install.sh
-  source "${ARCH_DIR}/install.sh"
+if (( BASH_VERSINFO[0] >= 4 )); then
+  (
+    # Loading the real entrypoint catches missing sourced functions without
+    # executing a provider operation.
+    # shellcheck source=modules/arch/install.sh
+    source "${ARCH_DIR}/install.sh"
 
-  declare -F provider_preflight >/dev/null
-  declare -F module_install_func >/dev/null
-  declare -F mark_module_installed >/dev/null
+    declare -F provider_preflight >/dev/null
+    declare -F module_install_func >/dev/null
+    declare -F mark_module_installed >/dev/null
 
-  require_arch() { :; }
-  require_cmd() { :; }
-  provider_preflight >/dev/null
+    require_arch() { :; }
+    require_cmd() { :; }
+    provider_preflight >/dev/null
 
-  install_base() { printf 'base'; }
-  install_aur_helpers() { printf 'aur'; }
-  install_archlinuxcn() { printf 'archlinuxcn'; }
-  install_dns_env() { printf 'dns'; }
-  install_git_env() { printf 'git'; }
-  install_ops_toolkit() { printf 'ops_toolkit'; }
-  install_fonts() { printf 'fonts'; }
-  install_proxy_env() { printf 'proxy'; }
-  install_desktop_hyprland() { printf 'desktop_hyprland'; }
+    install_base() { printf 'base'; }
+    install_aur_helpers() { printf 'aur'; }
+    install_archlinuxcn() { printf 'archlinuxcn'; }
+    install_dns_env() { printf 'dns'; }
+    install_git_env() { printf 'git'; }
+    install_ops_toolkit() { printf 'ops_toolkit'; }
+    install_fonts() { printf 'fonts'; }
+    install_proxy_env() { printf 'proxy'; }
+    install_desktop_hyprland() { printf 'desktop_hyprland'; }
 
-  while IFS= read -r component; do
-    [[ -n "${component}" ]] || continue
-    expected="$(module_key "${component}")"
-    actual="$(module_install_func "${component}")"
-    if [[ "${actual}" != "${expected}" ]]; then
-      echo "Go/Shell Arch component mismatch: ${component} -> ${actual}, expected ${expected}" >&2
-      exit 1
-    fi
-  done < <(sed -n 's/.*archLinuxModule("[^"]*", "\([^"]*\)".*/\1/p' "${REPO_ROOT}/internal/modules/registry.go")
-)
+    while IFS= read -r component; do
+      [[ -n "${component}" ]] || continue
+      expected="$(module_key "${component}")"
+      actual="$(module_install_func "${component}")"
+      if [[ "${actual}" != "${expected}" ]]; then
+        echo "Go/Shell Arch component mismatch: ${component} -> ${actual}, expected ${expected}" >&2
+        exit 1
+      fi
+    done < <(sed -n 's/.*archLinuxModule("[^"]*", "\([^"]*\)".*/\1/p' "${REPO_ROOT}/internal/modules/registry.go")
+  )
 
-OS_INIT_PROVIDER_MODE=1 OS_INIT_ARCH_LOAD_CONFIG_FILE=0 \
-  bash "${ARCH_DIR}/install.sh" doctor >/dev/null
-OS_INIT_PROVIDER_MODE=1 OS_INIT_ARCH_LOAD_CONFIG_FILE=0 \
-  bash "${ARCH_DIR}/install.sh" status >/dev/null
+  OS_INIT_PROVIDER_MODE=1 OS_INIT_ARCH_LOAD_CONFIG_FILE=0 \
+    bash "${ARCH_DIR}/install.sh" doctor >/dev/null
+  OS_INIT_PROVIDER_MODE=1 OS_INIT_ARCH_LOAD_CONFIG_FILE=0 \
+    bash "${ARCH_DIR}/install.sh" status >/dev/null
+else
+  echo "Skipping executable Arch provider contracts: Bash 4+ required (current ${BASH_VERSION})"
+fi
 
 echo "Arch capability checks passed"

@@ -27,12 +27,13 @@ func Apply(assets fs.FS) {
 		originalEnv = snapshotEnv()
 	})
 
+	allowedKeys := map[string]bool{}
 	if assets != nil {
-		loadFSFile(assets, embeddedDefaults)
+		allowedKeys = loadDefaults(assets, embeddedDefaults)
 	}
-	loadLocalFile("/etc/os-init/config.env")
+	loadLocalFile("/etc/os-init/config.env", allowedKeys)
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		loadLocalFile(filepath.Join(home, ".config", "os-init", "config.env"))
+		loadLocalFile(filepath.Join(home, ".config", "os-init", "config.env"), allowedKeys)
 	}
 
 	for key, value := range originalEnv {
@@ -72,27 +73,36 @@ func snapshotEnv() map[string]string {
 	return env
 }
 
-func loadFSFile(files fs.FS, path string) {
+func loadDefaults(files fs.FS, path string) map[string]bool {
+	allowedKeys := map[string]bool{}
 	file, err := files.Open(path)
 	if err != nil {
-		return
+		return allowedKeys
 	}
 	defer file.Close()
-	loadEnv(file)
+	values := ParseEnv(file)
+	for key, value := range values {
+		allowedKeys[key] = true
+		if ignoredProxyConfigKey(key) {
+			continue
+		}
+		_ = os.Setenv(key, value)
+	}
+	return allowedKeys
 }
 
-func loadLocalFile(path string) {
+func loadLocalFile(path string, allowedKeys map[string]bool) {
 	file, err := os.Open(path)
 	if err != nil {
 		return
 	}
 	defer file.Close()
-	loadEnv(file)
+	loadEnv(file, allowedKeys)
 }
 
-func loadEnv(r io.Reader) {
+func loadEnv(r io.Reader, allowedKeys map[string]bool) {
 	for key, value := range ParseEnv(r) {
-		if ignoredProxyConfigKey(key) {
+		if !allowedKeys[key] || ignoredProxyConfigKey(key) {
 			continue
 		}
 		_ = os.Setenv(key, value)

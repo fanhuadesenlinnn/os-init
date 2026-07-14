@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+## v0.28.0 - 2026-07-14
+
+### Changed
+
+- Align generated, embedded, and example Mihomo network defaults on `0.0.0.0` listeners while preserving `MIHOMO_ALLOW_LAN=0` and an empty default controller secret.
+- Restrict Go and Shell configuration loading to declared OS Init keys.
+- Validate shared script components against the Go registry and reject unknown component names before execution.
+- Run the complete local check target on Ubuntu and macOS CI, with an additional Arch Linux provider contract run.
+- Run native contracts across Ubuntu, Debian, Fedora, Rocky, Arch, and Manjaro, including Linux ARM64 and both macOS architectures.
+- Add scheduled root/non-root package lifecycle, Linux system-file lifecycle, and macOS Homebrew lifecycle tests.
+- Expand `--help` with the interactive workflow, real options, examples, configuration precedence, common environment variables, logs, and privilege behavior.
+- Publish releases only from existing `v*` tags and generate release notes from the matching changelog section.
+
+### Fixed
+
+- Keep the generated mise Go download mirror consistent with the embedded and example defaults.
+- Make `make check` include mise and release-strategy regression tests and remain usable with the macOS system Bash.
+- Ensure root-mode privileged commands bypass same-named logging functions such as `install`.
+- Sync the Arch package database before deciding whether a package requires AUR, and use EPEL as a RedHat-family fallback for missing packages.
+- Make the terminal-tool update operation actually refresh `ncdu` through the platform package manager.
+
 ## v0.27.2 - 2026-07-14
 
 ### Fixed

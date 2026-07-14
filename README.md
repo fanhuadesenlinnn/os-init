@@ -50,8 +50,12 @@ tar xzf os-init_darwin_arm64.tar.gz
 
 ```bash
 ./os-init --version
+./os-init --system-info
 ./os-init --help
 ```
+
+完整的自动化测试范围与仍需专用虚拟机/硬件验证的项目见
+[测试矩阵](docs/TEST_MATRIX.md)。
 
 ## TUI 操作
 
