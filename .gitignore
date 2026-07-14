@@ -2,6 +2,7 @@ logs/
 /docs/*
 !/docs/adr/
 !/docs/adr/*.md
+!/docs/TEST_MATRIX.md
 .worktrees/
 CLAUDE.md
 .claude

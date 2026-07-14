@@ -110,7 +110,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 		}
 		logPath = filepath.Join(
 			p.LogDir,
-			fmt.Sprintf("%s-%s.log", name, time.Now().Format("20060102-150405")),
+			fmt.Sprintf("%s-%s.log", name, time.Now().Format("20060102-150405.000000000")),
 		)
 		var err error
 		logFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)

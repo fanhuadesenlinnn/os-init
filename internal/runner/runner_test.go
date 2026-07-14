@@ -215,6 +215,23 @@ func TestRun_LogFileIncludesComponents(t *testing.T) {
 	}
 }
 
+func TestRun_LogFilesAreUniqueWithinOneSecond(t *testing.T) {
+	tmp := t.TempDir()
+	writeScript(t, tmp, "modules/test/fast.sh", "#!/usr/bin/env bash\nexit 0\n")
+	logDir := t.TempDir()
+	first, err := runner.Run(context.Background(), runner.Params{TmpDir: tmp, Script: "test/fast.sh", LogDir: logDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := runner.Run(context.Background(), runner.Params{TmpDir: tmp, Script: "test/fast.sh", LogDir: logDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.LogFile == second.LogFile {
+		t.Fatalf("consecutive runs reused log file %q", first.LogFile)
+	}
+}
+
 func TestRun_OversizedLineDoesNotDeadlock(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

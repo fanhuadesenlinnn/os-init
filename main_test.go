@@ -19,6 +19,7 @@ func TestUsageTextDocumentsActualInterface(t *testing.T) {
 		"-h, --help",
 		"-v, --version",
 		"--system-info",
+		"os-init module help",
 		"~/.config/os-init/config.env",
 		"environment > user configuration > system configuration > built-in defaults",
 		"OS_INIT_SCRIPT_TIMEOUT",

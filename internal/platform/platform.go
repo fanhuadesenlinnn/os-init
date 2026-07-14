@@ -20,13 +20,13 @@ const (
 )
 
 type Target struct {
-	GOOS      string
-	ID        string
-	IDLike    []string
-	Family    Family
-	VersionID string
-	Codename  string
-	Init      string
+	GOOS      string   `json:"goos"`
+	ID        string   `json:"id"`
+	IDLike    []string `json:"id_like,omitempty"`
+	Family    Family   `json:"family"`
+	VersionID string   `json:"version_id,omitempty"`
+	Codename  string   `json:"codename,omitempty"`
+	Init      string   `json:"init"`
 }
 
 func Detect() Target {

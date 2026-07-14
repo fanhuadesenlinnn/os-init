@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKFLOW="${ROOT_DIR}/.github/workflows/release.yml"
 SYSTEM_WORKFLOW="${ROOT_DIR}/.github/workflows/system-integration.yml"
+MODULE_WORKFLOW="${ROOT_DIR}/.github/workflows/module-install.yml"
 notes="$(mktemp "${TMPDIR:-/tmp}/os-init-release-test.XXXXXX")"
 trap 'rm -f "${notes}"' EXIT
 
@@ -14,6 +15,9 @@ if grep -Fq 'Restore the Arch provider preflight check' "${notes}"; then
     echo 'release notes leaked content from the previous version' >&2
     exit 1
 fi
+bash "${ROOT_DIR}/tooling/release-notes.sh" v1.0.0 "${ROOT_DIR}/CHANGELOG.md" > "${notes}"
+grep -Fq '## OS Init v1.0.0' "${notes}"
+grep -Fq 'stable non-interactive' "${notes}"
 if bash "${ROOT_DIR}/tooling/release-notes.sh" v999.0.0 "${ROOT_DIR}/CHANGELOG.md" >/dev/null 2>&1; then
     echo 'release notes should fail when the tag is absent from CHANGELOG.md' >&2
     exit 1
@@ -35,5 +39,11 @@ grep -Fq 'bash tooling/test-macos-lifecycle.sh' "${SYSTEM_WORKFLOW}"
 grep -Fq 'workflow_call:' "${SYSTEM_WORKFLOW}"
 grep -Fq 'needs: [test, macos-test, linux-matrix-test, system-integration]' "${WORKFLOW}"
 grep -Fq "startsWith(github.ref, 'refs/tags/v')" "${WORKFLOW}"
+grep -Fq 'workflow_dispatch:' "${MODULE_WORKFLOW}"
+grep -Fq 'schedule:' "${MODULE_WORKFLOW}"
+grep -Fq 'os-init module test --yes --quiet' "${MODULE_WORKFLOW}"
+grep -Fq 'manjarolinux/base:latest' "${MODULE_WORKFLOW}"
+grep -Fq 'macos-15-intel' "${MODULE_WORKFLOW}"
+grep -Fq 'actions/upload-artifact@v7' "${MODULE_WORKFLOW}"
 
 printf 'release strategy checks passed\n'

@@ -10,9 +10,11 @@ import (
 	"sync"
 
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	sharedverify "github.com/fanhuadesenlinnn/os-init/internal/verify"
 )
 
 type installStatusChecker struct {
+	shared   *sharedverify.Checker
 	goos     string
 	lookPath func(string) (string, error)
 	stat     func(string) (os.FileInfo, error)
@@ -30,6 +32,7 @@ type installStatusChecker struct {
 
 func defaultInstallStatusChecker() *installStatusChecker {
 	return &installStatusChecker{
+		shared:   sharedverify.New(),
 		goos:     runtime.GOOS,
 		lookPath: exec.LookPath,
 		stat:     os.Stat,
@@ -43,6 +46,10 @@ func defaultInstallStatusChecker() *installStatusChecker {
 }
 
 func (c *installStatusChecker) moduleInstalled(ctx context.Context, m modules.Module) bool {
+	if c.shared != nil {
+		result := c.shared.Module(ctx, m)
+		return result.Active && result.Passed
+	}
 	ok, active := c.evaluateCheck(ctx, m.Verify)
 	return active && ok
 }

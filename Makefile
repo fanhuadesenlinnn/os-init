@@ -1,7 +1,7 @@
-.PHONY: build run lint test lib-strategy-test mise-strategy-test release-strategy-test arch-test distro-contract-test check clean
+.PHONY: build run lint test lib-strategy-test mise-strategy-test release-strategy-test headless-contract-test arch-test distro-contract-test check clean
 
 BINARY ?= os-init
-VERSION ?= dev
+VERSION ?= 1.0.0
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 
 build:
@@ -27,6 +27,9 @@ mise-strategy-test:
 release-strategy-test:
 	bash tooling/test-release-strategy.sh
 
+headless-contract-test: build
+	bash tooling/test-headless-contract.sh "./$(BINARY)"
+
 arch-test:
 	bash modules/arch/scripts/test.sh
 	shellcheck -x $$(find modules/arch -type f -name '*.sh' -print)
@@ -39,7 +42,7 @@ distro-contract-test: build
 		echo "Skipping distro contract: Linux required"; \
 	fi
 
-check: test lint lib-strategy-test mise-strategy-test release-strategy-test arch-test
+check: test lint lib-strategy-test mise-strategy-test release-strategy-test headless-contract-test arch-test
 
 clean:
 	rm -rf os-init kickstart dist

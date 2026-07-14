@@ -1,0 +1,311 @@
+name: Module Install Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Stable module ID, or all"
+        required: true
+        default: all
+        type: string
+  schedule:
+    - cron: "17 17 * * 6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: module-install-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  discover-linux:
+    runs-on: ubuntu-24.04
+    outputs:
+      container_matrix: ${{ steps.catalog.outputs.container_matrix }}
+      ubuntu_matrix: ${{ steps.catalog.outputs.ubuntu_matrix }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build static Linux binary
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 go build -trimpath -o dist/os-init .
+      - name: Discover native and container module matrices
+        id: catalog
+        env:
+          REQUESTED_MODULE: ${{ inputs.module || 'all' }}
+        run: |
+          set -euo pipefail
+
+          ./dist/os-init module list --format json > ubuntu-catalog.json
+          ubuntu_matrix="$(jq -c --arg requested "${REQUESTED_MODULE}" '
+            {include: [
+              .[]
+              | select(.entry_kind == "module")
+              | select(.automation_scope != "manual")
+              | select($requested == "all" or .id == $requested)
+              | {module: .id, lifecycle: .automation_lifecycle}
+            ]}' ubuntu-catalog.json)"
+          echo "ubuntu_matrix=${ubuntu_matrix}" >>"${GITHUB_OUTPUT}"
+
+          matrix='[]'
+          while IFS='|' read -r image family distro; do
+            docker run --rm \
+              -v "${GITHUB_WORKSPACE}/dist/os-init:/usr/local/bin/os-init:ro" \
+              "${image}" \
+              os-init module list --format json > "catalog-${distro}.json"
+            rows="$(jq -c \
+              --arg image "${image}" \
+              --arg family "${family}" \
+              --arg distro "${distro}" \
+              --arg requested "${REQUESTED_MODULE}" '
+                [
+                  .[]
+                  | select(.entry_kind == "module")
+                  | select(.automation_scope == "container")
+                  | select($requested == "all" or .id == $requested)
+                  | {image: $image, family: $family, distro: $distro, module: .id, lifecycle: .automation_lifecycle}
+                ]' "catalog-${distro}.json")"
+            matrix="$(jq -cn --argjson left "${matrix}" --argjson right "${rows}" '$left + $right')"
+          done <<'EOF'
+          ubuntu:24.04|debian|ubuntu
+          debian:12|debian|debian
+          fedora:42|redhat|fedora
+          rockylinux:9|redhat|rocky
+          archlinux:base|arch|arch
+          manjarolinux/base:latest|arch|manjaro
+          EOF
+          echo "container_matrix=$(jq -cn --argjson include "${matrix}" '{include: $include}')" >>"${GITHUB_OUTPUT}"
+
+      - name: Upload automation catalogs
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-module-catalogs
+          path: |
+            *-catalog.json
+            catalog-*.json
+          if-no-files-found: error
+
+  linux-containers:
+    needs: discover-linux
+    if: ${{ fromJSON(needs.discover-linux.outputs.container_matrix).include[0] != null }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.discover-linux.outputs.container_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build static Linux binary
+        run: |
+          mkdir -p dist reports
+          CGO_ENABLED=0 go build -trimpath -o dist/os-init .
+      - name: Test one module in a fresh distribution container
+        env:
+          IMAGE: ${{ matrix.image }}
+          FAMILY: ${{ matrix.family }}
+          DISTRO: ${{ matrix.distro }}
+          MODULE: ${{ matrix.module }}
+          LIFECYCLE: ${{ matrix.lifecycle }}
+        run: |
+          set -euo pipefail
+          report_dir="${GITHUB_WORKSPACE}/reports/${DISTRO}-${MODULE}"
+          mkdir -p "${report_dir}"
+          if [[ "${LIFECYCLE}" == "full" ]]; then
+            command=(module test --yes --quiet --timeout 60m
+              --log-dir /reports/logs --report /reports/report.json
+              --junit /reports/report.xml "${MODULE}")
+          else
+            command=(module install --yes --quiet --verify=false --timeout 60m
+              --log-dir /reports/logs --report /reports/report.json
+              --junit /reports/report.xml "${MODULE}")
+          fi
+          docker run --rm \
+            --security-opt seccomp=unconfined \
+            -e CI=1 \
+            -e OS_INIT_CONTAINER_TEST=1 \
+            -v "${GITHUB_WORKSPACE}/dist/os-init:/usr/local/bin/os-init:ro" \
+            -v "${report_dir}:/reports" \
+            "${IMAGE}" \
+            os-init "${command[@]}"
+      - name: Write job summary
+        if: always()
+        env:
+          FAMILY: ${{ matrix.family }}
+          DISTRO: ${{ matrix.distro }}
+          MODULE: ${{ matrix.module }}
+        run: |
+          report="reports/${DISTRO}-${MODULE}/report.json"
+          if [[ -f "${report}" ]]; then
+            jq -r '"### `" + .requested[0] + "`\n\nSuccess: **" + (.success|tostring) + "**\n\n| Phase | Module | Status |\n|---|---|---|\n" + ([.results[] | "| " + .operation + " | " + .module_id + " | " + .status + " |"] | join("\n"))' "${report}" >>"${GITHUB_STEP_SUMMARY}"
+          fi
+      - name: Upload module report and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: container-${{ matrix.distro }}-${{ matrix.module }}
+          path: reports/${{ matrix.distro }}-${{ matrix.module }}/
+          if-no-files-found: warn
+
+  ubuntu-native:
+    needs: discover-linux
+    if: ${{ fromJSON(needs.discover-linux.outputs.ubuntu_matrix).include[0] != null }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.discover-linux.outputs.ubuntu_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build OS Init
+        run: go build -trimpath -o os-init .
+      - name: Test one module on a fresh Ubuntu VM
+        env:
+          MODULE: ${{ matrix.module }}
+          LIFECYCLE: ${{ matrix.lifecycle }}
+          OS_INIT_GIT_NAME: OS Init CI
+          OS_INIT_GIT_EMAIL: os-init@example.invalid
+        run: |
+          set -euo pipefail
+          mkdir -p reports/logs
+          if [[ "${LIFECYCLE}" == "full" ]]; then
+            ./os-init module test --yes --quiet --timeout 60m \
+              --log-dir reports/logs --report reports/report.json \
+              --junit reports/report.xml "${MODULE}"
+          else
+            ./os-init module install --yes --quiet --verify=false --timeout 60m \
+              --log-dir reports/logs --report reports/report.json \
+              --junit reports/report.xml "${MODULE}"
+          fi
+      - name: Upload module report and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ubuntu-${{ matrix.module }}
+          path: reports/
+          if-no-files-found: warn
+
+  discover-macos:
+    runs-on: macos-15
+    outputs:
+      matrix: ${{ steps.catalog.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build and discover macOS modules
+        id: catalog
+        env:
+          REQUESTED_MODULE: ${{ inputs.module || 'all' }}
+        run: |
+          set -euo pipefail
+          go build -trimpath -o os-init .
+          ./os-init module list --format json > macos-catalog.json
+          matrix="$(jq -c --arg requested "${REQUESTED_MODULE}" '
+            {include: [
+              .[]
+              | select(.entry_kind == "module")
+              | select(.automation_scope != "manual")
+              | select($requested == "all" or .id == $requested)
+              | . as $module
+              | ["macos-15", "macos-15-intel"][]
+              | {runner: ., module: $module.id, lifecycle: $module.automation_lifecycle}
+            ]}' macos-catalog.json)"
+          echo "matrix=${matrix}" >>"${GITHUB_OUTPUT}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-module-catalog
+          path: macos-catalog.json
+          if-no-files-found: error
+
+  macos-native:
+    needs: discover-macos
+    if: ${{ fromJSON(needs.discover-macos.outputs.matrix).include[0] != null }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix: ${{ fromJSON(needs.discover-macos.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build OS Init
+        run: go build -trimpath -o os-init .
+      - name: Test one module on a fresh macOS VM
+        env:
+          MODULE: ${{ matrix.module }}
+          LIFECYCLE: ${{ matrix.lifecycle }}
+          OS_INIT_GIT_NAME: OS Init CI
+          OS_INIT_GIT_EMAIL: os-init@example.invalid
+        run: |
+          set -euo pipefail
+          mkdir -p reports/logs
+          if [[ "${LIFECYCLE}" == "full" ]]; then
+            ./os-init module test --yes --quiet --timeout 60m \
+              --log-dir reports/logs --report reports/report.json \
+              --junit reports/report.xml "${MODULE}"
+          else
+            ./os-init module install --yes --quiet --verify=false --timeout 60m \
+              --log-dir reports/logs --report reports/report.json \
+              --junit reports/report.xml "${MODULE}"
+          fi
+      - name: Upload module report and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.runner }}-${{ matrix.module }}
+          path: reports/
+          if-no-files-found: warn
+
+  coverage-summary:
+    needs: [discover-linux, discover-macos]
+    if: always() && needs.discover-linux.result == 'success' && needs.discover-macos.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download Linux catalogs
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-module-catalogs
+          path: catalogs/linux
+      - name: Download macOS catalog
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-module-catalog
+          path: catalogs/macos
+      - name: Build explicit automation coverage report
+        run: |
+          set -euo pipefail
+          jq -s 'flatten | unique_by(.id) | sort_by(.id)' \
+            catalogs/linux/*.json catalogs/macos/*.json > automation-coverage.json
+          {
+            echo '## OS Init module automation coverage'
+            echo
+            echo '| Module | Scope | Lifecycle | Reason |'
+            echo '|---|---|---|---|'
+            jq -r '.[] | select(.automation_scope == "manual" or .automation_lifecycle != "full") | "| `" + .id + "` | " + .automation_scope + " | " + .automation_lifecycle + " | " + (.automation_reason // "") + " |"' automation-coverage.json
+          } >>"${GITHUB_STEP_SUMMARY}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: module-automation-coverage
+          path: automation-coverage.json
+          if-no-files-found: error

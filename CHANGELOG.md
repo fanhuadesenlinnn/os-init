@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v1.0.0 - 2026-07-14
+
+### Added
+
+- Add stable non-interactive `module list`, `plan`, `install`, `update`, `uninstall`, `verify`, and `test` commands for unattended provisioning and CI.
+- Add per-module JSON and JUnit reports, private logs, configurable timeouts, explicit `--yes` approval, quiet output, dependency planning, and continue-on-error execution.
+- Add declarative GitHub automation scope and lifecycle metadata to the machine-readable module catalog.
+- Add a pure GitHub-hosted module validation workflow that dynamically tests modules one at a time on fresh Ubuntu and macOS VMs and Ubuntu, Debian, Fedora, Rocky, Arch, and Manjaro containers.
+- Add a reusable live-system verification package and non-interactive CLI contract tests.
+
+### Changed
+
+- Treat a non-interactive module as successful only when its provider exits successfully and its declarative post-operation verification reaches the expected state.
+- Preserve and verify the pre-test installed state after lifecycle uninstall, so pre-existing resources are not mistaken for uninstall failures.
+- Classify disruptive network and graphical desktop checks as explicit manual coverage instead of claiming ordinary containers validated them.
+
 ## v0.28.0 - 2026-07-14
 
 ### Changed

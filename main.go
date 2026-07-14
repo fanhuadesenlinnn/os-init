@@ -18,7 +18,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "dev"
+	version = "1.0.0"
 	commit  = "none"
 )
 
@@ -31,6 +31,7 @@ func main() {
 }
 
 func run(args []string) error {
+	normalizeRootHome(os.Geteuid(), user.LookupId)
 	if len(args) > 0 {
 		switch args[0] {
 		case "-h", "--help", "help":
@@ -42,12 +43,12 @@ func run(args []string) error {
 		case "--system-info":
 			fmt.Print(systemInfoText(platform.Detect()))
 			return nil
+		case "module", "modules":
+			return runModuleCommand(args[1:])
 		default:
 			return fmt.Errorf("%s\n\n%s", text("未知参数: ", "unknown argument: ")+args[0], usageText())
 		}
 	}
-
-	normalizeRootHome(os.Geteuid(), user.LookupId)
 
 	m := tui.New(tui.Config{
 		Assets:  assets,
@@ -99,10 +100,16 @@ func usageText() string {
   -v, --version       显示版本和提交信息
       --system-info   显示系统、发行版家族和 init 检测结果
 
+非交互命令:
+  os-init module help
+                      列出、规划、安装、验证或执行模块生命周期测试
+
 常用示例:
   os-init                         启动中文交互界面
   OS_INIT_LANG=en_US os-init      启动英文交互界面
   os-init --system-info           查看平台检测结果
+  os-init module list --format ids
+                                  列出当前系统可用的稳定模块 ID
 
 配置:
   ~/.config/os-init/config.env    用户配置
@@ -135,10 +142,16 @@ Options:
   -v, --version       Show version and commit information
       --system-info   Show detected OS, distribution family, and init system
 
+Non-interactive:
+  os-init module help
+                      List, plan, install, verify, or lifecycle-test modules
+
 Examples:
   os-init                         Start the interactive interface
   OS_INIT_LANG=en_US os-init      Start with English text
   os-init --system-info           Inspect platform detection
+  os-init module list --format ids
+                                  List stable module IDs for this system
 
 Configuration:
   ~/.config/os-init/config.env    User configuration

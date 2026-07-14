@@ -54,6 +54,36 @@ tar xzf os-init_darwin_arm64.tar.gz
 ./os-init --help
 ```
 
+## 非交互与静默安装
+
+自动化、远程初始化和 CI 不需要操作 TUI。模块 ID、依赖规划、provider、超时、日志与安装后验证都与交互界面共用：
+
+```bash
+# 查看当前系统可用的稳定模块 ID
+./os-init module list --format ids
+
+# 只查看依赖展开后的执行计划
+./os-init module plan terminal-ncdu docker
+
+# 静默安装并验证；需要提权时必须已有非交互 sudo 权限
+./os-init module install --yes --quiet terminal-ncdu
+
+# 逐模块执行安装、重复安装、更新和卸载生命周期
+./os-init module test --yes --quiet \
+  --report reports/ncdu.json \
+  --junit reports/ncdu.xml \
+  terminal-ncdu
+
+# 当前平台全部模块；失败后继续并生成完整报告
+./os-init module test --all --yes --quiet --continue-on-error \
+  --report reports/all.json \
+  --junit reports/all.xml
+```
+
+会修改系统的非交互命令必须显式提供 `--yes`。命令不会读取或存储 sudo 密码；普通用户运行系统模块前应执行 `sudo -v`，CI 应使用 `sudo -n` 可通过的临时环境。`--quiet` 只关闭实时输出，完整日志仍写入 `logs/`。
+
+`module list --format json` 同时输出每个模块的 GitHub 自动化范围：`container`、`hosted`、`manual`，以及 `full`、`install-only` 或 `plan-only` 生命周期。网络队列、Arch DNS 和图形桌面等可能中断 Runner 或需要图形硬件的模块不会被误报为完整自动化通过。
+
 完整的自动化测试范围与仍需专用虚拟机/硬件验证的项目见
 [测试矩阵](docs/TEST_MATRIX.md)。
 
