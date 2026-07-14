@@ -130,7 +130,12 @@ configure_mise_settings() {
 
 mise_use_global_runtimes() {
     local node_version="$1" python_version="$2" go_version="$3"
-    mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"
+    local node_mirror go_mirror
+    node_mirror="${MISE_NODE_MIRROR_URL:-https://npmmirror.com/mirrors/node/}"
+    go_mirror="$(resolve_mise_go_download_mirror)"
+    MISE_NODE_MIRROR_URL="$node_mirror" \
+    MISE_GO_DOWNLOAD_MIRROR="$go_mirror" \
+        mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"
 }
 
 mise_use_global_runtimes_from_official_sources() {
