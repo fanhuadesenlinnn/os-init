@@ -154,7 +154,7 @@ install_mise_runtimes() {
     [[ -e "$mise_data" ]] || created_data=true
     install "通过 mise 安装 Node.js ${node_version}、Python ${python_version} 和 Go ${go_version}"
     if ! mise_use_global_runtimes "$node_version" "$python_version" "$go_version"; then
-        warn "运行时镜像安装失败，使用官方源重试"
+        warn "国内运行时镜像安装失败，使用官方源重试"
         mise settings set node.mirror_url "https://nodejs.org/dist/"
         mise settings set go.download_mirror "https://dl.google.com/go"
         if ! mise_use_global_runtimes_from_official_sources "$node_version" "$python_version" "$go_version"; then
