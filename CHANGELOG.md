@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.27.2 - 2026-07-14
+
+### Fixed
+
+- Replace the incompatible mise Go mirror default with `https://dl.google.com/go`, which provides the archive checksum sidecars required by mise.
+- Normalize legacy `https://golang.google.cn/dl/` configuration before the first runtime installation attempt.
+- Make the official-source retry override inherited Node and Go mirror environment variables for the actual `mise use` command.
+
+### Changed
+
+- Add an executable mise mirror fallback test covering custom mirror failure, official retry, and legacy Go mirror normalization.
+
 ## v0.27.1 - 2026-07-14
 
 ### Fixed
