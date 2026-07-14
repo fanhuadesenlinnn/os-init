@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Test stubs are dispatched indirectly through module_install_func.
+# shellcheck disable=SC2317
 set -euo pipefail
 
 ARCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -57,7 +59,7 @@ done
 (
   # Loading the real entrypoint catches missing sourced functions without
   # executing a provider operation.
-  # shellcheck source=../install.sh
+  # shellcheck source=modules/arch/install.sh
   source "${ARCH_DIR}/install.sh"
 
   declare -F provider_preflight >/dev/null
