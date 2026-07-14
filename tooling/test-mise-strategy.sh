@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# The test sources the real installer dynamically. Variables assigned below are
+# consumed by functions defined in that sourced file.
+# shellcheck disable=SC1091,SC2034
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -8,7 +11,6 @@ trap 'rm -rf "$TEST_HOME"' EXIT
 export HOME="$TEST_HOME"
 export REPO_DIR="$ROOT_DIR/modules"
 
-# shellcheck source=../modules/mise/install.sh
 source "$ROOT_DIR/modules/mise/install.sh"
 
 fail() {
