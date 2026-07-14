@@ -2,8 +2,12 @@ name: Build Release Packages
 
 on:
   push:
+    branches:
+      - main
+      - "release/v*"
     tags:
       - "v*"
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -48,6 +52,7 @@ jobs:
 
   build:
     needs: test
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -78,7 +83,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          version="${GITHUB_REF_NAME#v}"
+          case "${GITHUB_REF}" in
+            refs/tags/v*) version="${GITHUB_REF_NAME#v}" ;;
+            refs/heads/release/v*) version="${GITHUB_REF_NAME#release/v}" ;;
+            *) version="dev-${GITHUB_SHA::7}" ;;
+          esac
+
           short_commit="$(git rev-parse --short HEAD)"
           package_name="${BINARY_NAME}_${GOOS}_${GOARCH}"
           package_dir="dist/${package_name}"
@@ -103,7 +113,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     steps:
       - name: Download packages
         uses: actions/download-artifact@v8
@@ -117,65 +127,64 @@ jobs:
           cd dist
           sha256sum *.tar.gz > checksums.txt
 
-      - name: Write release notes
+      - name: Resolve release tag
+        id: release
         run: |
-          cat > release-notes.md <<'NOTES'
-          ## OS Init
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/heads/release/v* ]]; then
+            tag="${GITHUB_REF_NAME#release/}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
-          面向中国大陆网络环境的系统初始化发布包。Linux 支持 Arch 系、Debian 系、RedHat 系；macOS 显示适配 Homebrew 的模块。
+      - name: Write release notes
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          cat > release-notes.md <<NOTES
+          ## OS Init ${RELEASE_TAG}
+
+          面向中国大陆网络环境的 macOS / Linux 系统初始化发布包。
+
+          ### 本版本修复
+
+          - 修复 Arch Linux provider 调用已删除 \`preflight_install\` 导致所有 Arch 能力无法执行的问题。
+          - 统一 Go 控制面与 Shell provider 的 Mihomo 组件标识，避免 \`mihomo\` 无法分发到代理安装模块。
+          - 清理 Arch 状态动作对旧计划层 \`modules_for_target\` 的残留引用。
+          - 增加 Arch 入口加载、组件分发、doctor/status 动作的契约测试。
 
           ### 发布包
 
-          - `os-init_linux_amd64.tar.gz`
-          - `os-init_linux_arm64.tar.gz`
-          - `os-init_darwin_amd64.tar.gz`
-          - `os-init_darwin_arm64.tar.gz`
-          - `checksums.txt`
-
-          ### 主要能力
-
-          - 模块、组合预设和诊断操作具有独立语义；不支持的生命周期操作在执行前阻止
-          - 安装状态使用可组合验证表达式，执行顺序使用稳定且与界面语言无关的阶段
-          - Go 统一负责计划、权限、执行、日志和汇总，所有 Shell 实现通过稳定 provider 协议运行
-          - Arch 不再维护第二套菜单、计划、执行和汇总控制层，同时保留完整工作站领域实现和配置指纹
-          - Linux 支持直接以 root 运行，用户配置写入 `/root`，且无需安装 sudo
-          - Arch Linux 能力对 root 和普通用户使用相同模块；paru/yay 优先从 archlinuxcn 用 pacman 安装
-          - Arch Linux 通过 pacman 安装 mise，并在目标用户 HOME 管理 Node.js 24、Python 3.13 和 Go 1.24
-          - macOS 与 Arch Linux 共享 mise 运行时、国内镜像、官方源回退和安装验证逻辑
-          - 中国大陆默认启用 Node/Go SDK、npm、pip、uv 和 Go module 镜像，SDK 镜像失败自动回退官方源
-          - 登录 Shell 使用 mise shims，交互式 Shell 使用完整 activate，兼顾终端、IDE 和 GUI 应用
-          - 移除 nvm/fnm/pyenv/asdf 运行时管理入口，迁移时只清理 OS Init 管理块并保留用户运行时数据
-          - macOS Homebrew 软件逐项执行，日志、耗时和退出码互不影响
-          - Motrix Next 使用 cask 级 Homebrew trust 和完整 tap 引用
-          - Arch 开发环境与完整工作站通过普通模块强依赖组合，不维护重复安装器
-          - 中英双语 TUI，覆盖菜单、确认信息、执行状态和结果页
-          - GitHub 专用代理与资源下载配置
-          - Zsh、Oh My Zsh、Powerlevel10k、命令建议与语法高亮由一个模块统一管理完整生命周期
-          - Mihomo 安装与 systemd 配置
-          - 分平台安装策略：macOS 优先 Homebrew，Arch Linux 优先 pacman/paru/yay，其它 Linux 尽量使用官方二进制
-          - Docker：Arch Linux 通过 pacman/AUR 安装组件，其它 Linux 使用静态二进制和 Compose CLI 插件
-          - macOS/Linux 按 OS 自动过滤模块
-          - Homebrew、Shell 配置块、systemd 服务状态检测
-          - 安装日志自动清理 ANSI 颜色码
-          - 模块级执行超时，避免安装器永久卡住
-          - 按模块权限决定是否提前 sudo，Homebrew 模块不包 sudo
-          - Homebrew 镜像变量统一注入
-          - Arch Linux 提供基础工具、AUR、软件源、DNS、Git、Ops、字体、Mihomo/MetaCubeXD、诊断和完整 Hyprland 桌面能力
-          - 模块执行计划器：强依赖自动补齐、软关联提示、稳定执行顺序
-          - 按当前系统生成统一启动配置，Arch 能力读取 `~/.config/os-init/config.env`
-          - `arch-dev` 和 `arch-workstation` 保留开发环境及完整工作站组合能力
-          - 安装总结页显示重新登录、shell 刷新、手动配置等后续动作
-          - Go、Bash 和 ShellCheck 发布前检查
+          - \`os-init_linux_amd64.tar.gz\`
+          - \`os-init_linux_arm64.tar.gz\`
+          - \`os-init_darwin_amd64.tar.gz\`
+          - \`os-init_darwin_arm64.tar.gz\`
+          - \`checksums.txt\`
           NOTES
 
       - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            dist/*.tar.gz \
-            dist/checksums.txt \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "OS Init ${GITHUB_REF_NAME}" \
-            --notes-file release-notes.md \
-            --verify-tag
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" \
+              dist/*.tar.gz \
+              dist/checksums.txt \
+              --repo "${GITHUB_REPOSITORY}" \
+              --clobber
+            gh release edit "${RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "OS Init ${RELEASE_TAG}" \
+              --notes-file release-notes.md
+          else
+            gh release create "${RELEASE_TAG}" \
+              dist/*.tar.gz \
+              dist/checksums.txt \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --title "OS Init ${RELEASE_TAG}" \
+              --notes-file release-notes.md
+          fi

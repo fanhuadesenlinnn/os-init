@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.27.1 - 2026-07-14
+
+### Fixed
+
+- Restore the Arch provider preflight check after removing the legacy Arch runner, preventing all Arch capability executions from failing with `preflight_install: command not found`.
+- Normalize the Go control-plane `mihomo` component to the Shell provider's `proxy` module.
+- Remove the Arch status action's stale dependency on the deleted `modules_for_target` planner function.
+
+### Changed
+
+- Add executable Arch provider contract tests for entrypoint loading, Go-to-Shell component dispatch, and doctor/status actions.
+- Run validation on pull requests and main-branch pushes, and support controlled `release/v*` branches for automated tagged releases.
+
 ## v0.27.0 - 2026-07-13
 
 ### Changed

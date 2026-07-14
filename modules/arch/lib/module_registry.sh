@@ -7,6 +7,7 @@ module_key() {
   case "$1" in
     ops|ops-toolkit|ops_toolkit) echo ops_toolkit ;;
     desktop|hyprland) echo desktop_hyprland ;;
+    mihomo|proxy) echo proxy ;;
     *) echo "$1" ;;
   esac
 }
@@ -15,6 +16,7 @@ module_display_key() {
   case "$(module_key "$1")" in
     ops_toolkit) echo ops-toolkit ;;
     desktop_hyprland) echo desktop ;;
+    proxy) echo mihomo ;;
     *) module_key "$1" ;;
   esac
 }
