@@ -42,6 +42,12 @@ Automation policies exported by `module list --format json` mean:
 | Arch Linux | AMD64 | Native binary, Arch-family and Arch provider contracts |
 | Manjaro | AMD64 | Native binary and Arch-family contracts |
 
+OrbStack Arch Linux ARM64 is additionally checked in a disposable local VM
+when platform boundaries, pacman routing, mirrors, DNS handling, or the mise
+installation strategy change. The check must confirm `environment=orbstack`,
+hide host-managed DNS/kernel/desktop modules, and preserve the OrbStack-owned
+`/etc/resolv.conf` target.
+
 The release build is blocked until all required jobs pass. Release packages are
 also built for Linux and macOS on AMD64 and ARM64.
 
@@ -82,6 +88,8 @@ corresponding module:
   real systemd PID 1;
 - Hyprland, SDDM, GPU, virtual-machine and input-method behavior in a graphical
   Arch/Manjaro session;
+- package downloads, Docker service behavior and host integration in an
+  OrbStack Arch Linux ARM64 machine;
 - launching and completing first-run setup for macOS GUI applications;
 - destructive purge options against prepared user data snapshots.
 

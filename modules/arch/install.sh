@@ -66,6 +66,7 @@ provider_main() {
 
   load_user_config_file
   restore_config_environment
+  normalize_archlinuxarm_package_defaults
   validate_config
 
   case "${component}" in

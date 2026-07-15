@@ -105,6 +105,7 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_SCRIPT_TIMEOUT
 	DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY OS_INIT_ALLOW_UNVERIFIED_PROXY
+	PACMAN_RETRY_ATTEMPTS ARCHLINUXARM_MIRRORS
 	HOMEBREW_INSTALL_URL HOMEBREW_INSTALL_SHA256 HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
 	DIRENV_PACKAGE
@@ -220,11 +221,17 @@ detect_linux_environment() {
 		echo "${OS_INIT_TARGET_ENVIRONMENT}"
 		return
 	fi
-	if [[ "$OS" == "linux" ]] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null; then
+	if [[ "$OS" == "linux" ]] && grep -qi 'orbstack' /proc/sys/kernel/osrelease 2>/dev/null; then
+		echo "orbstack"
+	elif [[ "$OS" == "linux" ]] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null; then
 		echo "wsl"
 	else
 		echo "native"
 	fi
+}
+
+is_orbstack() {
+	[[ "${LINUX_ENVIRONMENT:-$(detect_linux_environment)}" == "orbstack" ]]
 }
 
 detect_wsl_version() {

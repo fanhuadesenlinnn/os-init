@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.1.1 - 2026-07-16
+
+### Added
+
+- Detect OrbStack Linux machines as a distinct environment and provide an OrbStack Arch development preset that preserves host-managed DNS and kernel behavior.
+- Prioritize official Taiwan Arch Linux ARM mirrors for mainland-China ARM installations while preserving the original GeoIP mirror as a fallback.
+
+### Changed
+
+- Retry transient pacman downloads while reusing the package cache, and perform a full Arch upgrade before shared package resolution to avoid partial upgrades.
+- Update and populate official Arch/Arch Linux ARM keyrings before installing the archlinuxcn keyring.
+- Use Chromium instead of the unavailable Google Chrome package by default on Arch Linux ARM desktops.
+
+### Fixed
+
+- Fall back to the official ARM64 user binary when the current Arch repository does not provide mise.
+- Stop dependent TUI modules after an upstream failure instead of producing cascading mise runtime errors.
+- Do not append the same ANSI-formatted provider failure twice to module logs.
+- Distinguish command failures from missing sudo authorization in package-manager diagnostics.
+- Refuse to continue archlinuxcn setup when its signing keyring was not installed successfully.
+
 ## v1.1.0 - 2026-07-15
 
 ### Added

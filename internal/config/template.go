@@ -259,6 +259,8 @@ func archConfigSection() configSection {
 		TitleZ: "Arch Linux 能力",
 		TitleE: "Arch Linux Capabilities",
 		Entries: []configEntry{
+			{Key: "PACMAN_RETRY_ATTEMPTS", Value: "3", CommentZ: "Arch pacman 网络失败重试次数。", CommentE: "Retry count for Arch pacman network failures."},
+			{Key: "ARCHLINUXARM_MIRRORS", Value: "'http://tw.mirror.archlinuxarm.org/$arch/$repo,http://tw2.mirror.archlinuxarm.org/$arch/$repo'", CommentZ: "Arch Linux ARM 区域优先镜像，逗号分隔；保留原镜像作为回退。", CommentE: "Preferred Arch Linux ARM mirrors, comma-separated; existing mirrors remain as fallbacks."},
 			{Key: "ENABLE_DNS", Value: "1", CommentZ: "是否启用 Arch DNS 能力。", CommentE: "Enable the Arch DNS capability."},
 			{Key: "ENABLE_OPS_TOOLKIT", Value: "1", CommentZ: "是否启用 Ops Toolkit。", CommentE: "Enable Ops Toolkit."},
 			{Key: "GPU_TYPE", Value: "auto", CommentZ: "GPU 类型：auto、intel、amd、nvidia、vmware、virtio、qxl、virtualbox、none。", CommentE: "GPU type: auto, intel, amd, nvidia, vmware, virtio, qxl, virtualbox, or none."},
@@ -336,6 +338,9 @@ func targetSummary(target platform.Target) string {
 	goos := configGOOS(target)
 	if target.Environment == platform.EnvironmentWSL {
 		return fmt.Sprintf("%s/%s/wsl%d", goos, target.Family, target.WSLVersion)
+	}
+	if target.Environment == platform.EnvironmentOrbStack {
+		return fmt.Sprintf("%s/%s/orbstack", goos, target.Family)
 	}
 	if target.Family != "" && target.Family != platform.FamilyUnknown {
 		return fmt.Sprintf("%s/%s", goos, target.Family)

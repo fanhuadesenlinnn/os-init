@@ -177,6 +177,25 @@ func TestDetectFromPaths_DistinguishesWSL1(t *testing.T) {
 	}
 }
 
+func TestDetectFromPaths_DetectsOrbStack(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	osRelease := dir + "/os-release"
+	kernelRelease := dir + "/kernel-release"
+	if err := os.WriteFile(osRelease, []byte("ID=archarm\nID_LIKE=arch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kernelRelease, []byte("7.0.11-orbstack-00360\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := platform.DetectFromPaths("linux", osRelease, kernelRelease, dir+"/missing-wslg")
+	if target.Environment != platform.EnvironmentOrbStack || target.Family != platform.FamilyArch {
+		t.Fatalf("unexpected OrbStack target: %#v", target)
+	}
+}
+
 func TestParseOSRelease_QuotedValuesAndIDLike(t *testing.T) {
 	t.Parallel()
 

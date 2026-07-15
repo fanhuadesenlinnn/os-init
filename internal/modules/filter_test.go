@@ -102,6 +102,23 @@ func TestForTarget_AppliesWSLCapabilityBoundaries(t *testing.T) {
 	}
 }
 
+func TestForTarget_AppliesOrbStackCapabilityBoundaries(t *testing.T) {
+	t.Parallel()
+
+	target := platform.Target{GOOS: "linux", ID: "archarm", Family: platform.FamilyArch, Init: "systemd", Environment: platform.EnvironmentOrbStack}
+	mods := ForTarget(target)
+	for _, id := range []string{"arch-dns", "arch-desktop", "network-tune", "kernel-autotune", "kernel-optimize"} {
+		if hasModule(mods, id) {
+			t.Fatalf("%s should be hidden in OrbStack", id)
+		}
+	}
+	for _, id := range []string{"arch-base", "mise", "mise-go", "mise-python", "mise-node", "docker", "orbstack-arch-dev"} {
+		if !hasModule(mods, id) {
+			t.Fatalf("%s should remain available in OrbStack", id)
+		}
+	}
+}
+
 func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	t.Parallel()
 

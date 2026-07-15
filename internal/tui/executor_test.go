@@ -80,3 +80,27 @@ func TestScriptTimeoutFromEnv(t *testing.T) {
 		t.Fatalf("duration timeout = %s, want 2m", got)
 	}
 }
+
+func TestExecutorSkipsModuleAfterDependencyFailure(t *testing.T) {
+	m := newExecutorModel([]modules.Module{
+		{ID: "mise", Label: "mise"},
+		{ID: "mise-go", Label: "Go", DependsOn: []string{"mise"}},
+	}, t.TempDir(), modules.OperationInstall, nil, "", context.Background(), nil)
+	m.current = 1
+	m.failedModules["mise"] = true
+
+	msg, ok := m.runCurrent()().(scriptDoneMsg)
+	if !ok || msg.result.ExitCode != 125 || !strings.Contains(msg.result.Output, "mise") {
+		t.Fatalf("dependency skip result = %#v", msg)
+	}
+}
+
+func TestOutputEndsWithNoteIgnoresANSI(t *testing.T) {
+	output := "error\n\x1b[31mfinal failure\x1b[0m\n"
+	if !outputEndsWithNote(output, "\x1b[31mfinal failure\x1b[0m") {
+		t.Fatal("ANSI-formatted provider error should not be appended to the log twice")
+	}
+	if outputEndsWithNote(output, "different failure") {
+		t.Fatal("different execution error should still be appended")
+	}
+}

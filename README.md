@@ -15,10 +15,13 @@
 | Debian / Ubuntu | 系统优化、Shell、终端工具、Docker、Mihomo、开发工具 |
 | Fedora / Rocky Linux / RHEL | 系统优化、Shell、终端工具、Docker、Mihomo、开发工具 |
 | WSL1 / WSL2 | 复用发行版包管理器；WSL2 可启用 systemd 和发行版内原生 Docker Engine，不接管 Windows Docker Desktop |
+| OrbStack Arch Linux ARM | 识别 OrbStack 托管边界；提供 ARM 开发环境，不接管宿主机 DNS、内核或图形桌面 |
 
 WSL 会作为 Linux 发行版的运行环境识别：Ubuntu WSL 继续使用 Debian 系逻辑，Arch WSL 继续使用 pacman。WSL 中不会显示内核调优、物理网卡优化、DNS 接管、Mihomo 服务、Hyprland/SDDM 等不合适的能力。`WSL 开发环境`只组合 Shell、tmux、Git、终端工具、mise 运行时和 Neovim。
 
 WSL2 尚未启用 systemd 时，先安装 `WSL systemd`，然后从 PowerShell 执行 `wsl.exe --shutdown`。重新进入发行版后可以安装 `Docker（WSL 原生 Engine）`；Docker daemon、containerd、Compose、配置和数据全部由当前 WSL Linux 发行版管理。必须关闭 Docker Desktop 对当前发行版的 WSL Integration，OS Init 检测到该集成时会拒绝安装，避免连接到错误的 Docker daemon。
+
+OrbStack Linux 机器会独立识别为 `environment=orbstack`。`OrbStack Arch 开发环境`组合 Arch 基础、archlinuxcn/AUR、Git、mise 用户运行时、Neovim、Docker、字体和 Zsh；不会启用被 OrbStack 屏蔽的 `systemd-resolved`，也不会替换指向 `/opt/orbstack-guest/etc/resolv.conf` 的 DNS 配置。Arch Linux ARM 在中国大陆区域会把台湾官方 ARM 镜像放在原有 GeoIP 镜像之前，并在下载波动时复用 pacman 缓存重试。
 
 ## 快速开始
 
@@ -162,7 +165,7 @@ OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装�
 
 选择 mise Go 或 Python 时会自动补齐原生编译器、头文件以及 OpenSSL、zlib、libffi 等系统开发库；这些只属于构建基础设施，不提供系统级 Go/Python。
 
-所有系统共享同一组 `mise`、`mise-go`、`mise-python`、`mise-node` 能力。macOS 使用 Homebrew 安装 mise 本体，Arch 使用 pacman，其他 Linux 使用用户目录二进制；普通用户写入自己的 HOME，root 模式写入 `/root`。
+所有系统共享同一组 `mise`、`mise-go`、`mise-python`、`mise-node` 能力。macOS 使用 Homebrew 安装 mise 本体；Arch 在当前架构仓库提供 mise 时使用 pacman，否则自动回退到官方用户目录二进制；其他 Linux 使用用户目录二进制。普通用户写入自己的 HOME，root 模式写入 `/root`。
 
 ### Arch Linux 能力与组合
 
@@ -177,6 +180,7 @@ Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，
 | Arch Hyprland 桌面 | Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 与虚拟机适配 |
 | Arch 开发环境 | Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Arch Mihomo |
 | Arch 完整工作站 | Arch 开发环境 + Arch Hyprland 桌面 |
+| OrbStack Arch 开发环境 | ARM 基础、可靠软件源、mise、Neovim、Docker、字体与 Zsh；保留 OrbStack 管理的 DNS 和内核 |
 | Arch 状态详情 / 系统诊断 | 状态、配置指纹、网络、systemd、桌面与修复建议 |
 
 Arch Hyprland 桌面默认安装 Fcitx5 + Rime，安全合并公共配置并保留用户词库、同步状态和私人短语；配置更新后会尝试通知当前 Fcitx5 会话重新部署。Linux 默认使用 Ctrl+Space 切换输入法，不自动安装全局键盘拦截器来接管单击 Shift。
@@ -217,6 +221,10 @@ OS_INIT_SCRIPT_TIMEOUT=45m
 
 # 关闭启动时的配置提示
 OS_INIT_CONFIG_PROMPT=0
+
+# Arch pacman 网络失败重试；Arch Linux ARM 区域镜像用逗号分隔
+PACMAN_RETRY_ATTEMPTS=3
+ARCHLINUXARM_MIRRORS='http://tw.mirror.archlinuxarm.org/$arch/$repo,http://tw2.mirror.archlinuxarm.org/$arch/$repo'
 ```
 
 配置文件中还可以调整 Homebrew 镜像、运行时版本与镜像、Docker、Mihomo，以及各类下载地址。当前环境变量的优先级高于配置文件。

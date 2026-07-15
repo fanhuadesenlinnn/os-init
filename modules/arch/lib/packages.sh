@@ -4,14 +4,83 @@
 pacman_update() {
   require_arch
   log_info "刷新并更新系统软件包"
-  run_sudo pacman -Syu --noconfirm
+  pacman_run -Syu --noconfirm
 }
 
 pacman_install() {
   require_arch
   [[ "$#" -eq 0 ]] && return 0
   log_info "安装软件包：$*"
-  run_sudo pacman -S --needed --noconfirm "$@"
+  pacman_run -S --needed --noconfirm "$@"
+}
+
+archlinuxarm_detected() {
+  [[ "${OS_INIT_TARGET_ID:-}" == "archarm" ]] && return 0
+  case "$(uname -m)" in
+    aarch64|arm64|armv7l|armv6l) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+prepare_archlinuxarm_mirrors() {
+  local mirror_file="${ARCHLINUXARM_MIRRORLIST_FILE:-/etc/pacman.d/mirrorlist}"
+  local configured="${ARCHLINUXARM_MIRRORS:-http://tw.mirror.archlinuxarm.org/\$arch/\$repo,http://tw2.mirror.archlinuxarm.org/\$arch/\$repo}"
+  local tmp_file clean_file mirror
+
+  [[ "${ARCHLINUXARM_MIRRORS_PREPARED:-0}" -eq 0 ]] || return 0
+  archlinuxarm_detected || return 0
+  [[ "${OS_INIT_REGION:-cn}" == "cn" ]] || return 0
+  [[ -f "${mirror_file}" ]] || return 0
+
+  tmp_file="$(mktemp)"
+  clean_file="$(mktemp)"
+  awk '
+    $0 == "# >>> OS Init: Arch Linux ARM mirrors >>>" { skip=1; next }
+    $0 == "# <<< OS Init: Arch Linux ARM mirrors <<<" { skip=0; next }
+    !skip { print }
+  ' "${mirror_file}" > "${clean_file}"
+  {
+    echo '# >>> OS Init: Arch Linux ARM mirrors >>>'
+    configured="${configured//,/ }"
+    for mirror in ${configured}; do
+      [[ -n "${mirror}" ]] && printf 'Server = %s\n' "${mirror}"
+    done
+    echo '# <<< OS Init: Arch Linux ARM mirrors <<<'
+    cat "${clean_file}"
+  } > "${tmp_file}"
+  log_info "配置 Arch Linux ARM 区域镜像回退"
+  if ! run_sudo install -m 0644 "${tmp_file}" "${mirror_file}"; then
+    rm -f "${tmp_file}" "${clean_file}"
+    return 1
+  fi
+  rm -f "${tmp_file}" "${clean_file}"
+  ARCHLINUXARM_MIRRORS_PREPARED=1
+}
+
+pacman_run() {
+  local attempt=1 max="${PACMAN_RETRY_ATTEMPTS:-3}"
+  prepare_archlinuxarm_mirrors || return 1
+  [[ "${max}" =~ ^[1-9][0-9]*$ ]] || max=3
+  while (( attempt <= max )); do
+    if run_sudo pacman "$@"; then
+      return 0
+    fi
+    if (( attempt < max )); then
+      log_warn "pacman 第 ${attempt} 次执行失败，将复用缓存重试"
+    fi
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
+normalize_archlinuxarm_package_defaults() {
+  archlinuxarm_detected || return 0
+  if [[ "${BROWSER_PACKAGE:-google-chrome}" == "google-chrome" ]]; then
+    BROWSER_PACKAGE="chromium"
+  fi
+  if [[ "${BROWSER_APP:-google-chrome-stable}" == "google-chrome-stable" ]]; then
+    BROWSER_APP="chromium"
+  fi
 }
 
 dedupe_list() {
@@ -68,7 +137,7 @@ ensure_command_package() {
   fi
 
   log_info "安装命令依赖：${command_name}（${package}）"
-  pacman_install "${package}"
+  install_package_or_aur "${package}"
 }
 
 ensure_git_command() {
@@ -288,7 +357,8 @@ install_packages_or_aur() {
   fi
 
   if [[ "${#pacman_packages[@]}" -gt 0 ]]; then
-    pacman_install "${pacman_packages[@]}"
+    pacman_install "${pacman_packages[@]}" || \
+      die "pacman 软件包安装失败：${pacman_packages[*]}"
   fi
 
   if [[ "${#missing_packages[@]}" -gt 0 ]]; then
@@ -322,13 +392,13 @@ install_package_from_pacman_prefer_archlinuxcn() {
   fi
 
   if pacman_package_available "${package}"; then
-    pacman_install "${package}"
+    pacman_install "${package}" || return 1
     return 0
   fi
 
   if ensure_archlinuxcn_for_package "${package}"; then
     log_info "archlinuxcn 源已提供软件包：${package}"
-    pacman_install "${package}"
+    pacman_install "${package}" || return 1
     return 0
   fi
 

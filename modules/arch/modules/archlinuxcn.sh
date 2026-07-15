@@ -103,7 +103,7 @@ select_working_archlinuxcn_server() {
     [[ "${server}" == "${ARCHLINUXCN_SKIP_SERVER:-}" ]] && continue
     log_info "测试 archlinuxcn 镜像：${server}"
     rewrite_archlinuxcn_repo "${server}"
-    if run_sudo pacman -Sy --noconfirm; then
+    if pacman_run -Sy --noconfirm; then
       ARCHLINUXCN_ACTIVE_SERVER="${server}"
       return 0
     fi
@@ -135,21 +135,35 @@ install_archlinuxcn() {
 
   select_working_archlinuxcn_server
 
+  log_info "更新官方 keyring，建立 archlinuxcn 签名信任基础"
+  if archlinuxarm_detected; then
+    pacman_run -Syu --needed --noconfirm archlinux-keyring archlinuxarm-keyring || \
+      die "官方 Arch/Arch Linux ARM keyring 更新失败"
+    run_sudo pacman-key --populate archlinux archlinuxarm || \
+      die "Arch/Arch Linux ARM keyring 初始化失败"
+  else
+    pacman_run -Syu --needed --noconfirm archlinux-keyring || \
+      die "官方 Arch keyring 更新失败"
+    run_sudo pacman-key --populate archlinux || \
+      die "Arch keyring 初始化失败"
+  fi
+
   log_info "安装 archlinuxcn-keyring"
-  run_sudo pacman -S --needed --noconfirm archlinuxcn-keyring
+  pacman_run -S --needed --noconfirm archlinuxcn-keyring || \
+    die "archlinuxcn-keyring 安装失败；不会继续安装未建立信任的软件包"
 
   if [[ "${INSTALL_ARCHLINUXCN_MIRRORLIST:-0}" -eq 1 ]]; then
     log_info "安装 archlinuxcn-mirrorlist-git"
-    run_sudo pacman -S --needed --noconfirm archlinuxcn-mirrorlist-git || \
+    pacman_run -S --needed --noconfirm archlinuxcn-mirrorlist-git || \
       log_warn "archlinuxcn-mirrorlist-git 安装失败，继续使用已验证的 Server"
   fi
 
-  if ! run_sudo pacman -Syu --noconfirm; then
+  if ! pacman_run -Syu --noconfirm; then
     log_warn "完整同步失败，重新选择 archlinuxcn 镜像后重试"
     ARCHLINUXCN_SKIP_SERVER="${ARCHLINUXCN_ACTIVE_SERVER}"
     select_working_archlinuxcn_server
     unset ARCHLINUXCN_SKIP_SERVER
-    run_sudo pacman -Syu --noconfirm
+    pacman_run -Syu --noconfirm || die "archlinuxcn 完整系统同步失败"
   fi
 
   mark_done "archlinuxcn"

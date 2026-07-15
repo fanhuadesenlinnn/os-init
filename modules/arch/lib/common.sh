@@ -18,6 +18,11 @@ require_arch() {
 }
 require_normal_user() { [[ "${EUID}" -ne 0 ]] || die "请使用普通用户执行脚本，不要直接使用 root 或 sudo 执行"; }
 
+is_orbstack_environment() {
+  [[ "${OS_INIT_TARGET_ENVIRONMENT:-}" == "orbstack" ]] && return 0
+  grep -qi 'orbstack' /proc/sys/kernel/osrelease 2>/dev/null
+}
+
 bool_text() {
   case "${1:-0}" in
     1|true|yes|on) printf "启用" ;;

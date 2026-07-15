@@ -19,7 +19,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "1.1.0"
+	version = "1.1.1"
 	commit  = "none"
 )
 
@@ -100,7 +100,7 @@ func usageText() string {
 选项:
   -h, --help          显示帮助
   -v, --version       显示版本和提交信息
-      --system-info   显示系统、发行版家族、WSL 环境和 init 检测结果
+      --system-info   显示系统、发行版家族、虚拟环境和 init 检测结果
 
 非交互命令:
   os-init module help
@@ -142,7 +142,7 @@ after confirmation.
 Options:
   -h, --help          Show help
   -v, --version       Show version and commit information
-      --system-info   Show detected OS, distribution family, WSL environment, and init system
+      --system-info   Show detected OS, distribution family, virtual environment, and init system
 
 Non-interactive:
   os-init module help

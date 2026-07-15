@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test doubles override functions loaded dynamically from split library files.
 # ShellCheck renamed this indirect-test-double diagnostic across supported releases.
-# shellcheck disable=SC2034,SC2317,SC2329
+# shellcheck disable=SC2016,SC2034,SC2317,SC2329
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -131,9 +131,39 @@ test_arch_repository_lookup_syncs_database_first() (
 
     arch_package_available ncdu
     arch_package_available tmux
-    assert_call "sudo:pacman -Sy --noconfirm"
-    [[ "${calls[0]}" == "sudo:pacman -Sy --noconfirm" ]] || fail "Arch lookup queried before database sync"
-    [[ "$(printf '%s\n' "${calls[@]}" | grep -Fc 'sudo:pacman -Sy --noconfirm')" == 1 ]] || fail "Arch database synced more than once"
+    assert_call "sudo:pacman -Syu --noconfirm"
+    [[ "${calls[0]}" == "sudo:pacman -Syu --noconfirm" ]] || fail "Arch lookup queried before database sync"
+    [[ "$(printf '%s\n' "${calls[@]}" | grep -Fc 'sudo:pacman -Syu --noconfirm')" == 1 ]] || fail "Arch database synced more than once"
+)
+
+test_arch_pacman_retries_and_prioritizes_arm_mirrors() (
+    OS=linux
+    OS_FAMILY=arch
+    OS_INIT_REGION=cn
+    PACMAN_RETRY_ATTEMPTS=3
+    _ARCHLINUXARM_MIRRORS_PREPARED=false
+    local mirror_file="$TEST_HOME/arm-mirrorlist"
+    ARCHLINUXARM_MIRRORLIST_FILE="$mirror_file"
+    ARCHLINUXARM_MIRRORS="http://tw.example/\$arch/\$repo,http://tw2.example/\$arch/\$repo"
+    local pacman_attempts=0
+
+    printf 'Server = http://original.example/%s/%s\n' '$arch' '$repo' > "$mirror_file"
+    uname() { printf 'aarch64\n'; }
+    sudo_env() {
+        if [[ "$1" == install ]]; then
+            command "$@"
+            return
+        fi
+        pacman_attempts=$((pacman_attempts + 1))
+        [[ "$pacman_attempts" -ge 3 ]]
+    }
+
+    arch_run_pacman -Sy --noconfirm
+    [[ "$pacman_attempts" -eq 3 ]] || fail "pacman retry count = $pacman_attempts, want 3"
+    [[ "$(sed -n '2p' "$mirror_file")" == "Server = http://tw.example/\$arch/\$repo" ]] || \
+        fail "Arch Linux ARM preferred mirror was not placed first"
+    grep -Fq "Server = http://original.example/\$arch/\$repo" "$mirror_file" || \
+        fail "original Arch Linux ARM mirror was not preserved"
 )
 
 test_arch_helper_bootstrap_prefers_paru_and_adds_yay() (
@@ -298,6 +328,7 @@ test_pkg_install_uses_arch_strategy
 test_redhat_install_retries_with_epel
 test_arch_packages_split_between_pacman_and_aur
 test_arch_repository_lookup_syncs_database_first
+test_arch_pacman_retries_and_prioritizes_arm_mirrors
 test_arch_helper_bootstrap_prefers_paru_and_adds_yay
 test_owned_path_restores_preexisting_content
 test_unknown_owned_path_is_preserved

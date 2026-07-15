@@ -98,7 +98,8 @@ fi
 exit 1
 EOF
 chmod +x "${TEST_DIR}/bin/docker"
-run_wsl_module doctor | grep -Fq 'docker=conflict'
+doctor_output="$(run_wsl_module doctor)"
+grep -Fq 'docker=conflict' <<<"${doctor_output}"
 
 grep -Fq 'prepare_wsl_native_docker' "${ROOT_DIR}/modules/docker/install.sh"
 grep -Fq 'Docker Desktop WSL Integration' "${ROOT_DIR}/modules/docker/install.sh"

@@ -8,7 +8,7 @@ install_git_env() {
   fi
 
   log_info "开始安装 Git / GitHub CLI 环境"
-  pacman_install git github-cli openssh
+  install_packages_or_aur git github-cli openssh
 
   log_info "配置 Git 默认行为"
   run_cmd git config --global init.defaultBranch main

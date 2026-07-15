@@ -7,7 +7,7 @@ pkg_update() {
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get update -qq
     elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo_env pacman -Sy --noconfirm
+        arch_run_pacman -Syu --noconfirm
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
         if command -v dnf &>/dev/null; then
             sudo_env dnf makecache -y
@@ -101,7 +101,7 @@ pkg_remove() {
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         sudo_env apt-get remove -y "$@"
     elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo_env pacman -Rns --noconfirm "$@"
+        arch_run_pacman -Rns --noconfirm "$@"
     elif [[ "$OS_FAMILY" == "redhat" ]]; then
         if command -v dnf &>/dev/null; then
             sudo_env dnf remove -y "$@"
@@ -138,10 +138,73 @@ is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
 is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
 
 _ARCH_PACKAGE_DATABASE_SYNCED=false
+_ARCHLINUXARM_MIRRORS_PREPARED=false
+
+arch_is_arm() {
+    case "$(uname -m)" in
+        aarch64|arm64|armv7l|armv6l) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+arch_prepare_arm_mirrors() {
+    local mirror_file="${ARCHLINUXARM_MIRRORLIST_FILE:-/etc/pacman.d/mirrorlist}"
+    local configured="${ARCHLINUXARM_MIRRORS:-http://tw.mirror.archlinuxarm.org/\$arch/\$repo,http://tw2.mirror.archlinuxarm.org/\$arch/\$repo}"
+    local tmp cleaned mirror
+
+    is_arch || return 0
+    arch_is_arm || return 0
+    [[ "${OS_INIT_REGION:-cn}" == "cn" ]] || return 0
+    [[ "$_ARCHLINUXARM_MIRRORS_PREPARED" != true ]] || return 0
+    [[ -f "$mirror_file" ]] || return 0
+
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-arm-mirrors.XXXXXX")"
+    cleaned="$(mktemp "${TMPDIR:-/tmp}/os-init-arm-mirrors-clean.XXXXXX")"
+    awk '
+        $0 == "# >>> OS Init: Arch Linux ARM mirrors >>>" { skip=1; next }
+        $0 == "# <<< OS Init: Arch Linux ARM mirrors <<<" { skip=0; next }
+        !skip { print }
+    ' "$mirror_file" > "$cleaned"
+    {
+        echo '# >>> OS Init: Arch Linux ARM mirrors >>>'
+        configured="${configured//,/ }"
+        for mirror in $configured; do
+            [[ -n "$mirror" ]] && printf 'Server = %s\n' "$mirror"
+        done
+        echo '# <<< OS Init: Arch Linux ARM mirrors <<<'
+        cat "$cleaned"
+    } > "$tmp"
+    install "配置 Arch Linux ARM 区域镜像回退"
+    if ! sudo_env install -m 0644 "$tmp" "$mirror_file"; then
+        rm -f "$tmp" "$cleaned"
+        return 1
+    fi
+    rm -f "$tmp" "$cleaned"
+    _ARCHLINUXARM_MIRRORS_PREPARED=true
+}
+
+arch_run_pacman() {
+    local attempt=1 max="${PACMAN_RETRY_ATTEMPTS:-3}"
+    arch_prepare_arm_mirrors || return 1
+    [[ "$max" =~ ^[1-9][0-9]*$ ]] || max=3
+    while (( attempt <= max )); do
+        if sudo_env pacman "$@"; then
+            return 0
+        fi
+        if (( attempt < max )); then
+            warn "pacman 第 ${attempt} 次执行失败，将复用缓存重试"
+        fi
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
 arch_sync_package_database() {
     is_arch || return 0
     [[ "$_ARCH_PACKAGE_DATABASE_SYNCED" == true ]] && return 0
-    sudo_env pacman -Sy --noconfirm
+    # Arch does not support partial upgrades. Refresh metadata and upgrade the
+    # installed system together before resolving per-module packages.
+    arch_run_pacman -Syu --noconfirm || die "pacman 完整系统同步失败，停止软件包解析以避免部分升级"
     _ARCH_PACKAGE_DATABASE_SYNCED=true
 }
 
@@ -162,7 +225,7 @@ arch_pacman_install() {
     [[ "$#" -gt 0 ]] || return 0
     install "通过 pacman 安装: $*"
     arch_sync_package_database
-    sudo_env pacman -S --needed --noconfirm "$@"
+    arch_run_pacman -S --needed --noconfirm "$@"
 }
 
 arch_aur_helper_command() {
@@ -285,7 +348,8 @@ arch_install_packages_or_aur() {
     done
 
     if [[ ${#pacman_packages[@]} -gt 0 ]]; then
-        arch_pacman_install "${pacman_packages[@]}"
+        arch_pacman_install "${pacman_packages[@]}" || \
+            die "pacman 软件包安装失败: ${pacman_packages[*]}"
     fi
 
     if [[ ${#aur_packages[@]} -gt 0 ]]; then
@@ -305,8 +369,12 @@ sudo_env() {
     if [[ "$(id -u)" == "0" ]]; then
         "$@"
     else
-        if ! sudo -n -E "$@"; then
-            warn "命令执行失败或 sudo 未授权: $*"
+        if ! command sudo -n true; then
+            warn "sudo 未授权，命令未执行: $*"
+            return 1
+        fi
+        if ! command sudo -n -E "$@"; then
+            warn "命令执行失败: $*"
             return 1
         fi
     fi

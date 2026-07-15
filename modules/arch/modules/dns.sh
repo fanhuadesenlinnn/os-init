@@ -9,6 +9,11 @@ install_dns_env() {
   fi
 
   require_arch
+  if is_orbstack_environment || [[ -L /etc/resolv.conf && "$(readlink /etc/resolv.conf)" == /opt/orbstack-guest/* ]]; then
+    log_info "OrbStack 正在托管 DNS 和 /etc/resolv.conf，跳过 systemd-resolved 配置"
+    mark_done "dns"
+    return 0
+  fi
   log_info "开始配置系统 DNS：systemd-resolved + 国内公共 DNS"
   configure_systemd_resolved_dns
   configure_networkmanager_dns_backend

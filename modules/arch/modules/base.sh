@@ -78,7 +78,7 @@ install_base() {
   log_info "开始安装基础环境"
   pacman_update
 
-  pacman_install "${packages[@]}"
+  install_packages_or_aur "${packages[@]}"
   install_tmux_config
 
   mark_done "base"

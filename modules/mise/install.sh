@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install mise and a shared Node.js/Python/Go runtime set. macOS and Arch use
-# their native package managers; other supported Linux families use the
-# official portable binary in the target user's ~/.local/bin.
+# Install mise and a shared Node.js/Python/Go runtime set. macOS uses Homebrew;
+# Arch uses pacman when its current architecture repository provides mise and
+# otherwise falls back to the official portable binary in ~/.local/bin.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -37,7 +37,12 @@ mise_exec() {
 }
 
 mise_uses_native_package() {
-    is_macos || is_arch
+    if is_macos; then
+        return 0
+    fi
+    is_arch || return 1
+    pkg_is_installed mise && return 0
+    command -v pacman >/dev/null 2>&1 && pacman -Si mise >/dev/null 2>&1
 }
 
 mise_package_key() {
@@ -127,7 +132,7 @@ install_mise_package() {
             else
                 # Do not refresh only the package database here: Arch does not
                 # support partial upgrades. Use the currently synced database.
-                sudo_env pacman -S --needed --noconfirm mise
+                arch_run_pacman -Syu --needed --noconfirm mise
             fi
         else
             skip "mise 已安装"
@@ -142,7 +147,7 @@ install_mise_package() {
     else
         # mise is available in the official Arch extra repository, so root
         # mode never needs an AUR build user for this module.
-        sudo_env pacman -S --needed --noconfirm mise
+        arch_run_pacman -Syu --needed --noconfirm mise
     fi
     os_init_mark_package_ownership "$key"
 }
@@ -427,8 +432,13 @@ mise_main() {
         if want "core"; then
             remove_mise_shells
             purge_mise_data
-            if mise_uses_native_package; then
+            if is_macos; then
                 uninstall_mise_package
+            elif is_arch; then
+                # The available delivery may change after repository updates;
+                # clean only whichever OS Init-owned source actually exists.
+                uninstall_mise_package
+                uninstall_mise_binary
             else
                 uninstall_mise_binary
             fi
@@ -439,6 +449,9 @@ mise_main() {
                 install_mise_package
             else
                 require_linux
+                if is_arch; then
+                    warn "当前 Arch 架构仓库不提供 mise，改用官方用户级二进制"
+                fi
                 install_mise_binary
             fi
             remove_legacy_runtime_blocks

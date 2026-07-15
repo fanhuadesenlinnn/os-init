@@ -50,6 +50,16 @@ func archPreset(id, label, description string, dependencies []string) Preset {
 	return Preset{ID: id, Label: label, Description: description, Subsection: "Arch Linux 套餐", OS: "linux", Families: []string{"arch"}, Requires: []string{"native-linux"}, Includes: dependencies, Phase: PhaseSystem}
 }
 
+func orbStackArchPreset() Preset {
+	return Preset{
+		ID: "orbstack-arch-dev", Label: "OrbStack Arch 开发环境",
+		Description: "Arch ARM 基础、可靠软件源、mise 用户运行时、Neovim、Docker、字体与 Zsh；保留 OrbStack 托管的 DNS 和内核",
+		Subsection:  "OrbStack 套餐", OS: "linux", Families: []string{"arch"}, Requires: []string{"orbstack"},
+		Includes: []string{"arch-base", "arch-archlinuxcn", "arch-aur", "arch-git", "arch-ops-toolkit", "mise-dev-runtimes", "neovim", "docker", "arch-fonts", "shell-zsh"},
+		Phase:    PhaseSystem,
+	}
+}
+
 func archDevDependencies() []string {
 	return []string{"arch-base", "arch-aur", "arch-archlinuxcn", "arch-dns", "arch-git", "arch-ops-toolkit", "mise-dev-runtimes", "neovim", "docker", "arch-fonts", "shell-zsh", "arch-mihomo"}
 }

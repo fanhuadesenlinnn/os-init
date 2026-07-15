@@ -31,13 +31,14 @@ type executorModel struct {
 	canceling      bool
 
 	// Execution context
-	tmpDir     string
-	operation  modules.Operation
-	env        map[string]string
-	webhookURL string
-	program    *tea.Program
-	ctx        context.Context
-	recorder   state.Recorder
+	tmpDir        string
+	operation     modules.Operation
+	env           map[string]string
+	webhookURL    string
+	program       *tea.Program
+	ctx           context.Context
+	recorder      state.Recorder
+	failedModules map[string]bool
 }
 
 func newExecutorModel(
@@ -67,6 +68,7 @@ func newExecutorModel(
 		webhookURL:     webhookURL,
 		ctx:            ctx,
 		recorder:       recorder,
+		failedModules:  make(map[string]bool),
 	}
 }
 
@@ -106,6 +108,9 @@ func (m executorModel) Update(msg tea.Msg) (executorModel, tea.Cmd) {
 
 	case scriptDoneMsg:
 		mod := m.modules[m.current]
+		if msg.result.ExitCode != 0 {
+			m.failedModules[mod.ID] = true
+		}
 		m.scriptResults = append(m.scriptResults, msg.result)
 		item := msg.result
 		item.Module = moduleLabel(mod.ID, mod.Label)
@@ -197,6 +202,17 @@ func (m executorModel) runCurrent() tea.Cmd {
 	}
 
 	mod := m.modules[m.current]
+	for _, dependency := range mod.DependsOn {
+		if m.failedModules[dependency] {
+			return func() tea.Msg {
+				return scriptDoneMsg{result: runner.Result{
+					Module:   mod.ID,
+					ExitCode: 125,
+					Output:   fmt.Sprintf(text("跳过：依赖模块 %s 执行失败\n", "Skipped: dependency %s failed\n"), dependency),
+				}}
+			}
+		}
+	}
 	tmpDir := m.tmpDir
 	operation := m.operation
 	env := m.env
@@ -228,12 +244,19 @@ func (m executorModel) runCurrent() tea.Cmd {
 			},
 		})
 		result := runner.Result{Module: mod.ID, ExitCode: step.ExitCode, Output: step.Output, Duration: step.Duration, LogFile: step.LogFile}
-		if step.Error != "" {
+		if step.Error != "" && !outputEndsWithNote(result.Output, step.Error) {
 			result.Output = appendResultNote(result.Output, step.Error)
 			appendLogNote(result.LogFile, step.Error)
 		}
 		return scriptDoneMsg{result: result}
 	}
+}
+
+func outputEndsWithNote(output, note string) bool {
+	if strings.TrimSpace(output) == "" || strings.TrimSpace(note) == "" {
+		return false
+	}
+	return execution.LastOutputLine(runner.StripANSI(output)) == strings.TrimSpace(runner.StripANSI(note))
 }
 
 func scriptTimeoutFromEnv() time.Duration {

@@ -242,25 +242,25 @@ install_gpu_packages_if_needed() {
   case "${gpu}" in
     nvidia)
       log_warn "NVIDIA Wayland 可能需要额外配置 nvidia_drm.modeset=1"
-      pacman_install nvidia nvidia-utils nvidia-settings egl-wayland vulkan-icd-loader
+      install_packages_or_aur nvidia nvidia-utils nvidia-settings egl-wayland vulkan-icd-loader
       ;;
     amd)
-      pacman_install vulkan-radeon libva-mesa-driver mesa-vdpau vulkan-icd-loader
+      install_packages_or_aur vulkan-radeon libva-mesa-driver mesa-vdpau vulkan-icd-loader
       ;;
     intel)
-      pacman_install vulkan-intel intel-media-driver vulkan-icd-loader
+      install_packages_or_aur vulkan-intel intel-media-driver vulkan-icd-loader
       ;;
     vmware)
       log_warn "检测到 VMware 虚拟显卡；安装 VMware Tools、交互插件依赖、Mesa 检测工具和软件渲染兜底"
-      pacman_install open-vm-tools gtkmm3 libxtst vulkan-swrast mesa-utils
+      install_packages_or_aur open-vm-tools gtkmm3 libxtst vulkan-swrast mesa-utils
       ;;
     virtio|qxl)
       log_warn "检测到虚拟显卡 ${gpu}；安装 QEMU/SPICE guest agent、Mesa 检测工具和软件渲染兜底"
-      pacman_install qemu-guest-agent spice-vdagent vulkan-swrast mesa-utils
+      install_packages_or_aur qemu-guest-agent spice-vdagent vulkan-swrast mesa-utils
       ;;
     virtualbox)
       log_warn "检测到 VirtualBox 虚拟显卡；安装 VirtualBox guest utils、Mesa 检测工具和软件渲染兜底"
-      pacman_install virtualbox-guest-utils vulkan-swrast mesa-utils
+      install_packages_or_aur virtualbox-guest-utils vulkan-swrast mesa-utils
       ;;
     none)
       log_warn "未检测到明确 GPU 类型，跳过专用驱动包"

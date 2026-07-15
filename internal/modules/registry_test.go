@@ -487,7 +487,7 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 		`mise activate zsh --shims`,
 		`mise activate zsh`,
 		`mise activate bash --shims`,
-		`sudo_env pacman -S --needed --noconfirm mise`,
+		`arch_run_pacman -Syu --needed --noconfirm mise`,
 		`https://registry.npmmirror.com`,
 		`https://pypi.tuna.tsinghua.edu.cn/simple`,
 		`https://goproxy.cn,direct`,

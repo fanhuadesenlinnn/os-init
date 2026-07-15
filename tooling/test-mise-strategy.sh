@@ -92,4 +92,14 @@ OS_INIT_TARGET_HOME=/home/alice
 [[ "$(real_user)" == "alice" && "$(real_home)" == "/home/alice" ]] || \
     fail "normal target-user context was not preserved"
 
+OS=linux
+OS_FAMILY=arch
+pkg_is_installed() { return 1; }
+pacman() { return 1; }
+if mise_uses_native_package; then
+    fail "Arch must use the portable mise binary when the architecture repository lacks the package"
+fi
+pacman() { [[ "$1 $2" == "-Si mise" ]]; }
+mise_uses_native_package || fail "Arch should prefer pacman when mise is available"
+
 printf 'mise runtime, mirror fallback, and target-home checks passed\n'

@@ -21,8 +21,9 @@ const (
 )
 
 const (
-	EnvironmentNative Environment = "native"
-	EnvironmentWSL    Environment = "wsl"
+	EnvironmentNative   Environment = "native"
+	EnvironmentWSL      Environment = "wsl"
+	EnvironmentOrbStack Environment = "orbstack"
 )
 
 type Target struct {
@@ -95,6 +96,9 @@ func detectLinuxEnvironment(kernelReleasePath string) (Environment, int) {
 		return EnvironmentNative, 0
 	}
 	release := strings.ToLower(string(data))
+	if strings.Contains(release, "orbstack") {
+		return EnvironmentOrbStack, 0
+	}
 	if !strings.Contains(release, "microsoft") && !strings.Contains(release, "wsl") {
 		return EnvironmentNative, 0
 	}

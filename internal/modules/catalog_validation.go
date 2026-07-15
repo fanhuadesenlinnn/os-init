@@ -8,7 +8,7 @@ func ValidateCatalog(entries []Module) []error {
 	var issues []error
 	allowedRequirements := map[string]bool{
 		"linux": true, "systemd": true, "native-linux": true,
-		"native-or-wsl2": true, "wsl": true, "wsl2": true, "wslg": true,
+		"native-or-wsl2": true, "wsl": true, "wsl2": true, "wslg": true, "orbstack": true,
 	}
 	byID := make(map[string]Module, len(entries))
 	for _, entry := range entries {

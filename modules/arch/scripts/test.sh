@@ -45,6 +45,10 @@ fi
 
 grep -Fq 'install_package_from_pacman_prefer_archlinuxcn paru' "${ARCH_DIR}/lib/packages.sh"
 grep -Fq 'install_package_from_pacman_prefer_archlinuxcn yay' "${ARCH_DIR}/lib/packages.sh"
+grep -Fq 'PACMAN_RETRY_ATTEMPTS' "${ARCH_DIR}/lib/packages.sh"
+grep -Fq '# >>> OS Init: Arch Linux ARM mirrors >>>' "${ARCH_DIR}/lib/packages.sh"
+grep -Fq 'archlinuxarm-keyring' "${ARCH_DIR}/modules/archlinuxcn.sh"
+grep -Fq '不会继续安装未建立信任的软件包' "${ARCH_DIR}/modules/archlinuxcn.sh"
 grep -Fq "https://repo.archlinuxcn.org/\\\$arch" "${ARCH_DIR}/modules/archlinuxcn.sh"
 grep -Fq '# >>> OS Init Arch: archlinuxcn >>>' "${ARCH_DIR}/modules/archlinuxcn.sh"
 if grep -Eq 'SigLevel[[:space:]]*=[[:space:]]*Optional[[:space:]]+(TrustAll|TrustedOnly)' \
@@ -116,6 +120,7 @@ EOF
     fi
     "$@"
   }
+  pacman_run() { run_sudo pacman "$@"; }
   log_info() { :; }
   log_warn() { :; }
   select_working_archlinuxcn_server

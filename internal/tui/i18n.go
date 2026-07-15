@@ -66,6 +66,8 @@ func moduleSection(label string) string {
 		return "WSL Actions"
 	case "WSL 套餐":
 		return "WSL Presets"
+	case "OrbStack 套餐":
+		return "OrbStack Presets"
 	default:
 		return label
 	}
@@ -215,6 +217,7 @@ var moduleLabelEN = map[string]string{
 	"arch-status":           "Arch detailed status",
 	"arch-dev":              "Arch development environment",
 	"arch-workstation":      "Arch complete workstation",
+	"orbstack-arch-dev":     "OrbStack Arch development environment",
 	"wsl-systemd":           "WSL systemd",
 	"wsl-doctor":            "WSL environment diagnostics",
 	"wsl-dev":               "WSL development environment",
@@ -331,5 +334,6 @@ var moduleDescriptionEN = map[string]string{
 	"arch-status":                         "Show detailed Arch capability status and suggestions",
 	"arch-dev":                            "Arch base + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + fonts + Zsh + Arch Mihomo",
 	"arch-workstation":                    "Arch development environment + Arch Hyprland desktop",
+	"orbstack-arch-dev":                   "Arch ARM base, reliable repositories, mise runtimes, Neovim, Docker, fonts, and Zsh while preserving OrbStack-managed DNS and kernel settings",
 	"neovim":                              "Terminal editor, macOS GUI client, and personal configuration",
 }

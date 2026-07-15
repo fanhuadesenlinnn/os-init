@@ -101,6 +101,7 @@ func AllModules() []Module {
 		actionModule(archLinuxAction("arch-status", "status", "Arch 状态详情", "显示 Arch 通用能力的详细状态与建议")),
 		presetModule(archPreset("arch-dev", "Arch 开发环境", "Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Arch Mihomo", archDevDependencies())),
 		presetModule(archPreset("arch-workstation", "Arch 完整工作站", "Arch 开发环境 + Arch Hyprland 桌面", []string{"arch-dev", "arch-desktop"})),
+		presetModule(orbStackArchPreset()),
 		wslSystemdModule(),
 		actionModule(wslDoctorAction()),
 		presetModule(wslDevelopmentPreset()),
@@ -318,7 +319,7 @@ func moduleMatchesTarget(m Module, target platform.Target) bool {
 				return false
 			}
 		case "native-linux":
-			if goos != "linux" || target.Environment == platform.EnvironmentWSL {
+			if goos != "linux" || (target.Environment != "" && target.Environment != platform.EnvironmentNative) {
 				return false
 			}
 		case "native-or-wsl2":
@@ -335,6 +336,10 @@ func moduleMatchesTarget(m Module, target platform.Target) bool {
 			}
 		case "wslg":
 			if target.Environment != platform.EnvironmentWSL || !target.WSLg {
+				return false
+			}
+		case "orbstack":
+			if target.Environment != platform.EnvironmentOrbStack {
 				return false
 			}
 		}

@@ -12,6 +12,8 @@ OS_INIT_ARCH_STATE_DIR="${HOME}/.local/state/os-init/arch"
 OS_INIT_ARCH_LOAD_CONFIG_FILE="${OS_INIT_ARCH_LOAD_CONFIG_FILE:-1}"
 OS_INIT_ARCH_CONFIG_FILE="${OS_INIT_ARCH_CONFIG_FILE:-${HOME}/.config/os-init/config.env}"
 OS_INIT_ARCH_JSON_SCHEMA_VERSION="${OS_INIT_ARCH_JSON_SCHEMA_VERSION:-1}"
+PACMAN_RETRY_ATTEMPTS="${PACMAN_RETRY_ATTEMPTS:-3}"
+ARCHLINUXARM_MIRRORS="${ARCHLINUXARM_MIRRORS:-http://tw.mirror.archlinuxarm.org/\$arch/\$repo,http://tw2.mirror.archlinuxarm.org/\$arch/\$repo}"
 
 # =========================
 # 中国大陆网络默认配置
