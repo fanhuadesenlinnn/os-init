@@ -2,6 +2,15 @@
 
 本文档说明 os-init 各模块会修改哪些系统配置、用户配置和运行时参数。当前项目会按 OS 自动过滤模块：Linux 目标发行版为 Arch 系、Debian 系、RedHat 系；macOS 只显示适配 Homebrew 或通用二进制安装的 Shell、终端和开发工具模块。SSH 加固模块已移除。
 
+## WSL 环境
+
+- 控制面在保留 Debian、RedHat 或 Arch 家族判断的同时识别 WSL1、WSL2 和 WSLg，并把结果传给所有 Shell provider。
+- WSL 中隐藏内核 sysctl、limits、I/O 调度、自动调优、IPv4 强制、网卡队列/MSS、Arch DNS、Mihomo、Hyprland/SDDM 和原生 Arch 套餐，避免修改由 WSL/Windows 管理的共享内核、虚拟网络、DNS和显示环境。
+- `WSL systemd` 只在 WSL2 显示；首次接管前备份 `/etc/wsl.conf`，只把 `[boot]` 中的 `systemd` 合并为带 OS Init 标志的 `systemd=true`，卸载时恢复接管前文件。生效需要在 PowerShell 执行 `wsl.exe --shutdown`。
+- `Docker（WSL 原生 Engine）`只在 WSL2 且 systemd 已运行时显示。Docker、containerd、Compose、systemd unit、`/etc/docker` 和 `/var/lib/docker` 全部属于当前 Linux 发行版；检测到 Docker Desktop WSL Integration 时拒绝安装。
+- `WSL 开发环境`组合 Shell、Git、tmux、ncdu、Yazi、mise 管理的 Go/Python/Node 和 Neovim，不包含内核、DNS、桌面或代理服务。
+- `WSL 环境诊断`报告 WSL 版本、init、WSLg、Docker Desktop 冲突，以及当前项目是否位于性能和权限行为不同的 `/mnt/<drive>` Windows 挂载目录。
+
 ## 执行、权限和超时
 
 - Go 控制面统一负责平台过滤、依赖展开、生命周期校验、执行顺序、日志和汇总；Shell 模块统一通过 provider 协议接收 script、operation 和 component。
@@ -117,7 +126,7 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 
 - `Arch 基础环境`：通过 pacman 安装基础、排障和现代 CLI 工具，并写入 tmux 配置。
 - `AUR Helper`：root 和普通用户均优先从 archlinuxcn 用 pacman 安装 paru/yay；仅普通用户可回退到 makepkg。
-- `archlinuxcn`：备份和修改 `/etc/pacman.conf`，安装 keyring 和可选 mirrorlist。
+- `archlinuxcn`：备份和修改 `/etc/pacman.conf`，清理旧版仓库级 `SigLevel`，安装 keyring 和可选 mirrorlist；镜像同步失败时自动尝试 USTC、TUNA 和官方服务器。
 - `Arch 系统 DNS`：写入 `/etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf` 和 NetworkManager drop-in，可链接 `/etc/resolv.conf`。
 - `Arch Git / GitHub CLI`：安装 git、gh、OpenSSH，并写入目标用户 Git 配置。
 - `Ops Toolkit`：克隆到 `~/.local/share/ops-toolkit` 并在 `~/.local/bin` 创建命令入口。
@@ -165,10 +174,14 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 
 ### mise 运行时管理
 
-- mise 是 macOS 和 Arch Linux 唯一的 Node.js、Python、Go 版本管理器，不再提供 nvm、fnm、pyenv 或 asdf 安装入口。
-- macOS 与 Arch Linux 复用 `modules/mise/install.sh`；Arch 通过官方 pacman 仓库安装 mise。
-- Arch root 和普通用户使用同一个模块。普通用户只在 pacman 阶段提权；mise 运行时和 Shell 配置始终写入目标用户 HOME。
-- 全局版本为 Node.js 24、Python 3.13、Go 1.24，并跟随各版本系列的最新补丁版本。
+- mise 是所有支持系统唯一的 Node.js、Python、Go 开发运行时管理器，不再提供系统 Go、nvm、fnm、pyenv 或 asdf 安装入口。
+- `mise` 只管理本体、镜像和 Shell；`mise-go`、`mise-python`、`mise-node` 分别管理用户运行时，并可通过 `mise-dev-runtimes` 组合安装。
+- macOS 通过 Homebrew、Arch 通过官方 pacman 仓库安装 mise 本体；其他 Linux 安装 portable 二进制到目标用户目录。
+- 普通用户运行时写入自己的 HOME；root 模式保留完整开发环境并写入 `/root`。两者配置、缓存和运行时互不共享。
+- 全局版本为 Node.js 24、Python 3.13、Go 1.26，并跟随各版本系列的最新补丁版本。
+- 系统自带 Python 保留不动；系统层只负责编译器、头文件和基础库，不安装开发用系统 Python。
+- 首次安装新版 mise core 时，只清理由旧版 OS Init 所有权状态明确记录的系统 Go；用户自行安装的 `/usr/local/go` 或系统 Go 包予以保留。
+- `mise-go` 和 `mise-python` 自动依赖“开发运行时编译依赖”：macOS 使用 Xcode Command Line Tools，Linux 通过对应原生包管理器安装编译器和开发库。共享系统依赖不支持自动卸载。
 - 登录 Shell 使用 shims，交互式 Shell 使用完整 activate；安装时清理由 OS Init 写入的旧 nvm/fnm/pyenv/asdf 管理块，但保留用户数据。
 - 中国大陆默认配置 Node/Go SDK 下载镜像以及 npm、pip、uv、Go module 镜像；SDK 镜像失败时使用官方源重试，始终保留校验。
 
@@ -179,13 +192,12 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 - Linux 通过发行版包管理器安装 `git-lfs`，macOS 通过 Homebrew 安装，并执行 `git lfs install`。
 - 卸载时只移除 `git-lfs` 包，不删除用户 `~/.gitconfig`。
 
-### byobu + tmux
+### tmux
 
 - 仅 Linux 显示该模块。
-- 通过包管理器安装 `byobu` 和 `tmux`。
-- 写入或更新 `~/.byobu` 下的 byobu/tmux 配置文件。
-- 设置 `~/.byobu/backend` 为 `BYOBU_BACKEND=tmux`。
-- 卸载时移除 byobu 包并删除 `~/.byobu`。
+- 通过系统包管理器安装 `tmux`。
+- 写入并管理 `~/.tmux.conf`；卸载时恢复安装前的文件。
+- 不安装或配置 byobu；升级时只清理由旧版 OS Init 明确记录为自身安装的 byobu 包。
 
 ### ncdu
 
@@ -271,17 +283,17 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
 以下模块仅 macOS 显示，统一通过 Homebrew formula 安装、更新和卸载。卸载时执行 `brew uninstall <formula>`。
 
 - 现代终端工具：`bat`、`eza`、`ripgrep`、`fd`、`fzf`、`zoxide`、`tmux`、`nushell`
-- 开发工具：`gh`、`mise`、`uv`、`shellcheck`、`stylua`、`tree-sitter-cli`
+- 开发工具：`gh`、`uv`、`shellcheck`、`stylua`、`tree-sitter-cli`
 - 网络和诊断：`htop`、`iftop`、`nload`、`nmap`、`bind`、`rsync`、`wget`
 - 媒体和数据处理：`ffmpeg`、`imagemagick`、`gallery-dl`、`yt-dlp`、`jq`
 - 其他已纳入工具：`herdr`、`llmfit`
 - `zoxide` 会写入 `os-init zoxide` zsh 管理块。
-- `mise` 会在 `~/.zprofile` 写入 shims 管理块、在 `~/.zshrc` 写入完整 activate 管理块，并安装 Node.js 24、Python 3.13、Go 1.24。
+- 跨平台 `mise` 模块在 macOS 使用 Homebrew 安装本体，并在目标用户 Shell 中配置 shims 与完整 activate。
 
 ### Mihomo
 
 - 仅 Linux systemd 环境显示该模块。
-- 安装或更新 `/usr/local/bin/mihomo`，也可能优先使用发行版仓库包。
+- 通用 Linux 路径安装或更新 `/usr/local/bin/mihomo` 官方二进制；Arch 使用独立原生模块。
 - 写入配置目录和文件：
   - `/etc/mihomo/config.yaml`
   - `/etc/mihomo/providers`
@@ -329,13 +341,6 @@ Arch Linux 不再运行独立控制子系统。能力直接注册为普通 OS In
   - 当前终端会话是否需要重新登录后才免 sudo 生效
 - 卸载时停止并删除 service、Compose 插件和 Docker 静态二进制。
 - 默认保留 `/var/lib/docker`、`/var/lib/containerd` 和 `/etc/docker`；设置 `PURGE_DATA=1` 或 `PURGE_CONFIG=1` 才清理。
-
-### Go
-
-- macOS 使用 Homebrew，Arch 使用 pacman/AUR；其他 Linux 下载官方 tarball。
-- 删除并重建 `/usr/local/go`。
-- 在 `~/.zshrc` 或 `~/.bashrc` 写入 `os-init go` 管理块，把 `/usr/local/go/bin` 加入 `PATH`。
-- 卸载时删除 `/usr/local/go`。
 
 ### Neovim + Neovide + config-yuan
 

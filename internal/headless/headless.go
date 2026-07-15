@@ -11,18 +11,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	kickembed "github.com/fanhuadesenlinnn/os-init/internal/embed"
+	"github.com/fanhuadesenlinnn/os-init/internal/execution"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/planner"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
-	"github.com/fanhuadesenlinnn/os-init/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/state"
 	"github.com/fanhuadesenlinnn/os-init/internal/verify"
 )
-
-const defaultTimeout = 45 * time.Minute
 
 // Options configures a non-interactive execution.
 type Options struct {
@@ -39,6 +37,7 @@ type Options struct {
 	Env               map[string]string
 	Output            io.Writer
 	ExpectedInstalled *bool
+	Recorder          state.Recorder
 }
 
 // LifecycleOptions configures repeated real installation lifecycle checks.
@@ -49,19 +48,20 @@ type LifecycleOptions struct {
 
 // CatalogEntry is the stable, machine-readable catalog representation.
 type CatalogEntry struct {
-	ID                  string              `json:"id"`
-	Label               string              `json:"label"`
-	Description         string              `json:"description"`
-	Kind                modules.EntryKind   `json:"entry_kind"`
-	Category            string              `json:"category"`
-	Subsection          string              `json:"subsection,omitempty"`
-	DependsOn           []string            `json:"depends_on,omitempty"`
-	SupportedOperations []modules.Operation `json:"supported_operations"`
-	NeedsPrivilege      bool                `json:"needs_privilege"`
-	ManualSteps         []string            `json:"manual_steps,omitempty"`
-	AutomationScope     string              `json:"automation_scope"`
-	AutomationLifecycle string              `json:"automation_lifecycle"`
-	AutomationReason    string              `json:"automation_reason,omitempty"`
+	ID                  string               `json:"id"`
+	Label               string               `json:"label"`
+	Description         string               `json:"description"`
+	Kind                modules.EntryKind    `json:"entry_kind"`
+	Category            string               `json:"category"`
+	Subsection          string               `json:"subsection,omitempty"`
+	DependsOn           []string             `json:"depends_on,omitempty"`
+	SupportedOperations []modules.Operation  `json:"supported_operations"`
+	NeedsPrivilege      bool                 `json:"needs_privilege"`
+	ManualSteps         []string             `json:"manual_steps,omitempty"`
+	AutomationScope     string               `json:"automation_scope"`
+	AutomationLifecycle string               `json:"automation_lifecycle"`
+	AutomationReason    string               `json:"automation_reason,omitempty"`
+	Delivery            modules.DeliveryKind `json:"delivery"`
 }
 
 // Plan is a compact serializable execution plan.
@@ -87,6 +87,9 @@ type StepResult struct {
 	VerifyPassed      bool              `json:"verify_passed"`
 	ExpectedInstalled bool              `json:"expected_installed"`
 	Error             string            `json:"error,omitempty"`
+	ProviderProtocol  int               `json:"provider_protocol,omitempty"`
+	ProviderStatus    string            `json:"provider_status,omitempty"`
+	StateError        string            `json:"state_error,omitempty"`
 }
 
 // Report is the durable result of a headless run.
@@ -154,7 +157,7 @@ func Execute(ctx context.Context, opts Options) (Report, error) {
 		opts.LogDir = "logs"
 	}
 	if opts.Timeout == 0 {
-		opts.Timeout = timeoutFromEnv()
+		opts.Timeout = execution.TimeoutFromEnv(os.Getenv("OS_INIT_SCRIPT_TIMEOUT"))
 	}
 
 	plan, planned, err := BuildPlan(opts.Target, opts.ModuleIDs, opts.All, opts.Operation)
@@ -197,64 +200,34 @@ func Execute(ctx context.Context, opts Options) (Report, error) {
 		if !opts.Quiet {
 			fmt.Fprintf(opts.Output, "[%s] %s (%s)\n", opts.Operation, mod.ID, mod.Label)
 		}
-		stepCtx := ctx
-		var cancel context.CancelFunc
-		if opts.Timeout > 0 {
-			stepCtx, cancel = context.WithTimeout(ctx, opts.Timeout)
-		}
-		result, runErr := runner.Run(stepCtx, runner.Params{
-			TmpDir:     tmpDir,
-			Script:     mod.Script,
-			Components: mod.Components,
-			Operation:  string(opts.Operation),
-			Env:        mergedEnv(opts.Env),
-			LogDir:     opts.LogDir,
+		result := execution.Run(ctx, execution.Request{
+			TmpDir:            tmpDir,
+			Module:            mod,
+			Operation:         opts.Operation,
+			Env:               mergedEnv(opts.Env),
+			LogDir:            opts.LogDir,
+			Timeout:           opts.Timeout,
+			Verify:            opts.Verify,
+			ExpectedInstalled: opts.ExpectedInstalled,
+			Recorder:          opts.Recorder,
 			OnLine: func(line string) {
 				if !opts.Quiet {
 					fmt.Fprintln(opts.Output, line)
 				}
 			},
 		})
-		if cancel != nil {
-			cancel()
-		}
 		step := StepResult{
-			ModuleID:   mod.ID,
-			Label:      mod.Label,
-			Operation:  opts.Operation,
-			Status:     "passed",
-			ExitCode:   result.ExitCode,
-			DurationMS: result.Duration.Milliseconds(),
-			LogFile:    result.LogFile,
-		}
-		if runErr != nil {
-			step.Status = "failed"
-			step.Error = runErr.Error()
-		}
-		if stepCtx.Err() == context.DeadlineExceeded {
-			step.Status = "failed"
-			step.ExitCode = -1
-			step.Error = "module execution timed out"
-		}
-		if result.ExitCode != 0 {
-			step.Status = "failed"
-			if step.Error == "" {
-				step.Error = lastOutputLine(result.Output)
-			}
-		}
-		if step.Status == "passed" && opts.Verify && !mod.Verify.Empty() {
-			checked := verify.New().Module(ctx, mod)
-			step.VerifyActive = checked.Active
-			step.VerifyPassed = checked.Passed
-			wantInstalled := opts.Operation != modules.OperationUninstall
-			if opts.ExpectedInstalled != nil {
-				wantInstalled = *opts.ExpectedInstalled
-			}
-			step.ExpectedInstalled = wantInstalled
-			if checked.Active && checked.Passed != wantInstalled {
-				step.Status = "failed"
-				step.Error = "post-operation verification failed"
-			}
+			ModuleID:     mod.ID,
+			Label:        mod.Label,
+			Operation:    opts.Operation,
+			Status:       "passed",
+			ExitCode:     result.ExitCode,
+			DurationMS:   result.Duration.Milliseconds(),
+			LogFile:      result.LogFile,
+			VerifyActive: result.VerifyActive, VerifyPassed: result.VerifyPassed,
+			ExpectedInstalled: result.ExpectedInstalled, Error: result.Error,
+			ProviderProtocol: result.ProviderProtocol, ProviderStatus: result.ProviderStatus,
+			StateError: result.StateError,
 		}
 		if step.Status != "passed" {
 			report.Success = false
@@ -475,11 +448,12 @@ func catalogEntry(mod modules.Module, target platform.Target) CatalogEntry {
 		AutomationScope:     scope,
 		AutomationLifecycle: lifecycle,
 		AutomationReason:    reason,
+		Delivery:            mod.DeliveryFor(target),
 	}
 }
 
 func automationPolicy(mod modules.Module) (scope, lifecycle, reason string) {
-	scope, lifecycle = "container", "full"
+	scope, lifecycle = "container", declaredLifecycle(mod)
 	if mod.EntryKind == modules.EntryPreset {
 		return "planner", "plan-only", "presets expand dependencies and have no provider"
 	}
@@ -487,7 +461,7 @@ func automationPolicy(mod modules.Module) (scope, lifecycle, reason string) {
 		return "hosted", "install-only", "diagnostic actions are not lifecycle modules"
 	}
 	if mod.OS == "darwin" {
-		return "hosted", "full", "requires a fresh GitHub-hosted macOS VM"
+		return "hosted", lifecycle, "requires a fresh GitHub-hosted macOS VM"
 	}
 	switch mod.ID {
 	case "kernel-sysctl", "kernel-limits", "kernel-scheduler", "kernel-autotune", "network-ipv4", "docker":
@@ -500,8 +474,26 @@ func automationPolicy(mod modules.Module) (scope, lifecycle, reason string) {
 		return "manual", "install-only", "may replace resolver configuration and disconnect the GitHub job"
 	case "arch-desktop":
 		return "manual", "install-only", "requires an Arch graphical session, display manager and virtual GPU"
+	case "wsl-systemd":
+		return "manual", "full", "requires a real WSL2 distribution and a host-side wsl.exe --shutdown restart"
 	default:
 		return scope, lifecycle, reason
+	}
+}
+
+func declaredLifecycle(mod modules.Module) string {
+	install := mod.SupportsOperation(modules.OperationInstall)
+	update := mod.SupportsOperation(modules.OperationUpdate)
+	uninstall := mod.SupportsOperation(modules.OperationUninstall)
+	switch {
+	case install && update && uninstall:
+		return "full"
+	case install && update:
+		return "install-update"
+	case install:
+		return "install-only"
+	default:
+		return "custom"
 	}
 }
 
@@ -518,33 +510,12 @@ func nonInteractivePrivilegeCheck(selected []modules.Module, target platform.Tar
 	return nil
 }
 
-func timeoutFromEnv() time.Duration {
-	value := strings.TrimSpace(os.Getenv("OS_INIT_SCRIPT_TIMEOUT"))
-	if value == "0" {
-		return 0
-	}
-	if value != "" {
-		if parsed, err := time.ParseDuration(value); err == nil {
-			return parsed
-		}
-	}
-	return defaultTimeout
-}
-
 func mergedEnv(extra map[string]string) map[string]string {
 	env := map[string]string{"OS_INIT_NONINTERACTIVE": "1"}
 	for key, value := range extra {
 		env[key] = value
 	}
 	return env
-}
-
-func lastOutputLine(output string) string {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) == 0 || lines[0] == "" {
-		return "provider failed"
-	}
-	return lines[len(lines)-1]
 }
 
 // AbsLogDir makes relative report paths predictable for callers that change

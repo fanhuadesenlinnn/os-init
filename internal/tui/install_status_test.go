@@ -139,10 +139,10 @@ func TestInstallStatusChecker_ShellBlockCanExistInOneInteractiveRc(t *testing.T)
 	home := t.TempDir()
 	checker := testStatusChecker(t, home)
 
-	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init go >>>\nexport PATH=\"/usr/local/go/bin:$PATH\"\n# <<< os-init go <<<\n")
+	writeFile(t, filepath.Join(home, ".zshrc"), "# >>> os-init example-tool >>>\nexport EXAMPLE_TOOL_HOME=\"$HOME/.local/share/example-tool\"\n# <<< os-init example-tool <<<\n")
 	writeFile(t, filepath.Join(home, ".bashrc"), "# user bash config\n")
 
-	mod := modules.Module{Verify: modules.ShellBlock("go")}
+	mod := modules.Module{Verify: modules.ShellBlock("example-tool")}
 	if !checker.moduleInstalled(context.Background(), mod) {
 		t.Fatal("shell integration should be complete when the managed block exists in one interactive rc file")
 	}
@@ -186,12 +186,16 @@ func TestInstallStatusChecker_SystemServiceRequiresCommandsServicesAndGroup(t *t
 
 func TestMacOSFormulaShellHooksDeclareStatusBlocks(t *testing.T) {
 	mods := modules.AllModules()
-	for _, id := range []string{"macos-cli-zoxide", "macos-cli-mise"} {
+	for _, id := range []string{"macos-cli-zoxide", "mise"} {
 		mod := findTUIModule(t, mods, id)
 		if mod.Kind != modules.KindShellIntegration {
 			t.Fatalf("%s kind = %q, want shell integration", id, mod.Kind)
 		}
-		want := modules.ZshBlock(mod.Components[0])
+		block := mod.Components[0]
+		if id == "mise" {
+			block = "mise"
+		}
+		want := modules.ZshBlock(block)
 		if !checkContains(mod.Verify, want) {
 			t.Fatalf("%s verification does not contain zsh block %q: %#v", id, mod.Components[0], mod.Verify)
 		}

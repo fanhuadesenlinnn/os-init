@@ -209,7 +209,9 @@ validate_config() {
 
   case "${DNS_OVER_TLS:-no}" in no|opportunistic|yes) ;; *) die "DNS_OVER_TLS 仅支持 no / opportunistic / yes" ;; esac
   case "${GPU_TYPE:-auto}" in auto|intel|amd|nvidia|vmware|virtio|qxl|virtualbox|none) ;; *) die "GPU_TYPE 不支持：${GPU_TYPE}" ;; esac
-  case "${INPUT_METHOD_ENGINE:-rime}" in rime|pinyin) ;; *) die "INPUT_METHOD_ENGINE 仅支持 rime / pinyin" ;; esac
+  case "${INPUT_METHOD_ENGINE:-rime}" in rime) ;; *) die "INPUT_METHOD_ENGINE 当前仅支持 rime" ;; esac
+  [[ "${RIME_SCHEMA:-}" =~ ^[A-Za-z0-9_.+-]+$ ]] || die "RIME_SCHEMA 格式无效：${RIME_SCHEMA:-}"
+  [[ "${RIME_CONFIG_DIR:-}" == /* && "${RIME_CONFIG_DIR}" != "/" ]] || die "RIME_CONFIG_DIR 必须是非根目录的绝对路径"
   validate_hyprland_config_mode
 
   if [[ "${ENABLE_DNS:-0}" -eq 1 ]]; then

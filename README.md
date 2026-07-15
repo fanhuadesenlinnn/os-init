@@ -14,6 +14,11 @@
 | Arch Linux / Manjaro | 独立 Arch 能力、开发环境与完整工作站组合；支持 root 和普通用户 |
 | Debian / Ubuntu | 系统优化、Shell、终端工具、Docker、Mihomo、开发工具 |
 | Fedora / Rocky Linux / RHEL | 系统优化、Shell、终端工具、Docker、Mihomo、开发工具 |
+| WSL1 / WSL2 | 复用发行版包管理器；WSL2 可启用 systemd 和发行版内原生 Docker Engine，不接管 Windows Docker Desktop |
+
+WSL 会作为 Linux 发行版的运行环境识别：Ubuntu WSL 继续使用 Debian 系逻辑，Arch WSL 继续使用 pacman。WSL 中不会显示内核调优、物理网卡优化、DNS 接管、Mihomo 服务、Hyprland/SDDM 等不合适的能力。`WSL 开发环境`只组合 Shell、tmux、Git、终端工具、mise 运行时和 Neovim。
+
+WSL2 尚未启用 systemd 时，先安装 `WSL systemd`，然后从 PowerShell 执行 `wsl.exe --shutdown`。重新进入发行版后可以安装 `Docker（WSL 原生 Engine）`；Docker daemon、containerd、Compose、配置和数据全部由当前 WSL Linux 发行版管理。必须关闭 Docker Desktop 对当前发行版的 WSL Integration，OS Init 检测到该集成时会拒绝安装，避免连接到错误的 Docker daemon。
 
 ## 快速开始
 
@@ -111,7 +116,7 @@ tar xzf os-init_darwin_arm64.tar.gz
 | 分组 | 可选模块 |
 | --- | --- |
 | Shell | Zsh + Oh My Zsh（含 Powerlevel10k、zsh-autosuggestions、zsh-syntax-highlighting）、direnv、Git 配置 |
-| 终端 | 自动终端样式、ncdu、Yazi；Linux 可选 byobu + tmux |
+| 终端 | 自动终端样式、ncdu、Yazi；Linux 可选 tmux |
 | 开发 | Go、Neovim + Neovide + config-yuan |
 | Linux 服务 | Docker、Mihomo |
 
@@ -139,7 +144,7 @@ tar xzf os-init_darwin_arm64.tar.gz
 | 通讯与办公 | 微信、Telegram、腾讯会议、WPS Office、Bitwarden、CleanMyMac X、CC Switch |
 | 字体 | Hack Nerd Font、JetBrains Mono Nerd Font、Maple Mono NF |
 
-OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装完成后，仍需在应用内完成首次初始化、登录或配置导入。
+OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装完成后，仍需在应用内完成首次初始化、登录或配置导入。Karabiner-Elements 会自动部署 Caps Lock/Control 互换、左 Shift 单击切换输入法且长按保留 Shift 的配置；首次打开时仍需批准 macOS 输入监控和系统扩展权限。
 
 ### macOS 命令行工具
 
@@ -151,9 +156,13 @@ OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装�
 | 媒体与数据 | FFmpeg、ImageMagick、gallery-dl、yt-dlp |
 | 其他 | herdr、llmfit |
 
-mise 模块同时安装并管理 Node.js 24、Python 3.13 和 Go 1.24。
+开发运行时统一安装到目标用户的 mise 数据目录：Go 1.26、Python 3.13 和 Node.js 24。系统自带 Python 保留不动，也不再安装 `/usr/local/go` 或系统包 Go。
 
-在 Arch Linux 上，root 和普通用户使用同一个 mise 模块。普通用户只在 pacman 阶段通过 sudo 提权，运行时与 Shell 配置写入自己的 HOME；root 模式写入 `/root`。
+仓库自身通过 `go.mod` 固定构建所需的 Go 1.26.1；用户全局配置保留 `1.26` 系列，其他项目可通过各自受信任的 `mise.toml` 固定精确版本。
+
+选择 mise Go 或 Python 时会自动补齐原生编译器、头文件以及 OpenSSL、zlib、libffi 等系统开发库；这些只属于构建基础设施，不提供系统级 Go/Python。
+
+所有系统共享同一组 `mise`、`mise-go`、`mise-python`、`mise-node` 能力。macOS 使用 Homebrew 安装 mise 本体，Arch 使用 pacman，其他 Linux 使用用户目录二进制；普通用户写入自己的 HOME，root 模式写入 `/root`。
 
 ### Arch Linux 能力与组合
 
@@ -169,6 +178,8 @@ Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，
 | Arch 开发环境 | Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Arch Mihomo |
 | Arch 完整工作站 | Arch 开发环境 + Arch Hyprland 桌面 |
 | Arch 状态详情 / 系统诊断 | 状态、配置指纹、网络、systemd、桌面与修复建议 |
+
+Arch Hyprland 桌面默认安装 Fcitx5 + Rime，安全合并公共配置并保留用户词库、同步状态和私人短语；配置更新后会尝试通知当前 Fcitx5 会话重新部署。Linux 默认使用 Ctrl+Space 切换输入法，不自动安装全局键盘拦截器来接管单击 Shift。
 
 所有能力共用 OS Init 配置，Arch 专用执行状态位于：
 

@@ -4,43 +4,14 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fanhuadesenlinnn/os-init/internal/execution"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
-	"github.com/fanhuadesenlinnn/os-init/internal/runner"
 )
-
-func TestExpandGroupResult_ReturnsOneSummaryResultPerModule(t *testing.T) {
-	group := modules.ScriptGroup{
-		Script:       "shell/install.sh",
-		Label:        "zsh + oh-my-zsh",
-		ModuleLabels: []string{"zsh + oh-my-zsh", "direnv"},
-	}
-	result := runner.Result{
-		Module:   "shell/install.sh",
-		ExitCode: 0,
-		LogFile:  "logs/shell-install.log",
-	}
-
-	got := expandGroupResult(group, result)
-	if len(got) != 2 {
-		t.Fatalf("expected 2 summary results, got %d", len(got))
-	}
-	labels := []string{got[0].Module, got[1].Module}
-	want := []string{"zsh + oh-my-zsh", "direnv"}
-	if !reflect.DeepEqual(labels, want) {
-		t.Fatalf("unexpected labels: got %v, want %v", labels, want)
-	}
-	for _, item := range got {
-		if item.ExitCode != result.ExitCode || item.LogFile != result.LogFile {
-			t.Fatalf("summary item did not preserve script result: %+v", item)
-		}
-	}
-}
 
 func TestExecutorCancellationStopsCurrentGroupAndDoesNotContinue(t *testing.T) {
 	tmp := t.TempDir()
@@ -60,7 +31,7 @@ func TestExecutorCancellationStopsCurrentGroupAndDoesNotContinue(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := newExecutorModel([]modules.Module{{
 		ID: "slow", Script: "test/run.sh", Label: "slow",
-	}}, tmp, modules.OperationInstall, nil, "", ctx)
+	}}, tmp, modules.OperationInstall, nil, "", ctx, nil)
 
 	done := make(chan tea.Msg, 1)
 	go func() { done <- m.runCurrent()() }()
@@ -73,7 +44,7 @@ func TestExecutorCancellationStopsCurrentGroupAndDoesNotContinue(t *testing.T) {
 		if !ok {
 			t.Fatalf("message = %T, want scriptDoneMsg", raw)
 		}
-		if msg.result.ExitCode == 0 || !strings.Contains(msg.result.Output, "取消") {
+		if msg.result.ExitCode == 0 || !strings.Contains(msg.result.Output, "canceled") {
 			t.Fatalf("canceled result = %+v", msg.result)
 		}
 		updated, cmd := m.Update(msg)
@@ -90,8 +61,8 @@ func TestExecutorCancellationStopsCurrentGroupAndDoesNotContinue(t *testing.T) {
 
 func TestScriptTimeoutFromEnv(t *testing.T) {
 	t.Setenv("OS_INIT_SCRIPT_TIMEOUT", "")
-	if got := scriptTimeoutFromEnv(); got != defaultScriptTimeout {
-		t.Fatalf("empty timeout = %s, want default %s", got, defaultScriptTimeout)
+	if got := scriptTimeoutFromEnv(); got != execution.DefaultTimeout {
+		t.Fatalf("empty timeout = %s, want default %s", got, execution.DefaultTimeout)
 	}
 
 	t.Setenv("OS_INIT_SCRIPT_TIMEOUT", "0")

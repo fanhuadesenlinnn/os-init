@@ -12,14 +12,18 @@ import (
 	"github.com/fanhuadesenlinnn/os-init/internal/planner"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 	"github.com/fanhuadesenlinnn/os-init/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/runtimecontext"
+	"github.com/fanhuadesenlinnn/os-init/internal/state"
 	"github.com/fanhuadesenlinnn/os-init/internal/sudo"
 )
 
 // Config holds parameters passed from main.go.
 type Config struct {
-	Assets  fs.FS
-	Version string
-	Commit  string
+	Assets   fs.FS
+	Version  string
+	Commit   string
+	Runtime  runtimecontext.Context
+	Recorder state.Recorder
 }
 
 // Model is the root Bubble Tea model.
@@ -59,6 +63,9 @@ type Model struct {
 // New creates a new root Model.
 func New(cfg Config) Model {
 	appconfig.Apply(cfg.Assets)
+	if cfg.Runtime.Target.GOOS == "" {
+		cfg.Runtime = runtimecontext.Detect()
+	}
 	model := Model{
 		config:        cfg,
 		screen:        screenLanguage,
@@ -70,7 +77,7 @@ func New(cfg Config) Model {
 }
 
 func (m Model) startMenu() (Model, tea.Cmd) {
-	target := platform.Detect()
+	target := m.config.Runtime.Target
 	mods := modules.ForTarget(target)
 	mods = modules.ResolveForContext(mods, os.Geteuid() == 0)
 	m.menu = newMenuModel(mods)
@@ -101,6 +108,7 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 		"KICKSTART_USER_NAME":  m.userName,
 		"KICKSTART_USER_EMAIL": m.userEmail,
 	}
+	env = runtimecontext.Merge(m.config.Runtime.Environment(), env)
 	for k, v := range m.executionEnv {
 		env[k] = v
 	}
@@ -115,6 +123,7 @@ func (m Model) startExecution() (Model, tea.Cmd) {
 		env,
 		m.webhookURL,
 		executionCtx,
+		m.config.Recorder,
 	)
 	m.executor.program = globalProgram
 	m.screen = screenExecutor
@@ -133,7 +142,7 @@ func (m Model) buildExecutionPlan() (Model, bool) {
 		base = m.selectedModules
 	}
 
-	plan := planner.Build(base, platform.Detect(), planner.Options{Operation: plannerOperation(m.selectedMode)})
+	plan := planner.Build(base, m.config.Runtime.Target, planner.Options{Operation: plannerOperation(m.selectedMode)})
 	m.executionPlan = plan
 	if issue, ok := plan.BlockingIssue(); ok {
 		m.selectedModules = base
@@ -165,7 +174,7 @@ func (m Model) showConfirm() (Model, tea.Cmd) {
 		}
 		m = next
 	}
-	m.confirm = newConfirmModelForPlan(m.executionPlan, m.selectedMode, platform.Detect())
+	m.confirm = newConfirmModelForPlan(m.executionPlan, m.selectedMode, m.config.Runtime.Target)
 	m.screen = screenConfirm
 	return m, m.confirm.Init()
 }
@@ -325,7 +334,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.showConfirm()
 
 	case confirmMsg:
-		if m.sudoCancel == nil && selectionNeedsSudoPrime(m.selectedModules, platform.Detect()) {
+		if m.sudoCancel == nil && selectionNeedsSudoPrime(m.selectedModules, m.config.Runtime.Target) {
 			if cmd, ok := sudo.PrimeCommand(); ok {
 				return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
 					return sudoDoneMsg{err: err}

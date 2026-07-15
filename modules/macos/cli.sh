@@ -9,7 +9,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(
-    bat eza ripgrep fd fzf gh htop iftop jq mise nmap nushell
+    bat eza ripgrep fd fzf gh htop iftop jq nmap nushell
     rsync shellcheck tmux uv wget zoxide ffmpeg imagemagick
     gallery-dl yt-dlp stylua tree-sitter-cli nload bind herdr llmfit
 )
@@ -42,7 +42,6 @@ formula_label() {
         htop) echo "htop" ;;
         iftop) echo "iftop" ;;
         jq) echo "jq" ;;
-        mise) echo "mise" ;;
         nmap) echo "nmap" ;;
         nushell) echo "Nushell" ;;
         rsync) echo "rsync" ;;
@@ -139,13 +138,6 @@ next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 for formula in "${ALL_COMPONENTS[@]}"; do
     want "$formula" || continue
     next "$(formula_label "$formula")"
-    if [[ "$formula" == "mise" ]]; then
-        mise_args=()
-        [[ "$UPDATE" == true ]] && mise_args+=(--update)
-        [[ "$UNINSTALL" == true ]] && mise_args+=(--uninstall)
-        bash "$REPO_DIR/mise/install.sh" "${mise_args[@]}"
-        continue
-    fi
     if [[ "$UNINSTALL" == true ]]; then
         uninstall_formula "$formula"
     else

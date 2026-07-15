@@ -154,44 +154,8 @@ install_mihomo_binary() {
     "$MIHOMO_BIN" -v || true
 }
 
-package_available() {
-    local package="$1"
-    if is_arch && command -v pacman &>/dev/null; then
-        pacman -Si "$package" &>/dev/null
-    elif is_debian && command -v apt-cache &>/dev/null; then
-        apt-cache show "$package" &>/dev/null
-    elif is_redhat; then
-        if command -v dnf &>/dev/null; then
-            dnf -q list "$package" &>/dev/null
-        elif command -v yum &>/dev/null; then
-            yum -q list "$package" &>/dev/null
-        else
-            return 1
-        fi
-    else
-        return 1
-    fi
-}
-
 install_mihomo_core() {
-	local package="${MIHOMO_PACKAGE:-mihomo}" was_installed=0
-	command -v mihomo &>/dev/null && was_installed=1
-
-	if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && is_arch; then
-		install "通过 pacman/AUR 安装 Mihomo: $package"
-		pkg_install "$package"
-		[[ "$was_installed" == "0" ]] && os_init_mark_package_ownership "mihomo-package"
-        return
-    fi
-
-    if [[ -z "${MIHOMO_BINARY_SOURCE:-}" ]] && package_available "$package"; then
-		install "通过发行版仓库安装 Mihomo: $package"
-		pkg_install "$package"
-		[[ "$was_installed" == "0" ]] && os_init_mark_package_ownership "mihomo-package"
-        return
-    fi
-
-    install_mihomo_binary
+	install_mihomo_binary
 }
 
 config_source_to_root_file() {

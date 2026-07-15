@@ -132,6 +132,51 @@ func TestDetectFrom_MissingOSReleaseReturnsUnknown(t *testing.T) {
 	}
 }
 
+func TestDetectFromPaths_DetectsWSL2AndWSLg(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	osRelease := dir + "/os-release"
+	kernelRelease := dir + "/kernel-release"
+	wslg := dir + "/wslg"
+	if err := os.WriteFile(osRelease, []byte("ID=ubuntu\nID_LIKE=debian\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kernelRelease, []byte("6.6.87.2-microsoft-standard-WSL2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(wslg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	target := platform.DetectFromPaths("linux", osRelease, kernelRelease, wslg)
+	if target.Environment != platform.EnvironmentWSL || target.WSLVersion != 2 || !target.WSLg {
+		t.Fatalf("unexpected WSL target: %#v", target)
+	}
+	if target.Family != platform.FamilyDebian {
+		t.Fatalf("family = %q, want debian", target.Family)
+	}
+}
+
+func TestDetectFromPaths_DistinguishesWSL1(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	osRelease := dir + "/os-release"
+	kernelRelease := dir + "/kernel-release"
+	if err := os.WriteFile(osRelease, []byte("ID=debian\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kernelRelease, []byte("4.4.0-19041-Microsoft\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := platform.DetectFromPaths("linux", osRelease, kernelRelease, dir+"/missing-wslg")
+	if target.Environment != platform.EnvironmentWSL || target.WSLVersion != 1 || target.WSLg {
+		t.Fatalf("unexpected WSL1 target: %#v", target)
+	}
+}
+
 func TestParseOSRelease_QuotedValuesAndIDLike(t *testing.T) {
 	t.Parallel()
 

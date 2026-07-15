@@ -17,6 +17,8 @@ import (
 	"github.com/fanhuadesenlinnn/os-init/internal/headless"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/runtimecontext"
+	"github.com/fanhuadesenlinnn/os-init/internal/state"
 )
 
 type moduleFlags struct {
@@ -41,7 +43,8 @@ func runModuleCommand(args []string) error {
 		return nil
 	}
 	appconfig.Apply(assets)
-	target := platform.Detect()
+	runtimeCtx := runtimecontext.Detect()
+	target := runtimeCtx.Target
 	command := args[0]
 
 	switch command {
@@ -89,7 +92,11 @@ func runModuleCommand(args []string) error {
 				return err
 			}
 		} else {
-			fmt.Printf("Target: %s/%s (%s)\nOperation: %s\n", target.GOOS, target.Family, target.ID, operation)
+			fmt.Printf("Target: %s/%s (%s), environment=%s", target.GOOS, target.Family, target.ID, target.Environment)
+			if target.Environment == platform.EnvironmentWSL {
+				fmt.Printf(", wsl%d", target.WSLVersion)
+			}
+			fmt.Printf("\nOperation: %s\n", operation)
 			for _, entry := range plan.Modules {
 				fmt.Printf("- %-28s %s\n", entry.ID, entry.Label)
 			}
@@ -106,7 +113,7 @@ func runModuleCommand(args []string) error {
 		}
 		operation := modules.Operation(command)
 		ids = normalizeSelection(&flags, ids, target, operation)
-		report, runErr := runHeadlessOperation(flags, ids, target, operation)
+		report, runErr := runHeadlessOperation(flags, ids, runtimeCtx, operation)
 		if err := emitReport(flags, report); err != nil {
 			return err
 		}
@@ -143,7 +150,8 @@ func runModuleCommand(args []string) error {
 				Verify: true, ContinueOnError: flags.continueOnError,
 				Quiet: flags.quiet || flags.format == "json", LogDir: flags.logDir,
 				Timeout: flags.timeout, Output: os.Stdout,
-				Env: nonInteractiveEnv(),
+				Env:      runtimecontext.Merge(runtimeCtx.Environment(), nonInteractiveEnv()),
+				Recorder: state.Default(),
 			},
 			Phases: splitCSV(flags.lifecycle),
 		})
@@ -179,15 +187,15 @@ func parseModuleFlags(command string, args []string) (moduleFlags, []string, err
 	return values, set.Args(), nil
 }
 
-func runHeadlessOperation(flags moduleFlags, ids []string, target platform.Target, operation modules.Operation) (headless.Report, error) {
+func runHeadlessOperation(flags moduleFlags, ids []string, runtimeCtx runtimecontext.Context, operation modules.Operation) (headless.Report, error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	return headless.Execute(ctx, headless.Options{
-		Assets: assets, Target: target, ModuleIDs: ids, All: flags.all,
+		Assets: assets, Target: runtimeCtx.Target, ModuleIDs: ids, All: flags.all,
 		Operation: operation, Verify: flags.verify,
 		ContinueOnError: flags.continueOnError,
 		Quiet:           flags.quiet || flags.format == "json", LogDir: flags.logDir,
-		Timeout: flags.timeout, Env: nonInteractiveEnv(), Output: os.Stdout,
+		Timeout: flags.timeout, Env: runtimecontext.Merge(runtimeCtx.Environment(), nonInteractiveEnv()), Output: os.Stdout, Recorder: state.Default(),
 	})
 }
 

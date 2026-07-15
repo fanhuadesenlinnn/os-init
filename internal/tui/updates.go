@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -35,12 +34,6 @@ type versionChecker struct {
 
 // checkers defines modules that have GitHub release version tracking.
 var versionCheckers = []versionChecker{
-	{
-		moduleID:   "go",
-		repo:       "",
-		versionCmd: []string{"go", "version"},
-		versionRe:  regexp.MustCompile(`go(\d+\.\d+\.\d+)`),
-	},
 	{
 		moduleID: "yazi",
 		repo:     "sxyazi/yazi",
@@ -136,9 +129,7 @@ func checkVersion(ctx context.Context, c versionChecker) updateCheckResult {
 	}
 
 	var latest string
-	if c.moduleID == "go" {
-		latest = getLatestGoVersion(ctx)
-	} else if c.repo != "" {
+	if c.repo != "" {
 		latest = getLatestGitHubVersion(ctx, c.repo)
 	}
 	if latest == "" || installed == latest {
@@ -164,31 +155,6 @@ func tryGetVersion(ctx context.Context, cmd string) string {
 	re := regexp.MustCompile(`(\d+\.\d+[\.\d]*)`)
 	if m := re.FindString(string(out)); m != "" {
 		return m
-	}
-	return ""
-}
-
-// getLatestGoVersion fetches the latest Go version from the configured endpoint.
-func getLatestGoVersion(ctx context.Context) string {
-	url := configuredURL("GO_VERSION_URL", "https://go.dev/VERSION?m=text")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rewriteDownloadURL(url), nil)
-	if err != nil {
-		return ""
-	}
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	if err != nil {
-		return ""
-	}
-	re := regexp.MustCompile(`go(\d+\.\d+\.\d+)`)
-	if m := re.FindSubmatch(body); len(m) > 1 {
-		return string(m[1])
 	}
 	return ""
 }

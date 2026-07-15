@@ -1,7 +1,7 @@
-.PHONY: build run lint test lib-strategy-test mise-strategy-test release-strategy-test headless-contract-test arch-test distro-contract-test check clean
+.PHONY: build run lint test lib-strategy-test mise-strategy-test arch-rime-strategy-test wsl-strategy-test release-strategy-test headless-contract-test arch-test distro-contract-test check clean
 
 BINARY ?= os-init
-VERSION ?= 1.0.0
+VERSION ?= 1.1.0
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 
 build:
@@ -24,6 +24,12 @@ lib-strategy-test:
 mise-strategy-test:
 	bash tooling/test-mise-strategy.sh
 
+arch-rime-strategy-test:
+	bash tooling/test-arch-rime-strategy.sh
+
+wsl-strategy-test:
+	bash tooling/test-wsl-strategy.sh
+
 release-strategy-test:
 	bash tooling/test-release-strategy.sh
 
@@ -42,7 +48,7 @@ distro-contract-test: build
 		echo "Skipping distro contract: Linux required"; \
 	fi
 
-check: test lint lib-strategy-test mise-strategy-test release-strategy-test headless-contract-test arch-test
+check: test lint lib-strategy-test mise-strategy-test arch-rime-strategy-test wsl-strategy-test release-strategy-test headless-contract-test arch-test
 
 clean:
 	rm -rf os-init kickstart dist

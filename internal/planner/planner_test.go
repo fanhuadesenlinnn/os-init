@@ -70,7 +70,7 @@ func TestBuild_ExpandsArchWorkstationPreset(t *testing.T) {
 	if _, ok := plan.BlockingIssue(); ok {
 		t.Fatalf("Arch preset should compose with normal modules: %#v", plan.Issues)
 	}
-	for _, id := range []string{"arch-desktop", "arch-mise", "docker", "neovim", "arch-mihomo"} {
+	for _, id := range []string{"arch-desktop", "mise", "mise-go", "mise-python", "mise-node", "docker", "neovim", "arch-mihomo"} {
 		if !hasModule(plan.Modules, id) {
 			t.Fatalf("expanded preset missing %s: %v", id, ids(plan.Modules))
 		}

@@ -137,6 +137,9 @@ func TestRun_UsesStableProviderProtocol(t *testing.T) {
 	if result.ExitCode != 0 || !strings.Contains(result.Output, "alpha\nbeta\n--update") {
 		t.Fatalf("provider did not adapt the stable protocol: %+v", result)
 	}
+	if result.ProviderProtocol != 2 || result.ProviderStatus != "passed" || len(result.Events) != 2 {
+		t.Fatalf("provider v2 events were not captured: %+v", result)
+	}
 }
 
 func TestRun_ContextCancellation(t *testing.T) {

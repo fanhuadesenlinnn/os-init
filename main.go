@@ -11,6 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/state"
 	"github.com/fanhuadesenlinnn/os-init/internal/tui"
 )
 
@@ -18,7 +19,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "1.0.0"
+	version = "1.1.0"
 	commit  = "none"
 )
 
@@ -51,9 +52,10 @@ func run(args []string) error {
 	}
 
 	m := tui.New(tui.Config{
-		Assets:  assets,
-		Version: version,
-		Commit:  commit,
+		Assets:   assets,
+		Version:  version,
+		Commit:   commit,
+		Recorder: state.Default(),
 	})
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -98,7 +100,7 @@ func usageText() string {
 选项:
   -h, --help          显示帮助
   -v, --version       显示版本和提交信息
-      --system-info   显示系统、发行版家族和 init 检测结果
+      --system-info   显示系统、发行版家族、WSL 环境和 init 检测结果
 
 非交互命令:
   os-init module help
@@ -140,7 +142,7 @@ after confirmation.
 Options:
   -h, --help          Show help
   -v, --version       Show version and commit information
-      --system-info   Show detected OS, distribution family, and init system
+      --system-info   Show detected OS, distribution family, WSL environment, and init system
 
 Non-interactive:
   os-init module help
@@ -175,8 +177,8 @@ Runtime information:
 }
 
 func systemInfoText(target platform.Target) string {
-	return fmt.Sprintf("goos=%s\nid=%s\nfamily=%s\nversion_id=%s\ninit=%s\n",
-		target.GOOS, target.ID, target.Family, target.VersionID, target.Init)
+	return fmt.Sprintf("goos=%s\nid=%s\nfamily=%s\nversion_id=%s\ninit=%s\nenvironment=%s\nwsl_version=%d\nwslg=%t\n",
+		target.GOOS, target.ID, target.Family, target.VersionID, target.Init, target.Environment, target.WSLVersion, target.WSLg)
 }
 
 func text(zh, en string) string {

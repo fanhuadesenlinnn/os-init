@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Test doubles override functions loaded dynamically from split library files.
+# shellcheck disable=SC2034,SC2329
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

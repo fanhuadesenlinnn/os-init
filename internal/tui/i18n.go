@@ -60,6 +60,12 @@ func moduleSection(label string) string {
 		return "Arch Linux Development"
 	case "Arch Linux 套餐":
 		return "Arch Linux Presets"
+	case "WSL 能力":
+		return "WSL Capabilities"
+	case "WSL 操作":
+		return "WSL Actions"
+	case "WSL 套餐":
+		return "WSL Presets"
 	default:
 		return label
 	}
@@ -165,13 +171,13 @@ var modulePrivilegeReasonEN = map[string]string{
 	"shell-zsh":        "Linux may install zsh and update /etc/shells",
 	"shell-direnv":     "Linux installs direnv through the system package manager",
 	"shell-git":        "Linux installs git-lfs through the system package manager",
-	"shell-byobu":      "installs byobu and tmux through the system package manager",
+	"shell-tmux":       "installs tmux through the system package manager",
 	"terminal-ncdu":    "Linux installs ncdu through the system package manager",
 	"yazi":             "Linux installs binaries in /usr/local/bin",
 	"mihomo":           "writes /etc/mihomo, a systemd service, and system-wide binaries",
 	"docker":           "installs system-wide binaries and configures Docker services and the docker group",
-	"arch-mise":        "installs mise through pacman and manages runtimes for the target user",
-	"go":               "Linux installs or updates /usr/local/go",
+	"dev-build-deps":   "Linux installs compilers, headers, and development libraries through the system package manager",
+	"mise":             "Arch installs mise through pacman; all managed runtimes stay in the target user's home",
 	"neovim":           "Linux installs binaries in /opt and /usr/local/bin",
 }
 
@@ -185,12 +191,17 @@ var moduleLabelEN = map[string]string{
 	"shell-zsh":             "zsh + oh-my-zsh",
 	"shell-direnv":          "direnv",
 	"shell-git":             "Git configuration",
-	"shell-byobu":           "byobu + tmux",
+	"shell-tmux":            "tmux",
 	"terminal-ncdu":         "ncdu",
 	"yazi":                  "Yazi",
 	"mihomo":                "Mihomo",
 	"docker":                "Docker",
-	"arch-mise":             "mise + Node.js 24 + Python 3.13 + Go 1.24",
+	"dev-build-deps":        "Development runtime build prerequisites",
+	"mise":                  "mise",
+	"mise-go":               "Go (mise user runtime)",
+	"mise-python":           "Python (mise user runtime)",
+	"mise-node":             "Node.js (mise user runtime)",
+	"mise-dev-runtimes":     "mise development runtimes",
 	"arch-base":             "Arch base environment",
 	"arch-aur":              "AUR Helper",
 	"arch-archlinuxcn":      "archlinuxcn repository",
@@ -204,7 +215,9 @@ var moduleLabelEN = map[string]string{
 	"arch-status":           "Arch detailed status",
 	"arch-dev":              "Arch development environment",
 	"arch-workstation":      "Arch complete workstation",
-	"go":                    "Go",
+	"wsl-systemd":           "WSL systemd",
+	"wsl-doctor":            "WSL environment diagnostics",
+	"wsl-dev":               "WSL development environment",
 	"neovim":                "Neovim + Neovide + config-yuan",
 	"macos-wechat":          "WeChat",
 	"macos-tencent-meeting": "Tencent Meeting",
@@ -221,7 +234,13 @@ var moduleDescriptionEN = map[string]string{
 	"shell-zsh":                           "Powerlevel10k, command suggestions, and syntax highlighting",
 	"shell-direnv":                        "Per-directory environment variables",
 	"shell-git":                           "LFS, SSH-over-HTTPS, and template config",
-	"shell-byobu":                         "Terminal multiplexer",
+	"shell-tmux":                          "Terminal multiplexer with a basic configuration",
+	"mise":                                "User-level development runtime manager, regional mirrors, and shell activation",
+	"mise-go":                             "User-level Go managed by mise, isolated for normal users and root",
+	"mise-python":                         "User-level Python managed by mise; preserves the system Python",
+	"mise-node":                           "User-level Node.js and Corepack managed by mise",
+	"mise-dev-runtimes":                   "User-level Go, Python, and Node.js for both normal users and root",
+	"dev-build-deps":                      "System compilers, headers, and base libraries; does not install system Go or Python",
 	"terminal-ncdu":                       "Disk usage analyzer",
 	"yazi":                                "Terminal file manager",
 	"macos-google-chrome":                 "Browser",
@@ -276,7 +295,6 @@ var moduleDescriptionEN = map[string]string{
 	"macos-cli-htop":                      "Process monitor",
 	"macos-cli-iftop":                     "Network bandwidth monitor",
 	"macos-cli-jq":                        "JSON processor",
-	"macos-cli-mise":                      "Multi-language runtime manager",
 	"macos-cli-nmap":                      "Network scanner",
 	"macos-cli-nushell":                   "Structured shell",
 	"macos-cli-rsync":                     "File synchronization tool",
@@ -296,8 +314,10 @@ var moduleDescriptionEN = map[string]string{
 	"macos-cli-herdr":                     "Command-line tool",
 	"macos-cli-llmfit":                    "Command-line tool",
 	"mihomo":                              "Proxy core, config validation, and MetaCubeXD dashboard",
-	"docker":                              "Static binary, Compose plugin, and daemon config",
-	"arch-mise":                           "Arch runtimes, mainland mirrors, and target-user shell activation",
+	"docker":                              "Native Docker Engine, Compose plugin, and daemon config",
+	"wsl-systemd":                         "Safely merge /etc/wsl.conf and enable systemd in WSL2",
+	"wsl-doctor":                          "Check WSL version, systemd, WSLg, Docker conflicts, and project paths",
+	"wsl-dev":                             "Shell, tmux, Git, terminal tools, mise runtimes, and Neovim without changing the WSL kernel, DNS, or desktop",
 	"arch-base":                           "Base, troubleshooting, modern CLI tools, and tmux configuration",
 	"arch-aur":                            "Install paru and yay from archlinuxcn with pacman; normal users may fall back to AUR builds",
 	"arch-archlinuxcn":                    "Configure the repository, keyring, and mirrorlist",
@@ -311,6 +331,5 @@ var moduleDescriptionEN = map[string]string{
 	"arch-status":                         "Show detailed Arch capability status and suggestions",
 	"arch-dev":                            "Arch base + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + fonts + Zsh + Arch Mihomo",
 	"arch-workstation":                    "Arch development environment + Arch Hyprland desktop",
-	"go":                                  "Go toolchain",
 	"neovim":                              "Terminal editor, macOS GUI client, and personal configuration",
 }

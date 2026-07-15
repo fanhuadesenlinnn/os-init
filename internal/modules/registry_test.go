@@ -20,6 +20,13 @@ func TestAllModules_ReturnsNonEmpty(t *testing.T) {
 	}
 }
 
+func TestAllModules_PassesCatalogValidation(t *testing.T) {
+	t.Parallel()
+	if issues := modules.ValidateCatalog(modules.AllModules()); len(issues) > 0 {
+		t.Fatalf("catalog validation failed: %v", issues)
+	}
+}
+
 func TestAllModules_HasOptimizationsAndInstallations(t *testing.T) {
 	t.Parallel()
 	mods := modules.AllModules()
@@ -142,6 +149,7 @@ func TestPrivilegeNeeds_ArePlatformAware(t *testing.T) {
 
 	darwin := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}
 	linux := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	arch := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 
 	if modules.SelectionNeedsPrivilege([]modules.Module{byID["yazi"]}, darwin) {
 		t.Fatal("macOS Yazi uses Homebrew and should not pre-prime sudo")
@@ -155,11 +163,17 @@ func TestPrivilegeNeeds_ArePlatformAware(t *testing.T) {
 	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["docker"]}, linux) {
 		t.Fatal("Docker systemd install should require privilege")
 	}
-	if modules.SelectionNeedsPrivilege([]modules.Module{byID["go"]}, darwin) {
-		t.Fatal("macOS Go uses Homebrew and should not pre-prime sudo")
+	if modules.SelectionNeedsPrivilege([]modules.Module{byID["mise"]}, darwin) {
+		t.Fatal("macOS mise uses Homebrew and should not pre-prime sudo")
 	}
-	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["go"]}, linux) {
-		t.Fatal("Linux Go tarball install writes /usr/local/go and should require privilege")
+	if modules.SelectionNeedsPrivilege([]modules.Module{byID["mise"]}, linux) {
+		t.Fatal("portable Linux mise should not require system privilege")
+	}
+	if !modules.SelectionNeedsPrivilege([]modules.Module{byID["mise"]}, arch) {
+		t.Fatal("Arch mise uses pacman and should require privilege")
+	}
+	if modules.SelectionNeedsPrivilege([]modules.Module{byID["mise-go"], byID["mise-python"], byID["mise-node"]}, arch) {
+		t.Fatal("mise-managed runtimes are user-level even on Arch")
 	}
 }
 
@@ -231,6 +245,24 @@ func TestServiceAndManualModules_DeclareCompletionSemantics(t *testing.T) {
 	}
 	if len(orbstack.ManualSteps) == 0 || !contains(orbstack.Activates, modules.ActivationManual) {
 		t.Fatalf("orbstack should declare manual first-run work, got steps=%v activates=%v", orbstack.ManualSteps, orbstack.Activates)
+	}
+
+	karabiner := findModule(t, mods, "macos-karabiner-elements")
+	if len(karabiner.ManualSteps) == 0 || !contains(karabiner.Activates, modules.ActivationManual) {
+		t.Fatalf("karabiner should declare required macOS permissions, got steps=%v activates=%v", karabiner.ManualSteps, karabiner.Activates)
+	}
+	if !checkHasKind(karabiner.Verify, modules.CheckFileContains) || !contains(karabiner.AffectedPaths, "$HOME/.config/karabiner/karabiner.json") {
+		t.Fatalf("karabiner should verify and declare its managed config: verify=%#v paths=%v", karabiner.Verify, karabiner.AffectedPaths)
+	}
+
+	archDesktop := findModule(t, mods, "arch-desktop")
+	if !contains(archDesktop.Activates, modules.ActivationManual) || len(archDesktop.ManualSteps) == 0 {
+		t.Fatalf("Arch desktop should declare the post-login input-method activation step: %#v", archDesktop)
+	}
+	for _, path := range []string{"$HOME/.config/environment.d/fcitx5.conf", "$HOME/.config/fcitx5/profile", "$HOME/.local/share/fcitx5/rime"} {
+		if !contains(archDesktop.AffectedPaths, path) {
+			t.Fatalf("Arch desktop should declare managed Rime path %q: %v", path, archDesktop.AffectedPaths)
+		}
 	}
 }
 
@@ -331,6 +363,26 @@ func TestMacOSCustomHomebrewRoutes(t *testing.T) {
 			t.Fatalf("macOS installer should contain route %q", command)
 		}
 	}
+	for _, route := range []string{
+		`install_karabiner_config`,
+		`os_init_prepare_owned_user_path "karabiner-config"`,
+		`os_init_restore_owned_user_path "karabiner-config"`,
+	} {
+		if !strings.Contains(script, route) {
+			t.Fatalf("macOS installer should manage Karabiner config through %q", route)
+		}
+	}
+
+	configPath := filepath.Join("..", "..", "modules", "macos", "karabiner", "karabiner.json")
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read managed Karabiner config: %v", err)
+	}
+	for _, mapping := range []string{`"key_code": "caps_lock"`, `"key_code": "left_control"`, `"key_code": "left_shift"`, `"basic.to_if_held_down_threshold_milliseconds": 50`} {
+		if !strings.Contains(string(config), mapping) {
+			t.Fatalf("managed Karabiner config should contain %q", mapping)
+		}
+	}
 }
 
 func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
@@ -342,14 +394,18 @@ func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
 	}
 	shellScript := string(shellData)
 	for _, want := range []string{
-		"brew_install orbstack",
 		"raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh",
 		"romkatv/powerlevel10k.git",
 		"ZSH_THEME=\"$theme\"",
-		"kubectl",
+		"ensure_oh_my_zsh_prerequisites",
 	} {
 		if !strings.Contains(shellScript, want) {
 			t.Fatalf("shell installer should contain %q", want)
+		}
+	}
+	for _, unwanted := range []string{"brew_install orbstack", "pkg_install fzf", "pkg_install kubectl"} {
+		if strings.Contains(shellScript, unwanted) {
+			t.Fatalf("shell installer should not implicitly install %q", unwanted)
 		}
 	}
 
@@ -387,7 +443,7 @@ func TestShellIntegrationModules_DeclareShellBlockChecks(t *testing.T) {
 			t.Fatalf("%s should declare zsh block checks", id)
 		}
 	}
-	for _, id := range []string{"go", "yazi", "neovim"} {
+	for _, id := range []string{"mise", "yazi", "neovim"} {
 		mod := findModule(t, mods, id)
 		if !checkHasKind(mod.Verify, modules.CheckShellBlock) {
 			t.Fatalf("%s should declare shell block checks", id)
@@ -422,8 +478,12 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 	for _, want := range []string{
 		`MISE_NODE_VERSION:-24`,
 		`MISE_PYTHON_VERSION:-3.13`,
-		`MISE_GO_VERSION:-1.24`,
-		`mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"`,
+		`MISE_GO_VERSION:-1.26`,
+		`MISE_DOWNLOAD_BASE:-https://github.com/jdx/mise/releases/download`,
+		`mise-v${version}-linux-${arch}`,
+		`os_init_prepare_owned_user_path "mise-binary"`,
+		`mise_exec use --global "${tool}@${version}"`,
+		`mise_exec uninstall --all "$tool"`,
 		`mise activate zsh --shims`,
 		`mise activate zsh`,
 		`mise activate bash --shims`,
@@ -438,17 +498,26 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 		}
 	}
 
-	macData, err := os.ReadFile(filepath.Join("..", "..", "modules", "macos", "cli.sh"))
+	miseCore := findModule(t, modules.AllModules(), "mise")
+	if miseCore.Script != "mise/install.sh" || miseCore.OS != "all" {
+		t.Fatalf("cross-platform mise core is not scoped correctly: %#v", miseCore)
+	}
+	if miseCore.Delivery.Default != modules.DeliveryPortable || miseCore.Delivery.Darwin != modules.DeliveryDarwinNative || miseCore.Delivery.Arch != modules.DeliveryArchNative {
+		t.Fatalf("mise core delivery is not declared: %#v", miseCore.Delivery)
+	}
+	for _, id := range []string{"mise-go", "mise-python", "mise-node"} {
+		runtimeModule := findModule(t, modules.AllModules(), id)
+		if runtimeModule.Delivery.Default != modules.DeliveryUserRuntime || !contains(runtimeModule.DependsOn, "mise") {
+			t.Fatalf("%s should be a user runtime depending on mise: %#v", id, runtimeModule)
+		}
+	}
+
+	goMod, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(macData), `bash "$REPO_DIR/mise/install.sh"`) {
-		t.Fatal("macOS CLI installer should delegate mise to the shared installer")
-	}
-
-	archMise := findModule(t, modules.AllModules(), "arch-mise")
-	if archMise.Script != "mise/install.sh" || !contains(archMise.Families, "arch") {
-		t.Fatalf("Arch mise module is not scoped correctly: %#v", archMise)
+	if !strings.Contains(string(goMod), "go 1.26.1") {
+		t.Fatal("the repository Go toolchain should stay in the configured mise Go 1.26 series")
 	}
 }
 

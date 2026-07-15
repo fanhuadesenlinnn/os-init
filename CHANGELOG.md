@@ -1,6 +1,29 @@
 # Changelog
 
-## Unreleased
+## v1.1.0 - 2026-07-15
+
+### Added
+
+- Split the cross-platform mise capability into mise core plus user-level Go, Python, and Node.js runtime modules, with a combined development-runtime preset.
+- Add native development build prerequisites for mise-managed Python without installing a system Python.
+- Deploy the managed Karabiner-Elements key mappings automatically on macOS while backing up and restoring any pre-existing configuration across uninstall.
+- Safely merge the Arch Fcitx5/Rime configuration without replacing learned dictionaries, sync state, or private phrases, and reload the active input method when possible.
+- Detect WSL1, WSL2, and WSLg; add safe systemd configuration, WSL diagnostics, and a user-space development preset.
+
+### Changed
+
+- Preserve full mise development runtimes for both normal users and root while isolating them in each target user's HOME.
+- Use Homebrew for the mise binary on macOS, pacman on Arch, and a portable user binary on Debian/RedHat.
+- Align the default mise-managed Go series with the repository's Go 1.26 toolchain.
+- Filter kernel, DNS, physical-network, proxy-service, display-manager, and full-desktop capabilities from WSL; use only a distribution-owned native Docker Engine on WSL2.
+
+### Fixed
+
+- Make archlinuxcn inherit pacman's global signature policy, migrate legacy repository-level `SigLevel` entries, and retry repository synchronization with USTC, TUNA, and the official server.
+
+### Removed
+
+- Remove the standalone system Go module, `/usr/local/go` management, system Go packages, and the legacy `GO_*` download settings.
 
 ## v1.0.0 - 2026-07-14
 

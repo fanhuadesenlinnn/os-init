@@ -3,6 +3,7 @@ package runner
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,8 @@ import (
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+const eventPrefix = "@@OS_INIT_EVENT@@"
+
 const (
 	maxScannerTokenBytes   = 1024 * 1024
 	maxCapturedOutputBytes = 1024 * 1024
@@ -29,11 +32,22 @@ func StripANSI(s string) string {
 
 // Result holds the outcome of a script execution.
 type Result struct {
-	Module   string
-	ExitCode int
-	Output   string
-	Duration time.Duration
-	LogFile  string
+	Module           string
+	ExitCode         int
+	Output           string
+	Duration         time.Duration
+	LogFile          string
+	ProviderProtocol int
+	ProviderStatus   string
+	Events           []Event
+}
+
+// Event is a structured provider protocol event.
+type Event struct {
+	Protocol int    `json:"protocol"`
+	Type     string `json:"type"`
+	Status   string `json:"status,omitempty"`
+	ExitCode int    `json:"exit_code,omitempty"`
 }
 
 // Params configures a single script run.
@@ -87,6 +101,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 
 	// Environment
 	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "OS_INIT_PROVIDER_PROTOCOL_REQUEST=2")
 	for k, v := range p.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -130,6 +145,7 @@ func Run(ctx context.Context, p Params) (Result, error) {
 	var output strings.Builder
 	capturedBytes := 0
 	outputTruncated := false
+	var events []Event
 	appendOutput := func(value string) {
 		if outputTruncated {
 			return
@@ -157,6 +173,13 @@ func Run(ctx context.Context, p Params) (Result, error) {
 		scanner.Buffer(make([]byte, 64*1024), maxScannerTokenBytes)
 		for scanner.Scan() {
 			raw := scanner.Text()
+			if strings.HasPrefix(raw, eventPrefix) {
+				var event Event
+				if json.Unmarshal([]byte(strings.TrimPrefix(raw, eventPrefix)), &event) == nil {
+					events = append(events, event)
+					continue
+				}
+			}
 			appendOutput(raw + "\n")
 			clean := StripANSI(raw)
 
@@ -196,11 +219,23 @@ func Run(ctx context.Context, p Params) (Result, error) {
 		}
 	}
 
+	providerProtocol, providerStatus := 0, ""
+	for _, event := range events {
+		if event.Protocol > providerProtocol {
+			providerProtocol = event.Protocol
+		}
+		if event.Type == "result" {
+			providerStatus = event.Status
+		}
+	}
 	return Result{
-		Module:   p.Script,
-		ExitCode: exitCode,
-		Output:   output.String(),
-		Duration: time.Since(start),
-		LogFile:  logPath,
+		Module:           p.Script,
+		ExitCode:         exitCode,
+		Output:           output.String(),
+		Duration:         time.Since(start),
+		LogFile:          logPath,
+		ProviderProtocol: providerProtocol,
+		ProviderStatus:   providerStatus,
+		Events:           events,
 	}, nil
 }

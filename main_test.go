@@ -48,15 +48,29 @@ func TestUsageTextHasChineseHelp(t *testing.T) {
 
 func TestSystemInfoTextIsMachineReadable(t *testing.T) {
 	target := platform.Target{
-		GOOS:      "linux",
-		ID:        "rocky",
-		Family:    platform.FamilyRedHat,
-		VersionID: "9.4",
-		Init:      "systemd",
+		GOOS:        "linux",
+		ID:          "rocky",
+		Family:      platform.FamilyRedHat,
+		VersionID:   "9.4",
+		Init:        "systemd",
+		Environment: platform.EnvironmentNative,
 	}
-	want := "goos=linux\nid=rocky\nfamily=redhat\nversion_id=9.4\ninit=systemd\n"
+	want := "goos=linux\nid=rocky\nfamily=redhat\nversion_id=9.4\ninit=systemd\nenvironment=native\nwsl_version=0\nwslg=false\n"
 	if got := systemInfoText(target); got != want {
 		t.Fatalf("system info = %q, want %q", got, want)
+	}
+}
+
+func TestSystemInfoTextIncludesWSLCapabilities(t *testing.T) {
+	target := platform.Target{
+		GOOS: "linux", ID: "ubuntu", Family: platform.FamilyDebian, Init: "systemd",
+		Environment: platform.EnvironmentWSL, WSLVersion: 2, WSLg: true,
+	}
+	got := systemInfoText(target)
+	for _, want := range []string{"environment=wsl\n", "wsl_version=2\n", "wslg=true\n"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("system info should contain %q, got %q", want, got)
+		}
 	}
 }
 

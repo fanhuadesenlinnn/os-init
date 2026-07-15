@@ -237,7 +237,7 @@ apply_hyprdots_runtime_overrides() {
     if [[ "${ENABLE_FCITX5:-0}" -ne 1 ]]; then
       sed \
         -e '/^exec-once = fcitx5 -d/s/^/# /' \
-        -e '/^env = .*fcitx/s/^/# /' \
+        -e '/^[[:space:]]*source = .*os-init-fcitx5\.conf/s/^/# /' \
         "${tmp_file}" > "${tmp_file}.fcitx"
       mv "${tmp_file}.fcitx" "${tmp_file}"
     fi

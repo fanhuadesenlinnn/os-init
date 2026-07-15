@@ -49,6 +49,14 @@ script_path="${SCRIPT_DIR}/${script}"
 
 export OS_INIT_PROVIDER_MODE=1
 export OS_INIT_PROVIDER_OPERATION="${operation}"
+export OS_INIT_PROVIDER_PROTOCOL=2
+
+requested_protocol="${OS_INIT_PROVIDER_PROTOCOL_REQUEST:-1}"
+[[ "${requested_protocol}" == "1" || "${requested_protocol}" == "2" ]] || die "unsupported protocol: ${requested_protocol}"
+emit_event() {
+  [[ "${requested_protocol}" == "2" ]] || return 0
+  printf '@@OS_INIT_EVENT@@%s\n' "$1"
+}
 
 args=()
 if [[ ${#components[@]} -gt 0 ]]; then
@@ -61,7 +69,16 @@ case "${operation}" in
   *) die "unsupported operation: ${operation}" ;;
 esac
 
+emit_event "{\"protocol\":2,\"type\":\"started\"}"
+set +e
 if [[ ${#args[@]} -gt 0 ]]; then
-  exec bash "${script_path}" "${args[@]}"
+  bash "${script_path}" "${args[@]}"
+else
+  bash "${script_path}"
 fi
-exec bash "${script_path}"
+exit_code=$?
+set -e
+status="passed"
+[[ ${exit_code} -eq 0 ]] || status="failed"
+emit_event "{\"protocol\":2,\"type\":\"result\",\"status\":\"${status}\",\"exit_code\":${exit_code}}"
+exit "${exit_code}"

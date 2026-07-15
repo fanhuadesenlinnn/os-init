@@ -309,6 +309,15 @@ verify_docker() {
     sudo systemctl --no-pager --full status docker.service | sed -n '1,8p' || true
 }
 
+prepare_wsl_native_docker() {
+    is_wsl || return 0
+    require_wsl2
+    if wsl_docker_desktop_integration_detected; then
+        die "检测到 Docker Desktop WSL Integration。请先在 Docker Desktop 中关闭当前发行版的 Integration，再安装由本 WSL 发行版管理的原生 Docker Engine"
+    fi
+    install "WSL2 将使用当前 Linux 发行版内的原生 Docker Engine"
+}
+
 uninstall_docker() {
 	require_systemd
 
@@ -365,6 +374,7 @@ if [[ "$UNINSTALL" == true ]]; then
 fi
 
 require_systemd
+prepare_wsl_native_docker
 
 if is_arch; then
     echo "[1/5] Docker 软件包..."

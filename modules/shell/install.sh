@@ -1,14 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install shell tooling: zsh, oh-my-zsh, bundled zsh plugins, direnv, byobu, git
+# Install shell tooling: zsh, oh-my-zsh, bundled zsh plugins, direnv, tmux, git
 # Author: Dusan Panic <dpanic@gmail.com>
 # Replicates a full zsh dev environment from scratch
 # Safe to re-run -- idempotent (skips already-installed components)
 #
 # Usage:
 #   ./install-shell-tools.sh              # install everything
-#   ./install-shell-tools.sh zsh byobu    # install only listed components
+#   ./install-shell-tools.sh zsh tmux     # install only listed components
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -16,9 +16,9 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091
 source "$REPO_DIR/lib.sh"
 
-SUPPORTED_COMPONENTS=(zsh direnv git byobu)
+SUPPORTED_COMPONENTS=(zsh direnv git tmux)
 ALL_COMPONENTS=(zsh direnv git)
-is_linux && ALL_COMPONENTS+=(byobu)
+is_linux && ALL_COMPONENTS+=(tmux)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
@@ -89,30 +89,13 @@ set_default_zsh() {
     fi
 }
 
-ensure_macos_oh_my_zsh_commands() {
-    is_macos || return 0
-
-    local command_name package ownership_key
-    for command_name in git fzf kubectl; do
-        command -v "$command_name" &>/dev/null && continue
-        package="$command_name"
-        ownership_key="shell-dependency-${command_name}"
-        [[ "$command_name" == "fzf" ]] && ownership_key="macos-formula-fzf"
-        install "$(os_init_text "通过 Homebrew 安装 Oh My Zsh 依赖: $package" "installing Oh My Zsh dependency with Homebrew: $package")"
-        brew_install "$package"
-        os_init_mark_user_ownership "$ownership_key"
-    done
-
-    if ! command -v docker &>/dev/null; then
-		if brew_list --cask orbstack &>/dev/null || [[ -d "/Applications/OrbStack.app" ]]; then
-			skip "OrbStack 已安装"
-		else
-			install "$(os_init_text "未检测到 docker，安装 OrbStack" "docker was not found; installing OrbStack")"
-			brew_install orbstack
-			os_init_mark_user_ownership "macos-cask-orbstack"
-		fi
-        warn "$(os_init_text "请打开 OrbStack 完成首次初始化，随后 docker 命令才会可用" "open OrbStack to finish first-time initialization before using the docker command")"
-    fi
+ensure_oh_my_zsh_prerequisites() {
+	local command_name
+	for command_name in git curl; do
+		command -v "$command_name" &>/dev/null && continue
+		install "$(os_init_text "安装 Oh My Zsh 基础依赖: $command_name" "installing Oh My Zsh prerequisite: $command_name")"
+		pkg_install "$command_name"
+	done
 }
 
 ensure_zsh_package() {
@@ -190,9 +173,6 @@ plugins=(
     git
     zsh-autosuggestions
     zsh-syntax-highlighting
-    fzf
-    docker
-    kubectl
 )$source_line
 EOF
 )"
@@ -238,7 +218,7 @@ count_steps() {
 	want "direnv" && total=$((total + 1))
 	want "zsh" && total=$((total + 1))
 	want "git" && total=$((total + 1))
-	want "byobu" && total=$((total + 1))
+	want "tmux" && total=$((total + 1))
     echo "$total"
 }
 TOTAL=$(count_steps)
@@ -302,20 +282,17 @@ if [[ "$UNINSTALL" == true ]]; then
         fi
     fi
 
-    if want "byobu"; then
-        echo "[REMOVE] byobu..."
-		if os_init_package_owned "byobu-package"; then
-			pkg_remove byobu 2>/dev/null || true
-			os_init_forget_package_ownership "byobu-package"
-		fi
+    if want "tmux"; then
+        echo "[REMOVE] tmux..."
 		if os_init_package_owned "tmux-package"; then
 			pkg_remove tmux 2>/dev/null || true
 			os_init_forget_package_ownership "tmux-package"
 		fi
-		if command -v byobu &>/dev/null; then
-			warn "保留非 OS Init 安装的 byobu 和用户配置"
-		elif ! os_init_package_owned "byobu-package"; then
-			skip "byobu not installed"
+		os_init_restore_owned_user_path "tmux-config" "$HOME/.tmux.conf" || true
+		if command -v tmux &>/dev/null; then
+			warn "保留非 OS Init 安装的 tmux"
+		else
+			skip "tmux not installed"
         fi
     fi
 
@@ -366,7 +343,7 @@ if want "zsh"; then
 
 	cleanup_legacy_starship
     ensure_zsh_package
-	ensure_macos_oh_my_zsh_commands
+		ensure_oh_my_zsh_prerequisites
     set_default_zsh
     ensure_oh_my_zsh
 	ensure_powerlevel10k
@@ -421,72 +398,33 @@ if want "zsh"; then
     fi
 fi
 
-# ── byobu + tmux ──────────────────────────────────────────────────────────────
-if want "byobu"; then
-    next "byobu + tmux"
+# ── tmux ─────────────────────────────────────────────────────────────────────
+if want "tmux"; then
+    next "tmux"
     require_linux
 
-    PKGS=()
-    if command -v byobu &>/dev/null; then
-        skip "byobu already installed"
-    else
-        PKGS+=(byobu)
+    # Migrate old OS Init state without touching a user-managed byobu install
+    # or ~/.byobu configuration.
+    if os_init_package_owned "byobu-package"; then
+        remove "legacy OS Init byobu package"
+        pkg_remove byobu 2>/dev/null || true
+        os_init_forget_package_ownership "byobu-package"
     fi
 
     if command -v tmux &>/dev/null; then
         skip "tmux $(tmux -V) already installed"
     else
-        PKGS+=(tmux)
+        install "installing tmux"
+		pkg_install tmux
+		os_init_mark_package_ownership "tmux-package"
     fi
 
-    if [[ ${#PKGS[@]} -gt 0 ]]; then
-        install "installing ${PKGS[*]}"
-		pkg_install "${PKGS[@]}"
-		for package in "${PKGS[@]}"; do
-			os_init_mark_package_ownership "${package}-package"
-		done
-    fi
-
-    BYOBU_DIR="$HOME/.byobu"
-    BYOBU_CONFIGS=(".tmux.conf" ".ctrl-a-workaround" "backend" "color.tmux" "datetime.tmux" "keybindings" "keybindings.tmux" "status")
-
-    if [[ -d "$BYOBU_DIR" ]]; then
-        local_changed=0
-        for cfg in "${BYOBU_CONFIGS[@]}"; do
-            src="$SCRIPT_DIR/byobu/$cfg"
-            dst="$BYOBU_DIR/$cfg"
-            if [[ ! -f "$src" ]]; then
-                continue
-            fi
-            if [[ -f "$dst" ]] && diff -q "$src" "$dst" &>/dev/null; then
-                continue
-            fi
-            if [[ -f "$dst" ]]; then
-                install "updating $cfg (old backed up to ${cfg}.bak)"
-                cp "$dst" "${dst}.bak"
-            else
-                install "copying $cfg"
-            fi
-            cp "$src" "$dst"
-            local_changed=$((local_changed + 1))
-        done
-        if [[ $local_changed -eq 0 ]]; then
-            skip "byobu config already up to date"
-        fi
+    if [[ -f "$HOME/.tmux.conf" ]] && diff -q "$SCRIPT_DIR/tmux.conf" "$HOME/.tmux.conf" &>/dev/null; then
+        skip "tmux config already up to date"
     else
-        install "creating ~/.byobu/ with configs"
-        mkdir -p "$BYOBU_DIR"
-        for cfg in "${BYOBU_CONFIGS[@]}"; do
-            src="$SCRIPT_DIR/byobu/$cfg"
-            [[ -f "$src" ]] && cp "$src" "$BYOBU_DIR/$cfg"
-        done
-    fi
-
-    if [[ -f "$BYOBU_DIR/backend" ]] && grep -q "tmux" "$BYOBU_DIR/backend"; then
-        skip "byobu backend already set to tmux"
-    else
-        install "setting byobu backend to tmux"
-        echo "BYOBU_BACKEND=tmux" > "$BYOBU_DIR/backend"
+        install "installing ~/.tmux.conf"
+        os_init_prepare_owned_user_path "tmux-config" "$HOME/.tmux.conf"
+        command install -m 0644 "$SCRIPT_DIR/tmux.conf" "$HOME/.tmux.conf"
     fi
 fi
 
@@ -542,5 +480,5 @@ echo ""
 echo "=== $(os_init_text "Shell 工具安装完成" "Shell tools setup complete") ==="
 echo "  $(os_init_text "已处理" "Processed"): ${COMPONENTS[*]}"
 echo ""
-want "byobu" && echo "  byobu  -- $(os_init_text "启动终端复用器" "launch terminal multiplexer")"
+want "tmux" && echo "  tmux  -- $(os_init_text "启动终端复用器" "launch terminal multiplexer")"
 os_init_text "打开新终端或执行: exec zsh" "Start a new terminal or run: exec zsh"

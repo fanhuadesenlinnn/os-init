@@ -26,14 +26,14 @@ mkdir -p "$(dirname "$mise_config")"
 
 MISE_NODE_VERSION=24
 MISE_PYTHON_VERSION=3.13
-MISE_GO_VERSION=1.24
+MISE_GO_VERSION=1.26
 MISE_NODE_MIRROR_URL=https://invalid.example/node/
 MISE_GO_DOWNLOAD_MIRROR=https://invalid.example/go
 
 attempt=0
 declare -a mirror_calls=()
 
-mise() {
+mise_exec() {
     case "${1:-}" in
         use)
             attempt=$((attempt + 1))
@@ -47,7 +47,7 @@ mise() {
             case "${3:-}" in
                 node) printf 'v24.0.0\n' ;;
                 python) printf 'Python 3.13.0\n' ;;
-                go) printf 'go version go1.24.13 linux/amd64\n' ;;
+                go) printf 'go version go1.26.1 linux/amd64\n' ;;
                 npm|corepack) printf '1.0.0\n' ;;
                 *) return 1 ;;
             esac
@@ -66,7 +66,7 @@ warn() { :; }
 os_init_prepare_owned_user_path() { :; }
 os_init_mark_user_ownership() { :; }
 
-install_mise_runtimes
+install_mise_runtime go
 
 [[ "$attempt" -eq 2 ]] || fail "expected one mirror attempt and one official retry, got $attempt"
 [[ "${mirror_calls[0]}" == "https://invalid.example/node/|https://invalid.example/go" ]] || \
@@ -79,5 +79,17 @@ MISE_GO_DOWNLOAD_MIRROR=https://golang.google.cn/dl/
     fail "legacy golang.google.cn mirror was not normalized before use"
 grep -Fxq 'MISE_GO_DOWNLOAD_MIRROR=https://dl.google.com/go' "$ROOT_DIR/modules/config/defaults.env" || \
     fail "defaults.env does not use the mise-compatible Go mirror"
+grep -Fxq 'MISE_GO_VERSION=1.26' "$ROOT_DIR/modules/config/defaults.env" || \
+    fail "defaults.env does not align mise Go with the repository toolchain series"
 
-printf 'mise mirror fallback checks passed\n'
+OS_INIT_CONTEXT_VERSION=1
+OS_INIT_TARGET_USER=root
+OS_INIT_TARGET_HOME=/root
+[[ "$(real_user)" == "root" && "$(real_home)" == "/root" ]] || \
+    fail "root target context was not preserved"
+OS_INIT_TARGET_USER=alice
+OS_INIT_TARGET_HOME=/home/alice
+[[ "$(real_user)" == "alice" && "$(real_home)" == "/home/alice" ]] || \
+    fail "normal target-user context was not preserved"
+
+printf 'mise runtime, mirror fallback, and target-home checks passed\n'

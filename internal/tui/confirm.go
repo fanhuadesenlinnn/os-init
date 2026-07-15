@@ -21,6 +21,7 @@ type confirmModel struct {
 	executionOrder    []modules.Module
 	affectedPaths     []string
 	destructivePaths  []string
+	target            platform.Target
 }
 
 func newConfirmModel(count int, m mode) confirmModel {
@@ -41,6 +42,7 @@ func newConfirmModelForPlan(plan planner.Plan, m mode, target platform.Target) c
 		executionOrder:    plan.Modules,
 		affectedPaths:     collectModulePaths(plan.Modules, false),
 		destructivePaths:  collectModulePaths(plan.Modules, true),
+		target:            target,
 	}
 }
 
@@ -123,7 +125,7 @@ func (m confirmModel) View() string {
 				b.WriteString(MutedStyle.Render(fmt.Sprintf(text("    另有 %d 个模块", "    %d more modules"), len(m.executionOrder)-i)) + "\n")
 				break
 			}
-			b.WriteString(MutedStyle.Render(fmt.Sprintf("    %d. %s", i+1, moduleLabel(mod.ID, mod.Label))) + "\n")
+			b.WriteString(MutedStyle.Render(fmt.Sprintf("    %d. %s [%s]", i+1, moduleLabel(mod.ID, mod.Label), deliveryLabel(mod.DeliveryFor(m.target)))) + "\n")
 		}
 		b.WriteString("\n")
 	}
@@ -170,6 +172,25 @@ func (m confirmModel) View() string {
 	))
 
 	return b.String()
+}
+
+func deliveryLabel(kind modules.DeliveryKind) string {
+	switch kind {
+	case modules.DeliveryPortable:
+		return text("通用安装", "portable")
+	case modules.DeliverySystemPackage:
+		return text("系统包", "system package")
+	case modules.DeliveryDarwinNative:
+		return text("macOS 原生", "macOS native")
+	case modules.DeliveryArchNative:
+		return text("Arch 原生", "Arch native")
+	case modules.DeliveryLinuxSystem:
+		return text("Linux 系统配置", "Linux system")
+	case modules.DeliveryUserRuntime:
+		return text("用户运行时", "user runtime")
+	default:
+		return string(kind)
+	}
 }
 
 func collectModulePaths(selected []modules.Module, destructive bool) []string {

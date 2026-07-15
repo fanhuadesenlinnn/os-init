@@ -111,7 +111,7 @@
 | Kernel limits | 改为 `/etc/security/limits.d/99-os-init.conf`，并按发行版检测 PAM/systemd 路径 |
 | Kernel scheduler | 保留 udev 规则，但增加 systemd/udev/设备兼容检测 |
 | Kernel autotune | 保留 systemd oneshot，增加依赖检测和缺失命令提示 |
-| Shell tools | zsh、starship、direnv、zsh plugins、nvm、fnm、byobu/tmux、git-lfs 进入跨发行版适配 |
+| Shell tools | zsh、starship、direnv、zsh plugins、nvm、fnm、tmux、git-lfs 进入跨发行版适配 |
 | Terminal tools | ncdu 进入跨发行版适配 |
 | macOS apps | 新增用户列出的常用 App、代理网络、效率工具、输入增强、媒体下载、AI/笔记、通讯办公和字体模块，仅在 macOS 目标显示并通过 Homebrew cask 安装 |
 | macOS CLI | 新增用户列出的 Homebrew 顶层命令工具模块，仅在 macOS 目标显示并通过 Homebrew formula 安装 |
@@ -135,7 +135,7 @@ AI 实施阶段顺序和用户实际选择模块后的执行顺序不是一回�
 | 10 | 预检和公共配置 | 加载配置、识别平台、检查 systemd/root/包管理器和下载配置 |
 | 20 | 网络和代理 | Mihomo 优先执行，便于后续 Docker/Go/Neovim/Yazi/GitHub 下载使用代理；未选择 Mihomo 时使用已有 `HTTP_PROXY/HTTPS_PROXY` |
 | 30 | 容器运行时 | Docker 安装、daemon 配置、Compose plugin；Arch 走 pacman/AUR，其它 Linux 走静态二进制 |
-| 40 | 基础终端和 Shell | zsh、starship、direnv、git-lfs、byobu/tmux、ncdu |
+| 40 | 基础终端和 Shell | zsh、starship、direnv、git-lfs、tmux、ncdu |
 | 50 | 语言和开发工具 | Go、Yazi、Neovim + LazyVim、lazygit、ripgrep/fd |
 | 80 | 内核和系统参数 | sysctl、limits、scheduler、autotune；尽量使用 drop-in，放到软件安装后 |
 
@@ -343,7 +343,7 @@ go test ./...
 - 新增 `modules/config/defaults.env`
 - 需要下载的模块脚本：
   - `modules/docker/install.sh`
-  - `modules/go/install.sh`
+  - `modules/mise/install.sh`（Go/Python/Node 用户运行时；独立系统 Go 路径已移除）
   - `modules/yazi/install.sh`
   - `modules/neovim/install.sh`
   - `modules/shell/install.sh`
@@ -411,8 +411,8 @@ METACUBEXD_VERSION=
 METACUBEXD_SOURCE=
 METACUBEXD_WEB_ROOT=/usr/share/metacubexd
 
-GO_DOWNLOAD_BASE=https://go.dev/dl
-GO_VERSION_URL=https://go.dev/VERSION?m=text
+MISE_GO_VERSION=1.26
+MISE_GO_DOWNLOAD_MIRROR=https://dl.google.com/go
 ```
 
 ### Shell helper 要求
@@ -927,15 +927,15 @@ rg -n "apt-get install.*docker|yum install.*docker|dnf install.*docker" modules/
 
 - 使用 `pkg_install/pkg_remove/pkg_is_installed`。
 - 通过 logical package name 映射不同发行版包名。
-- 保持组件参数机制：`zsh`、`starship`、`direnv`、`plugins`、`nvm`、`fnm`、`byobu`、`git`。
+- 保持组件参数机制：`zsh`、`starship`、`direnv`、`plugins`、`nvm`、`fnm`、`tmux`、`git`。
 - GitHub 下载走 `download_file` 或 git proxy 配置。
 - 不覆盖用户现有 `.zshrc`、`.gitconfig`。
 
-### 6.2 Go/Yazi/Neovim
+### 6.2 mise 运行时/Yazi/Neovim
 
 改造：
 
-- `modules/go/install.sh`
+- `modules/mise/install.sh`
 - `modules/yazi/install.sh`
 - `modules/neovim/install.sh`
 

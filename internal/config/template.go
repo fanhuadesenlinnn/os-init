@@ -175,20 +175,20 @@ func shellResourceSection() configSection {
 
 func developmentResourceSection(includeLinuxBinaries bool) configSection {
 	entries := []configEntry{
-		{Key: "MISE_NODE_VERSION", Value: "24", CommentZ: "mise 管理的全局 Node.js 主版本。", CommentE: "Global Node.js major version managed by mise."},
-		{Key: "MISE_PYTHON_VERSION", Value: "3.13", CommentZ: "mise 管理的全局 Python 版本系列。", CommentE: "Global Python version series managed by mise."},
-		{Key: "MISE_GO_VERSION", Value: "1.24", CommentZ: "mise 管理的全局 Go 版本系列。", CommentE: "Global Go version series managed by mise."},
+		{Key: "MISE_VERSION", Value: "", CommentZ: "mise 版本。留空时从 GitHub 查询最新版本；仅 portable Linux 路径使用。", CommentE: "mise version. Empty means query the latest GitHub release; used only by portable Linux installs."},
+		{Key: "MISE_INSTALL_PATH", Value: "", CommentZ: "mise portable 二进制路径。留空为目标用户 ~/.local/bin/mise。", CommentE: "Portable mise binary path. Empty defaults to the target user's ~/.local/bin/mise."},
+		{Key: "MISE_DOWNLOAD_BASE", Value: "https://github.com/jdx/mise/releases/download", CommentZ: "mise 官方 Release 下载基础地址。", CommentE: "Base URL for official mise release downloads."},
+		{Key: "MISE_DOWNLOAD_URL", Value: "", CommentZ: "mise 完整二进制下载地址；设置后优先。", CommentE: "Full mise binary URL; overrides the base URL when set."},
+		{Key: "MISE_DOWNLOAD_SHA256", Value: "", CommentZ: "mise 二进制 SHA-256；使用 GitHub 代理时建议配置。", CommentE: "Expected mise binary SHA-256; recommended when using a GitHub proxy."},
+		{Key: "MISE_NODE_VERSION", Value: "24", CommentZ: "mise 管理的用户级全局 Node.js 主版本。", CommentE: "Global user-level Node.js major version managed by mise."},
+		{Key: "MISE_PYTHON_VERSION", Value: "3.13", CommentZ: "mise 管理的用户级全局 Python 版本系列；不修改系统 Python。", CommentE: "Global user-level Python version series managed by mise; does not modify system Python."},
+		{Key: "MISE_GO_VERSION", Value: "1.26", CommentZ: "mise 管理的用户级全局 Go 版本系列。", CommentE: "Global user-level Go version series managed by mise."},
 		{Key: "MISE_NODE_MIRROR_URL", Value: "https://npmmirror.com/mirrors/node/", CommentZ: "mise 下载 Node.js 的大陆镜像，失败时自动回退官方源。", CommentE: "Mainland China mirror for mise Node.js downloads; falls back to upstream on failure."},
 		{Key: "MISE_GO_DOWNLOAD_MIRROR", Value: "https://dl.google.com/go", CommentZ: "mise 下载 Go SDK 的兼容地址，失败时自动回退官方源。", CommentE: "mise-compatible Go SDK download URL with upstream fallback."},
 		{Key: "NPM_CONFIG_REGISTRY", Value: "https://registry.npmmirror.com", CommentZ: "npm 中国大陆镜像。", CommentE: "npm registry mirror for Mainland China."},
 		{Key: "PIP_INDEX_URL", Value: "https://pypi.tuna.tsinghua.edu.cn/simple", CommentZ: "pip 中国大陆镜像。", CommentE: "pip index mirror for Mainland China."},
 		{Key: "UV_DEFAULT_INDEX", Value: "https://pypi.tuna.tsinghua.edu.cn/simple", CommentZ: "uv 中国大陆镜像。", CommentE: "uv index mirror for Mainland China."},
 		{Key: "GOPROXY", Value: "https://goproxy.cn,direct", CommentZ: "Go module 中国大陆代理。", CommentE: "Go module proxy for Mainland China."},
-		{Key: "GO_VERSION", Value: "", CommentZ: "Go 版本。留空时从 GO_VERSION_URL 查询最新版本。", CommentE: "Go version. Empty means query the latest version from GO_VERSION_URL."},
-		{Key: "GO_VERSION_URL", Value: "https://go.dev/VERSION?m=text", CommentZ: "Go 最新版本查询地址。", CommentE: "URL used to query the latest Go version."},
-		{Key: "GO_DOWNLOAD_BASE", Value: "https://go.dev/dl", CommentZ: "Go 安装包下载基础地址。主要用于非 macOS/Arch 的二进制安装路径。", CommentE: "Base URL for Go archive downloads. Mainly used by the non-macOS/non-Arch binary install path."},
-		{Key: "GO_DOWNLOAD_URL", Value: "", CommentZ: "Go 完整安装包地址；设置后优先。macOS/Arch 默认优先包管理器。", CommentE: "Full Go archive URL; overrides the base URL when set. macOS/Arch default to package managers."},
-		{Key: "GO_DOWNLOAD_SHA256", Value: "", CommentZ: "Go 安装包 SHA-256。", CommentE: "Expected SHA-256 for the Go archive."},
 		{Key: "NVIM_CONFIG_REPO", Value: "https://github.com/fanhuadesenlinnn/nvim.git", CommentZ: "config-yuan Neovim 配置仓库地址，可替换为镜像。", CommentE: "config-yuan Neovim configuration repository; can be replaced with a mirror."},
 	}
 	if includeLinuxBinaries {
@@ -334,6 +334,9 @@ func configGOOS(target platform.Target) string {
 
 func targetSummary(target platform.Target) string {
 	goos := configGOOS(target)
+	if target.Environment == platform.EnvironmentWSL {
+		return fmt.Sprintf("%s/%s/wsl%d", goos, target.Family, target.WSLVersion)
+	}
 	if target.Family != "" && target.Family != platform.FamilyUnknown {
 		return fmt.Sprintf("%s/%s", goos, target.Family)
 	}

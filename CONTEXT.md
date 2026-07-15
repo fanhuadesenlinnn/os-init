@@ -22,6 +22,7 @@ supported by a module. Unsupported operations are rejected during planning.
 
 **Provider**: The stable Shell execution boundary. Go supplies script,
 operation, and components; platform-specific Shell code implements the change.
+Provider protocol v2 also emits structured started/result events.
 
 **Target User**: The account receiving user configuration. A normal user is
 the target when running normally; root is the target when OS Init runs as root.
@@ -40,13 +41,23 @@ the current platform.
 
 - Arch-specific modules and cross-platform modules share the same menu,
   planner, confirmation page, executor, and summary.
+- TUI and headless commands share one per-module execution use case, including
+  timeout, cancellation, verification, structured results, and state records.
+- Go passes one versioned platform and target-user runtime context to Shell;
+  standalone Shell detection remains only as a compatibility fallback.
 - Presets are removed after dependency expansion, while actions remain
   separate from stateful lifecycle modules.
 - A normal Arch user runs system work through sudo and user work without sudo.
 - In root mode, system work executes directly and user configuration targets
   `/root`; paru/yay use prebuilt archlinuxcn packages, while makepkg remains
   restricted to a normal build user.
-- `arch-dev` composes base, repository, DNS, Git, Ops Toolkit, mise, Neovim,
+- WSL is an execution environment layered on top of the detected Linux family.
+  WSL1 receives user-space development capabilities; WSL2 can additionally
+  enable systemd and run a native, distribution-owned Docker Engine. Kernel,
+  DNS, physical-network, proxy-service, display-manager, and full-desktop
+  capabilities are excluded from WSL.
+- `arch-dev` composes base, repository, DNS, Git, Ops Toolkit, mise-managed
+  user runtimes, Neovim,
   Docker, fonts, Shell, terminal styling, and Arch Mihomo/MetaCubeXD.
 - `arch-workstation` adds the Hyprland desktop capability to `arch-dev`.
 - Private accounts, subscriptions, and personal application data remain out of

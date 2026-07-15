@@ -27,22 +27,22 @@ func TestStartExecutionReportsAssetExtractionFailure(t *testing.T) {
 	}
 }
 
-func TestResolveForContextSharesArchMiseAndHidesStandaloneGo(t *testing.T) {
+func TestResolveForContextKeepsMiseRuntimesForRootAndNormalUsers(t *testing.T) {
 	mods := []modules.Module{
 		{ID: "shell-zsh", Category: "installation"},
 		{ID: "arch-base", Category: "installation"},
 		{ID: "kernel-sysctl", Category: "optimization"},
-		{ID: "arch-mise", Category: "installation"},
-		{ID: "go", Category: "installation"},
+		{ID: "mise", Category: "installation"},
+		{ID: "mise-go", Category: "installation"},
 	}
 
 	rootMods := modules.ResolveForContext(mods, true)
-	if len(rootMods) != 4 || rootMods[1].ID != "arch-base" || rootMods[3].ID != "arch-mise" {
+	if len(rootMods) != len(mods) || rootMods[3].ID != "mise" || rootMods[4].ID != "mise-go" {
 		t.Fatalf("root modules = %#v", rootMods)
 	}
 
 	normalMods := modules.ResolveForContext(mods, false)
-	if len(normalMods) != 4 || normalMods[1].ID != "arch-base" || normalMods[3].ID != "arch-mise" {
+	if len(normalMods) != len(mods) || normalMods[3].ID != "mise" || normalMods[4].ID != "mise-go" {
 		t.Fatalf("normal user modules were unexpectedly filtered: %#v", normalMods)
 	}
 }

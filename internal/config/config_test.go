@@ -20,7 +20,7 @@ func TestParseEnv(t *testing.T) {
 # comment
 export HTTP_PROXY="http://127.0.0.1:7890"
 NO_PROXY='localhost,127.0.0.1'
-GO_VERSION=go1.26.3
+MISE_GO_VERSION=1.26
 bad-key=value
 `))
 
@@ -30,8 +30,8 @@ bad-key=value
 	if got["NO_PROXY"] != "localhost,127.0.0.1" {
 		t.Fatalf("unexpected NO_PROXY: %q", got["NO_PROXY"])
 	}
-	if got["GO_VERSION"] != "go1.26.3" {
-		t.Fatalf("unexpected GO_VERSION: %q", got["GO_VERSION"])
+	if got["MISE_GO_VERSION"] != "1.26" {
+		t.Fatalf("unexpected MISE_GO_VERSION: %q", got["MISE_GO_VERSION"])
 	}
 	if _, ok := got["bad-key"]; ok {
 		t.Fatal("invalid key should be ignored")
@@ -79,12 +79,12 @@ func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN"))
-	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "NVIM_CONFIG_REPO=", "GO_DOWNLOAD_BASE=", "MISE_NODE_VERSION=24", "MISE_PYTHON_VERSION=3.13", "MISE_GO_VERSION=1.24"} {
+	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "NVIM_CONFIG_REPO=", "MISE_DOWNLOAD_BASE=https://github.com/jdx/mise/releases/download", "MISE_NODE_VERSION=24", "MISE_PYTHON_VERSION=3.13", "MISE_GO_VERSION=1.26"} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("darwin config should contain %q, got %q", want, data)
 		}
 	}
-	for _, unwanted := range []string{"NVM_INSTALL_URL=", "FNM_INSTALL_URL="} {
+	for _, unwanted := range []string{"NVM_INSTALL_URL=", "FNM_INSTALL_URL=", "GO_DOWNLOAD_BASE=", "GO_VERSION_URL="} {
 		if strings.Contains(data, unwanted) {
 			t.Fatalf("darwin config should not contain retired runtime manager setting %q", unwanted)
 		}

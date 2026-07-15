@@ -203,6 +203,38 @@ uninstall_cask() {
     fi
 }
 
+karabiner_config_target() {
+    echo "$(real_home)/.config/karabiner/karabiner.json"
+}
+
+install_karabiner_config() {
+    local source target target_dir tmp
+    source="$SCRIPT_DIR/karabiner/karabiner.json"
+    target="$(karabiner_config_target)"
+    target_dir="$(dirname "$target")"
+    [[ -f "$source" ]] || die "Karabiner 配置模板不存在: $source"
+
+    # Keep the first pre-OS-Init version so uninstall can restore it. Updates
+    # replace only the managed copy and never overwrite that original backup.
+    os_init_prepare_owned_user_path "karabiner-config" "$target"
+    if [[ -f "$target" ]] && cmp -s "$source" "$target"; then
+        skip "Karabiner 配置已是最新"
+        return 0
+    fi
+
+    install "配置 Karabiner 键盘映射"
+    mkdir -p "$target_dir"
+    chmod 700 "$target_dir" 2>/dev/null || true
+    tmp="$(mktemp "${target}.os-init.XXXXXX")"
+    command install -m 0600 "$source" "$tmp"
+    mv -f "$tmp" "$target"
+    os_init_reown_user_file "$target"
+}
+
+uninstall_karabiner_config() {
+    os_init_restore_owned_user_path "karabiner-config" "$(karabiner_config_target)" || true
+}
+
 require_macos
 if [[ "$UNINSTALL" == true ]] && ! command -v brew &>/dev/null; then
 	warn "未安装 Homebrew，无法卸载 cask；不会为了卸载而安装 Homebrew"
@@ -232,9 +264,11 @@ for cask in "${ALL_COMPONENTS[@]}"; do
     want "$cask" || continue
     next "$(cask_label "$cask")"
     if [[ "$UNINSTALL" == true ]]; then
+        [[ "$cask" == "karabiner-elements" ]] && uninstall_karabiner_config
         uninstall_cask "$cask"
     else
         install_cask "$cask"
+        [[ "$cask" == "karabiner-elements" ]] && install_karabiner_config
     fi
 done
 
@@ -246,6 +280,7 @@ if [[ "$UNINSTALL" != true ]]; then
         MANUAL_NOTES+=("$(os_init_text "Clash: 打开应用后导入自己的代理配置；os-init 不接管订阅和系统代理。" "Clash: import your own proxy profile in the app; os-init does not manage subscriptions or system proxy settings.")")
     fi
 	want "motrix-next" && MANUAL_NOTES+=("$(os_init_text "Motrix Next: 应用未签名；如 macOS 拒绝打开，请先核对上游说明再决定是否移除隔离属性。" "Motrix Next: the app is unsigned; if macOS blocks it, review the upstream guidance before deciding whether to remove quarantine attributes.")")
+    want "karabiner-elements" && MANUAL_NOTES+=("$(os_init_text "Karabiner-Elements: 首次打开后按提示批准输入监控和系统扩展权限；键盘映射配置已自动部署。" "Karabiner-Elements: approve Input Monitoring and system extension permissions on first launch; the keyboard mappings are already configured.")")
     want "royal-tsx" && MANUAL_NOTES+=("$(os_init_text "Royal TSX: 打开应用后导入或创建自己的连接配置。" "Royal TSX: import or create your own connection configuration in the app.")")
     want "seafile-client" && MANUAL_NOTES+=("$(os_init_text "Seafile Client: 登录账号并选择同步目录。" "Seafile Client: sign in and choose sync directories.")")
     want "bitwarden" && MANUAL_NOTES+=("$(os_init_text "Bitwarden: 登录账号或导入自己的密码库。" "Bitwarden: sign in or import your own vault.")")

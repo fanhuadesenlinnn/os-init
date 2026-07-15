@@ -58,12 +58,59 @@ func TestModuleMatchesTarget_RequiresSystemd(t *testing.T) {
 	}
 }
 
+func TestForTarget_AppliesWSLCapabilityBoundaries(t *testing.T) {
+	t.Parallel()
+
+	wsl1 := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "unknown", Environment: platform.EnvironmentWSL, WSLVersion: 1})
+	for _, id := range []string{"wsl-dev", "wsl-doctor", "mise", "shell-tmux", "neovim"} {
+		if !hasModule(wsl1, id) {
+			t.Fatalf("%s should be available on WSL1", id)
+		}
+	}
+	for _, id := range []string{"wsl-systemd", "docker", "kernel-sysctl", "kernel-limits", "kernel-scheduler", "kernel-autotune", "network-ipv4", "network-tune", "mihomo"} {
+		if hasModule(wsl1, id) {
+			t.Fatalf("%s should be hidden on WSL1", id)
+		}
+	}
+
+	wsl2 := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd", Environment: platform.EnvironmentWSL, WSLVersion: 2, WSLg: true})
+	for _, id := range []string{"wsl-systemd", "wsl-dev", "wsl-doctor", "docker"} {
+		if !hasModule(wsl2, id) {
+			t.Fatalf("%s should be available on WSL2 with systemd", id)
+		}
+	}
+	for _, id := range []string{"kernel-sysctl", "kernel-limits", "kernel-scheduler", "kernel-autotune", "network-ipv4", "network-tune", "mihomo"} {
+		if hasModule(wsl2, id) {
+			t.Fatalf("%s should be hidden on WSL2", id)
+		}
+	}
+	docker, ok := moduleWithID(wsl2, "docker")
+	if !ok || docker.Label != "Docker（WSL 原生 Engine）" {
+		t.Fatalf("WSL should expose the native Docker variant: %#v", docker)
+	}
+
+	archWSL := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd", Environment: platform.EnvironmentWSL, WSLVersion: 2})
+	for _, id := range []string{"arch-dns", "arch-mihomo", "arch-desktop", "arch-dev", "arch-workstation", "arch-doctor", "arch-status"} {
+		if hasModule(archWSL, id) {
+			t.Fatalf("%s should be hidden on Arch WSL", id)
+		}
+	}
+	for _, id := range []string{"arch-base", "arch-archlinuxcn", "arch-git", "wsl-dev", "docker"} {
+		if !hasModule(archWSL, id) {
+			t.Fatalf("%s should remain available on Arch WSL", id)
+		}
+	}
+}
+
 func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	t.Parallel()
 
 	systemd := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"})
 	if !hasModule(systemd, "mihomo") {
 		t.Fatal("mihomo should appear on Debian-family systemd targets")
+	}
+	if !hasModule(systemd, "mise") || !hasModule(systemd, "shell-tmux") {
+		t.Fatal("Debian-family targets should receive portable mise and tmux modules")
 	}
 
 	openrc := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "openrc"})
@@ -111,19 +158,29 @@ func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	if hasModule(darwin, "shell-fzf") {
 		t.Fatal("fzf should not be registered on darwin targets")
 	}
+	if hasModule(darwin, "shell-tmux") {
+		t.Fatal("macOS should use its native tmux formula module")
+	}
 }
 
 func TestForTarget_ShowsArchCapabilitiesOnlyOnArchLinux(t *testing.T) {
 	t.Parallel()
 
 	arch := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
-	for _, id := range []string{"arch-base", "arch-mise", "arch-mihomo", "arch-dev", "arch-workstation"} {
+	for _, id := range []string{"arch-base", "mise", "mise-go", "mise-python", "mise-node", "mise-dev-runtimes", "arch-mihomo", "arch-dev", "arch-workstation"} {
 		if !hasModule(arch, id) {
 			t.Fatalf("%s should appear on Arch Linux", id)
 		}
 	}
 	if hasModule(arch, "mihomo") {
 		t.Fatal("Arch should use arch-mihomo instead of the generic Linux Mihomo module")
+	}
+	if module, ok := moduleWithID(arch, "mise"); !ok || module.DeliveryFor(platform.Target{GOOS: "linux", Family: platform.FamilyArch}) != DeliveryArchNative {
+		t.Fatal("Arch should use the native delivery backend of the shared mise module")
+	}
+	tmuxModule, ok := moduleWithID(arch, "shell-tmux")
+	if !ok || tmuxModule.DeliveryFor(platform.Target{GOOS: "linux", Family: platform.FamilyArch}) != DeliveryArchNative {
+		t.Fatal("Arch tmux should be marked as an Arch-native package")
 	}
 	if hasModule(arch, "arch-sing-box") {
 		t.Fatal("removed Arch sing-box capability should not appear")
@@ -138,11 +195,23 @@ func TestForTarget_ShowsArchCapabilitiesOnlyOnArchLinux(t *testing.T) {
 	if hasModule(redhat, "arch-base") {
 		t.Fatal("Arch capabilities should be hidden on RedHat-family Linux")
 	}
+	if !hasModule(redhat, "mise") || !hasModule(redhat, "shell-tmux") {
+		t.Fatal("RedHat-family targets should receive portable mise and tmux modules")
+	}
 
 	darwin := ForTarget(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"})
 	if hasModule(darwin, "arch-base") {
 		t.Fatal("Arch capabilities should be hidden on macOS")
 	}
+}
+
+func moduleWithID(modules []Module, id string) (Module, bool) {
+	for _, module := range modules {
+		if module.ID == id {
+			return module, true
+		}
+	}
+	return Module{}, false
 }
 
 func TestArchCapabilityDependenciesAreExplicit(t *testing.T) {

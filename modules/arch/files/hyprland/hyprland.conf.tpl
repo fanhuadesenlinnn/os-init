@@ -11,18 +11,13 @@ $menu = __APP_LAUNCHER__ --show drun
 # 显示器使用自动模式：优先采用屏幕推荐分辨率、自动排列、1 倍缩放。
 monitor = ,preferred,auto,1
 
-# Wayland/XWayland/输入法环境变量。fcitx5 相关变量用于中文输入法。
+# Wayland/XWayland 环境变量。Fcitx5 变量由 OS Init 生成的独立文件统一管理。
 env = XCURSOR_SIZE,24
 env = QT_QPA_PLATFORM,wayland;xcb
 env = QT_WAYLAND_DISABLE_WINDOWDECORATION,1
 env = GDK_BACKEND,wayland,x11
 env = MOZ_ENABLE_WAYLAND,1
-env = GTK_IM_MODULE,fcitx
-env = QT_IM_MODULE,fcitx
-env = XMODIFIERS,@im=fcitx
-env = INPUT_METHOD,fcitx
-env = SDL_IM_MODULE,fcitx
-env = GLFW_IM_MODULE,ibus
+source = ~/.config/hypr/conf/os-init-fcitx5.conf
 
 # 桌面启动项：状态栏、通知、输入法、网络/蓝牙托盘和提权认证代理。
 exec-once = waybar

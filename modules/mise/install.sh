@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install mise and a shared Node.js/Python/Go runtime set on macOS or Arch Linux.
+# Install mise and a shared Node.js/Python/Go runtime set. macOS and Arch use
+# their native package managers; other supported Linux families use the
+# official portable binary in the target user's ~/.local/bin.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -12,6 +14,31 @@ home="$(real_home)"
 env_file="$home/.config/os-init/mise-china.env"
 mise_config="$home/.config/mise/config.toml"
 mise_data="$home/.local/share/mise"
+mise_binary="${MISE_INSTALL_PATH:-$home/.local/bin/mise}"
+SUPPORTED_COMPONENTS=(core go python node)
+COMPONENTS=()
+
+want() {
+    local component="$1" selected
+    for selected in "${COMPONENTS[@]}"; do
+        [[ "$selected" == "$component" ]] && return 0
+    done
+    return 1
+}
+
+mise_exec() {
+    if command -v mise >/dev/null 2>&1; then
+        command mise "$@"
+    elif [[ -x "$mise_binary" ]]; then
+        "$mise_binary" "$@"
+    else
+        die "mise 尚未安装，请先安装 mise core"
+    fi
+}
+
+mise_uses_native_package() {
+    is_macos || is_arch
+}
 
 mise_package_key() {
     if is_macos; then
@@ -26,6 +53,65 @@ mise_package_installed() {
         brew_list --formula mise &>/dev/null
     else
         pkg_is_installed mise
+    fi
+}
+
+mise_binary_arch() {
+    case "$(uname -m)" in
+        x86_64|amd64) echo "x64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *) die "mise portable binary does not support architecture: $(uname -m)" ;;
+    esac
+}
+
+mise_binary_owned() {
+    [[ -f "$(os_init_user_state_dir)/ownership/user-path-mise-binary" ]]
+}
+
+install_mise_binary() {
+    local version arch base url tmp binary_dir
+    binary_dir="$(dirname "$mise_binary")"
+
+    if [[ -x "$mise_binary" && "$UPDATE" != true ]]; then
+        skip "mise portable binary already installed: $mise_binary"
+        export PATH="$binary_dir:$PATH"
+        return
+    fi
+    if [[ -x "$mise_binary" ]] && ! mise_binary_owned; then
+        warn "保留非 OS Init 安装的 mise: $mise_binary"
+        export PATH="$binary_dir:$PATH"
+        return
+    fi
+    if [[ ! -e "$mise_binary" ]] && command -v mise >/dev/null 2>&1; then
+        skip "mise already available at $(command -v mise)"
+        return
+    fi
+    if [[ -e "$mise_binary" && ! -x "$mise_binary" ]] && ! mise_binary_owned; then
+        die "refusing to replace unmanaged non-executable path: $mise_binary"
+    fi
+
+    version="${MISE_VERSION:-$(github_latest_version "jdx/mise" "v")}"
+    version="${version#v}"
+    arch="$(mise_binary_arch)"
+    base="${MISE_DOWNLOAD_BASE:-https://github.com/jdx/mise/releases/download}"
+    url="$(resource_url MISE_DOWNLOAD_URL "${base%/}/v${version}/mise-v${version}-linux-${arch}")"
+    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-mise.XXXXXX")"
+    install "installing mise ${version} portable binary"
+    download_file_verified "$url" "$tmp" "${MISE_DOWNLOAD_SHA256:-}"
+    os_init_prepare_owned_user_path "mise-binary" "$mise_binary"
+    mkdir -p "$binary_dir"
+    command install -m 0755 "$tmp" "$mise_binary"
+    rm -f "$tmp"
+    export PATH="$binary_dir:$PATH"
+}
+
+uninstall_mise_binary() {
+    if mise_binary_owned; then
+        os_init_restore_owned_user_path "mise-binary" "$mise_binary" || true
+    elif [[ -e "$mise_binary" ]]; then
+        warn "保留非 OS Init 安装的 mise: $mise_binary"
+    else
+        skip "mise portable binary not installed"
     fi
 }
 
@@ -83,6 +169,35 @@ remove_legacy_runtime_blocks() {
     done
 }
 
+cleanup_legacy_system_go() {
+    os_init_remove_shell_block "go"
+
+    # Portable mise itself does not require sudo. Only attempt Linux migration
+    # cleanup when the caller is root or another selected system module has
+    # already primed sudo; otherwise leave the old, ownership-tracked resource
+    # for a later privileged run.
+    if ! is_macos && [[ "$(id -u)" != "0" ]] && ! command sudo -n true 2>/dev/null; then
+        return
+    fi
+
+    if ! is_macos; then
+        if os_init_owned_path "go-install-dir"; then
+            remove "旧版 OS Init 管理的系统 Go"
+            os_init_restore_owned_path "go-install-dir" "/usr/local/go" || true
+        elif [[ -d /usr/local/go ]]; then
+            warn "保留非 OS Init 管理的系统 Go: /usr/local/go"
+        fi
+    fi
+
+    if pkg_is_installed go && os_init_package_owned "go-package"; then
+        remove "旧版 OS Init 安装的系统 Go 包"
+        pkg_remove go 2>/dev/null || true
+        os_init_forget_package_ownership "go-package"
+    elif pkg_is_installed go; then
+        warn "保留非 OS Init 安装的系统 Go 包"
+    fi
+}
+
 write_mise_china_env() {
     local content
     mkdir -p "$(dirname "$env_file")"
@@ -122,61 +237,95 @@ configure_mise_settings() {
         warn "Go 下载地址 ${configured_go_mirror} 不兼容 mise 校验文件格式，改用 ${go_mirror}"
     fi
     os_init_prepare_owned_user_path "mise-config" "$mise_config"
-    mise settings set prefer_offline true
-    mise settings set node.corepack true
-    mise settings set node.mirror_url "$node_mirror"
-    mise settings set go.download_mirror "$go_mirror"
+    mise_exec settings set prefer_offline true
+    mise_exec settings set node.corepack true
+    mise_exec settings set node.mirror_url "$node_mirror"
+    mise_exec settings set go.download_mirror "$go_mirror"
 }
 
-mise_use_global_runtimes() {
-    local node_version="$1" python_version="$2" go_version="$3"
-    local node_mirror go_mirror
+mise_runtime_version() {
+    case "$1" in
+        go) echo "${MISE_GO_VERSION:-1.26}" ;;
+        python) echo "${MISE_PYTHON_VERSION:-3.13}" ;;
+        node) echo "${MISE_NODE_VERSION:-24}" ;;
+        *) die "未知 mise 运行时: $1" ;;
+    esac
+}
+
+mise_use_global_runtime() {
+    local tool="$1" version="$2" node_mirror go_mirror
     node_mirror="${MISE_NODE_MIRROR_URL:-https://npmmirror.com/mirrors/node/}"
     go_mirror="$(resolve_mise_go_download_mirror)"
     MISE_NODE_MIRROR_URL="$node_mirror" \
     MISE_GO_DOWNLOAD_MIRROR="$go_mirror" \
-        mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"
+        mise_exec use --global "${tool}@${version}"
 }
 
-mise_use_global_runtimes_from_official_sources() {
-    local node_version="$1" python_version="$2" go_version="$3"
+mise_use_global_runtime_from_official_source() {
+    local tool="$1" version="$2"
     MISE_NODE_MIRROR_URL="https://nodejs.org/dist/" \
     MISE_GO_DOWNLOAD_MIRROR="https://dl.google.com/go" \
-        mise use --global "node@${node_version}" "python@${python_version}" "go@${go_version}"
+        mise_exec use --global "${tool}@${version}"
 }
 
-install_mise_runtimes() {
-    local node_version python_version go_version created_data=false
-    node_version="${MISE_NODE_VERSION:-24}"
-    python_version="${MISE_PYTHON_VERSION:-3.13}"
-    go_version="${MISE_GO_VERSION:-1.24}"
+verify_mise_runtime() {
+    local tool="$1" version="$2"
+    case "$tool" in
+        go)
+            mise_exec exec -- go version | grep -Eq "go${version}(\\.|[[:space:]])" || die "mise Go 版本验证失败"
+            ;;
+        python)
+            mise_exec exec -- python --version | grep -Eq "Python ${version}(\\.|$)" || die "mise Python 版本验证失败"
+            ;;
+        node)
+            mise_exec exec -- node --version | grep -Eq "^v${version}(\\.|$)" || die "mise Node.js 版本验证失败"
+            mise_exec exec -- npm --version >/dev/null
+            mise_exec exec -- corepack --version >/dev/null
+            ;;
+    esac
+    mise_exec which "$tool" >/dev/null
+}
 
+install_mise_runtime() {
+    local tool="$1" version created_data=false
+    version="$(mise_runtime_version "$tool")"
     [[ -e "$mise_data" ]] || created_data=true
-    install "通过 mise 安装 Node.js ${node_version}、Python ${python_version} 和 Go ${go_version}"
-    if ! mise_use_global_runtimes "$node_version" "$python_version" "$go_version"; then
-        warn "国内运行时镜像安装失败，使用官方源重试"
-        mise settings set node.mirror_url "https://nodejs.org/dist/"
-        mise settings set go.download_mirror "https://dl.google.com/go"
-        if ! mise_use_global_runtimes_from_official_sources "$node_version" "$python_version" "$go_version"; then
-            die "mise 使用官方源安装运行时仍然失败"
+
+    install "通过 mise 安装用户级 ${tool}@${version}"
+    if ! mise_use_global_runtime "$tool" "$version"; then
+        if [[ "$tool" == "python" ]]; then
+            die "mise 安装 python@${version} 失败；请检查系统编译依赖和上游下载状态"
+        fi
+        warn "${tool} 国内运行时镜像安装失败，使用官方源重试"
+        if ! mise_use_global_runtime_from_official_source "$tool" "$version"; then
+            die "mise 使用官方源安装 ${tool}@${version} 仍然失败"
         fi
         configure_mise_settings
     fi
     [[ "$created_data" == true ]] && os_init_mark_user_ownership "mise-data-dir"
+    verify_mise_runtime "$tool" "$version"
+}
 
-    mise exec -- node --version | grep -Eq "^v${node_version}(\\.|$)" || die "mise Node.js 版本验证失败"
-    mise exec -- python --version | grep -Eq "Python ${python_version}(\\.|$)" || die "mise Python 版本验证失败"
-    mise exec -- go version | grep -Eq "go${go_version}(\\.|[[:space:]])" || die "mise Go 版本验证失败"
-    mise exec -- npm --version >/dev/null
-    mise exec -- corepack --version >/dev/null
-    mise which node >/dev/null
-    mise which python >/dev/null
-    mise which go >/dev/null
+uninstall_mise_runtime() {
+    local tool="$1"
+    if ! command -v mise >/dev/null 2>&1 && [[ ! -x "$mise_binary" ]]; then
+        skip "mise 未安装，无法找到由其管理的 ${tool}"
+        return
+    fi
+    remove "从全局 mise 配置移除用户级 ${tool}"
+    mise_exec unuse --global "$tool" 2>/dev/null || true
+    mise_exec uninstall --all "$tool" 2>/dev/null || true
 }
 
 configure_mise_shells() {
-    local zprofile_content profile_content zshrc_content bashrc_content
+    local zprofile_content profile_content zshrc_content bashrc_content mise_bin_dir
+    if mise_uses_native_package && command -v mise >/dev/null 2>&1; then
+        mise_bin_dir="$(dirname "$(command -v mise)")"
+    else
+        mise_bin_dir="$(dirname "$mise_binary")"
+    fi
     zprofile_content="$(cat <<EOF
+export PATH="$mise_bin_dir:\$PATH"
 if command -v brew >/dev/null 2>&1; then
     eval "\$(brew shellenv)"
 fi
@@ -191,6 +340,7 @@ EOF
     os_init_upsert_block "$home/.zprofile" "mise" "$zprofile_content"
 
     profile_content="$(cat <<EOF
+export PATH="$mise_bin_dir:\$PATH"
 if [ -f "$env_file" ]; then
     . "$env_file"
 fi
@@ -202,6 +352,7 @@ EOF
     os_init_upsert_block "$home/.profile" "mise" "$profile_content"
 
     zshrc_content="$(cat <<EOF
+export PATH="$mise_bin_dir:\$PATH"
 if [[ -f "$env_file" ]]; then
     source "$env_file"
 fi
@@ -213,6 +364,7 @@ EOF
     os_init_upsert_zsh_block "mise" "$zshrc_content"
 
     bashrc_content="$(cat <<EOF
+export PATH="$mise_bin_dir:\$PATH"
 if [[ -f "$env_file" ]]; then
     source "$env_file"
 fi
@@ -246,34 +398,62 @@ purge_mise_data() {
 }
 
 mise_main() {
-    local title
+    local title component
     parse_update_flag "$@"
 
-    if ! is_macos && ! is_arch; then
-        die "mise 模块仅支持 macOS 和 Arch Linux"
+    if [[ ${#_CLEAN_ARGS[@]} -eq 0 ]]; then
+        COMPONENTS=(core go python node)
+    else
+        COMPONENTS=("${_CLEAN_ARGS[@]}")
     fi
+    for component in "${COMPONENTS[@]}"; do
+        case " ${SUPPORTED_COMPONENTS[*]} " in
+            *" $component "*) ;;
+            *) die "未知 mise 组件: $component" ;;
+        esac
+    done
 
     title="$(os_init_text "安装" "install")"
     [[ "$UPDATE" == true ]] && title="$(os_init_text "更新" "update")"
     [[ "$UNINSTALL" == true ]] && title="$(os_init_text "卸载" "uninstall")"
-    echo "=== mise + Node.js + Python + Go $title ==="
+    echo "=== mise 用户开发环境 $title ==="
+    echo "  $(os_init_text "组件" "Components"): ${COMPONENTS[*]}"
     echo ""
 
     if [[ "$UNINSTALL" == true ]]; then
-        remove_mise_shells
-        purge_mise_data
-        uninstall_mise_package
+        want "go" && uninstall_mise_runtime go
+        want "python" && uninstall_mise_runtime python
+        want "node" && uninstall_mise_runtime node
+        if want "core"; then
+            remove_mise_shells
+            purge_mise_data
+            if mise_uses_native_package; then
+                uninstall_mise_package
+            else
+                uninstall_mise_binary
+            fi
+        fi
     else
-        install_mise_package
-        remove_legacy_runtime_blocks
-        write_mise_china_env
-        configure_mise_settings
-        install_mise_runtimes
-        configure_mise_shells
+        if want "core"; then
+            if mise_uses_native_package; then
+                install_mise_package
+            else
+                require_linux
+                install_mise_binary
+            fi
+            remove_legacy_runtime_blocks
+            cleanup_legacy_system_go
+            write_mise_china_env
+            configure_mise_settings
+            configure_mise_shells
+        fi
+        want "go" && install_mise_runtime go
+        want "python" && install_mise_runtime python
+        want "node" && install_mise_runtime node
     fi
 
     echo ""
-    echo "=== mise + Node.js + Python + Go $title $(os_init_text "完成" "complete") ==="
+    echo "=== mise 用户开发环境 $title $(os_init_text "完成" "complete") ==="
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

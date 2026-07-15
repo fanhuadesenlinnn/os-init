@@ -54,7 +54,11 @@ module_config_fingerprint() {
       ops_toolkit) printf 'repo=%s\nbranch=%s\ndir=%s\n' "${OPS_TOOLKIT_REPO}" "${OPS_TOOLKIT_BRANCH:-}" "${OPS_TOOLKIT_DIR}" ;;
       fonts) printf 'cn=%s\nnerd=%s\nmonaco=%s\n' "${INSTALL_CN_FONTS:-0}" "${INSTALL_NERD_FONTS:-0}" "${INSTALL_MONACO_FONT:-0}" ;;
       proxy) printf 'core=mihomo\nsource=%s\nport=%s\nui=%s\n' "${MIHOMO_CONFIG_SOURCE:-}" "${MIHOMO_MIXED_PORT:-7890}" "${ENABLE_METACUBEXD:-0}" ;;
-      desktop_hyprland) printf 'gpu=%s\nmode=%s\nsddm=%s\nrime=%s\n' "${GPU_TYPE}" "${HYPRLAND_CONFIG_MODE}" "${ENABLE_SDDM:-0}" "${RIME_SCHEMA}" ;;
+      desktop_hyprland)
+        printf 'gpu=%s\nmode=%s\nsddm=%s\nfcitx5=%s\nengine=%s\nrime_schema=%s\nrime_install=%s\nrime_repo=%s\nrime_branch=%s\nrime_dir=%s\n' \
+          "${GPU_TYPE}" "${HYPRLAND_CONFIG_MODE}" "${ENABLE_SDDM:-0}" "${ENABLE_FCITX5:-0}" \
+          "${INPUT_METHOD_ENGINE:-rime}" "${RIME_SCHEMA}" "${INSTALL_RIME_CONFIG:-1}" \
+          "${RIME_CONFIG_REPO:-}" "${RIME_CONFIG_BRANCH:-}" "${RIME_CONFIG_DIR:-}" ;;
     esac
   } | sha256sum | awk '{print $1}'
 }
@@ -69,7 +73,7 @@ module_quick_verify() {
     ops_toolkit) [[ -d "${OPS_TOOLKIT_DIR}/.git" && -x "${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}" ]] ;;
     fonts) need_cmd fc-cache ;;
     proxy) need_cmd mihomo && [[ -f "${MIHOMO_CONFIG_FILE}" ]] ;;
-    desktop_hyprland) need_cmd Hyprland && [[ -d "${HOME}/.config/hypr" ]] ;;
+    desktop_hyprland) need_cmd Hyprland && [[ -d "${HOME}/.config/hypr" ]] && desktop_rime_quick_verify ;;
     *) return 1 ;;
   esac
 }

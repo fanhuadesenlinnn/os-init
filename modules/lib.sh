@@ -109,6 +109,7 @@ OS_INIT_CONFIG_KEYS=(
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
 	DIRENV_PACKAGE
     ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
+	MISE_VERSION MISE_INSTALL_PATH MISE_DOWNLOAD_BASE MISE_DOWNLOAD_URL MISE_DOWNLOAD_SHA256
 	MISE_NODE_VERSION MISE_PYTHON_VERSION MISE_GO_VERSION MISE_NODE_MIRROR_URL MISE_GO_DOWNLOAD_MIRROR
 	NPM_CONFIG_REGISTRY PIP_INDEX_URL UV_DEFAULT_INDEX GOPROXY
     DOCKER_DOWNLOAD_BASE DOCKER_CHANNEL DOCKER_VERSION DOCKER_COMPOSE_VERSION DOCKER_COMPOSE_DOWNLOAD_BASE
@@ -121,7 +122,6 @@ OS_INIT_CONFIG_KEYS=(
     MIHOMO_CONTROLLER_HOST MIHOMO_CONTROLLER_PORT MIHOMO_DNS_LISTEN MIHOMO_SECRET
     MIHOMO_STATE_DIR MIHOMO_EXTERNAL_UI_DIR MIHOMO_AUTO_ENABLE_SERVICE
 	ENABLE_METACUBEXD METACUBEXD_SOURCE METACUBEXD_SHA256 METACUBEXD_REPO
-	GO_VERSION GO_DOWNLOAD_BASE GO_VERSION_URL GO_DOWNLOAD_URL GO_DOWNLOAD_SHA256
 	NVIM_DOWNLOAD_BASE NVIM_DOWNLOAD_URL NVIM_DOWNLOAD_SHA256
 	LAZYGIT_VERSION LAZYGIT_DOWNLOAD_BASE LAZYGIT_DOWNLOAD_URL LAZYGIT_DOWNLOAD_SHA256
 	NVIM_CONFIG_REPO
@@ -150,6 +150,10 @@ parse_update_flag() {
 }
 
 detect_os() {
+	if [[ -n "${OS_INIT_TARGET_GOOS:-}" ]]; then
+		[[ "${OS_INIT_TARGET_GOOS}" == "darwin" ]] && echo "macos" || echo "${OS_INIT_TARGET_GOOS}"
+		return
+	fi
     case "$(uname -s)" in
         Darwin) echo "macos" ;;
         Linux)  echo "linux" ;;
@@ -162,6 +166,10 @@ lower() {
 }
 
 detect_linux_family() {
+	if [[ -n "${OS_INIT_TARGET_FAMILY:-}" ]]; then
+		echo "${OS_INIT_TARGET_FAMILY}"
+		return
+	fi
     if [[ "$OS" != "linux" ]]; then
         echo "$OS"
         return
@@ -192,6 +200,10 @@ detect_linux_family() {
 }
 
 detect_init() {
+	if [[ -n "${OS_INIT_TARGET_INIT:-}" ]]; then
+		echo "${OS_INIT_TARGET_INIT}"
+		return
+	fi
     if [[ "$OS" != "linux" ]]; then
         echo "unknown"
     elif [[ -d /run/systemd/system ]]; then
@@ -203,7 +215,50 @@ detect_init() {
     fi
 }
 
+detect_linux_environment() {
+	if [[ -n "${OS_INIT_TARGET_ENVIRONMENT:-}" ]]; then
+		echo "${OS_INIT_TARGET_ENVIRONMENT}"
+		return
+	fi
+	if [[ "$OS" == "linux" ]] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null; then
+		echo "wsl"
+	else
+		echo "native"
+	fi
+}
+
+detect_wsl_version() {
+	if [[ -n "${OS_INIT_TARGET_WSL_VERSION:-}" ]]; then
+		echo "${OS_INIT_TARGET_WSL_VERSION}"
+		return
+	fi
+	if [[ "${LINUX_ENVIRONMENT:-$(detect_linux_environment)}" != "wsl" ]]; then
+		echo 0
+	elif grep -Eqi '(wsl2|microsoft-standard)' /proc/sys/kernel/osrelease 2>/dev/null; then
+		echo 2
+	else
+		echo 1
+	fi
+}
+
+detect_wslg() {
+	if [[ -n "${OS_INIT_TARGET_WSLG:-}" ]]; then
+		case "$(lower "${OS_INIT_TARGET_WSLG}")" in
+			1|true|yes|on) echo 1 ;;
+			*) echo 0 ;;
+		esac
+	elif [[ -d /mnt/wslg ]]; then
+		echo 1
+	else
+		echo 0
+	fi
+}
+
 real_user() {
+    if [[ "${OS_INIT_CONTEXT_VERSION:-}" == "1" && -n "${OS_INIT_TARGET_USER:-}" ]]; then
+        echo "$OS_INIT_TARGET_USER"
+        return
+    fi
     if [[ "$(id -u)" == "0" ]]; then
         echo "root"
         return
@@ -217,6 +272,10 @@ real_user() {
 
 real_home() {
     local user
+    if [[ "${OS_INIT_CONTEXT_VERSION:-}" == "1" && -n "${OS_INIT_TARGET_HOME:-}" ]]; then
+        echo "$OS_INIT_TARGET_HOME"
+        return
+    fi
     user="$(real_user)"
     if [[ "$(id -u)" == "0" ]]; then
         if command -v getent &>/dev/null; then
@@ -240,6 +299,10 @@ real_home() {
 OS="$(detect_os)"
 OS_FAMILY="$(detect_linux_family)"
 INIT_SYSTEM="$(detect_init)"
+LINUX_ENVIRONMENT="$(detect_linux_environment)"
+WSL_VERSION="$(detect_wsl_version)"
+WSLG="$(detect_wslg)"
+export OS OS_FAMILY INIT_SYSTEM LINUX_ENVIRONMENT WSL_VERSION WSLG
 
 source_config_file() {
     local file="$1" filtered allowed_keys
@@ -320,10 +383,28 @@ detect_platform() {
     OS="$(detect_os)"
     OS_FAMILY="$(detect_linux_family)"
     INIT_SYSTEM="$(detect_init)"
-    export OS OS_FAMILY INIT_SYSTEM
+    LINUX_ENVIRONMENT="$(detect_linux_environment)"
+    WSL_VERSION="$(detect_wsl_version)"
+    WSLG="$(detect_wslg)"
+    export OS OS_FAMILY INIT_SYSTEM LINUX_ENVIRONMENT WSL_VERSION WSLG
 }
 
 is_family() { [[ "$OS_FAMILY" == "$1" ]]; }
+is_wsl() { [[ "${LINUX_ENVIRONMENT:-native}" == "wsl" ]]; }
+is_wsl2() { is_wsl && [[ "${WSL_VERSION:-0}" == "2" ]]; }
+wsl_docker_desktop_integration_detected() {
+    local docker_path context operating_system socket_path
+    is_wsl || return 1
+    socket_path="$(readlink -f /var/run/docker.sock 2>/dev/null || true)"
+    [[ "${socket_path}" == /mnt/wsl/docker-desktop/* ]] && return 0
+    command -v docker >/dev/null 2>&1 || return 1
+    docker_path="$(readlink -f "$(command -v docker)" 2>/dev/null || command -v docker)"
+    [[ "${docker_path}" == /mnt/wsl/docker-desktop/* ]] && return 0
+    context="$(docker context show 2>/dev/null || true)"
+    [[ "${context}" == "desktop-linux" ]] && return 0
+    operating_system="$(docker info --format '{{.OperatingSystem}}' 2>/dev/null || true)"
+    [[ "$(lower "${operating_system}")" == *"docker desktop"* ]]
+}
 require_linux() {
     is_linux || die "该模块只支持 Linux"
 }
@@ -334,952 +415,24 @@ require_systemd() {
     require_linux
     is_systemd || die "该模块需要 systemd，当前 init=${INIT_SYSTEM}"
 }
-
-pkg_update() {
-    if is_macos; then
-        run_brew update
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
-        sudo_env apt-get update -qq
-    elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo_env pacman -Sy --noconfirm
-    elif [[ "$OS_FAMILY" == "redhat" ]]; then
-        if command -v dnf &>/dev/null; then
-            sudo_env dnf makecache -y
-        elif command -v yum &>/dev/null; then
-            sudo_env yum makecache -y
-        else
-            die "RedHat 系统未找到 dnf/yum"
-        fi
-    else
-        die "不支持的包管理器家族: ${OS_FAMILY}"
-    fi
-}
-
-ensure_brew() {
-    export_homebrew_env
-    if command -v brew &>/dev/null; then
-        return
-    fi
-    install "安装 Homebrew"
-    local tmp
-    tmp="$(mktemp "${TMPDIR:-/tmp}/homebrew-install.XXXXXX")"
-	download_file_verified "$(resource_url HOMEBREW_INSTALL_URL "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh")" "$tmp" "${HOMEBREW_INSTALL_SHA256:-}"
-    NONINTERACTIVE=1 /bin/bash "$tmp"
-    rm -f "$tmp"
-    eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
-    export_homebrew_env
-}
-
-enable_redhat_epel() {
-    local manager id="" version_id="" major=""
-    manager="$1"
-    if rpm -q epel-release &>/dev/null; then
-        return 0
-    fi
-    if [[ -r /etc/os-release ]]; then
-        # shellcheck disable=SC1091
-        . /etc/os-release
-        id="$(lower "${ID:-}")"
-        version_id="${VERSION_ID:-}"
-    fi
-    [[ "$id" != "fedora" ]] || return 1
-
-    install "启用 EPEL 软件源以补充 RedHat 系软件包"
-    if sudo_env "$manager" install -y epel-release; then
-        return 0
-    fi
-
-    major="${version_id%%.*}"
-    [[ "$major" =~ ^[0-9]+$ ]] || return 1
-    sudo_env "$manager" install -y \
-        "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${major}.noarch.rpm"
-}
-
-redhat_install_packages() {
-    local manager
-    if command -v dnf &>/dev/null; then
-        manager=dnf
-    elif command -v yum &>/dev/null; then
-        manager=yum
-    else
-        die "RedHat 系统未找到 dnf/yum"
-    fi
-
-    if sudo_env "$manager" install -y "$@"; then
-        return 0
-    fi
-    enable_redhat_epel "$manager" || die "RedHat 基础仓库缺少软件包且无法启用 EPEL: $*"
-    sudo_env "$manager" install -y "$@"
-}
-
-pkg_install() {
-    if is_macos; then
-        brew_install "$@"
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
-        pkg_update
-        sudo_env apt-get install -y "$@"
-    elif [[ "$OS_FAMILY" == "arch" ]]; then
-        arch_install_packages_or_aur "$@"
-    elif [[ "$OS_FAMILY" == "redhat" ]]; then
-        redhat_install_packages "$@"
-    else
-        die "不支持的包管理器家族: ${OS_FAMILY}"
-    fi
-}
-
-pkg_remove() {
-    if is_macos; then
-        if command -v brew &>/dev/null; then
-            brew_uninstall "$@" 2>/dev/null || true
-        fi
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
-        sudo_env apt-get remove -y "$@"
-    elif [[ "$OS_FAMILY" == "arch" ]]; then
-        sudo_env pacman -Rns --noconfirm "$@"
-    elif [[ "$OS_FAMILY" == "redhat" ]]; then
-        if command -v dnf &>/dev/null; then
-            sudo_env dnf remove -y "$@"
-        elif command -v yum &>/dev/null; then
-            sudo_env yum remove -y "$@"
-        else
-            die "RedHat 系统未找到 dnf/yum"
-        fi
-    else
-        die "不支持的包管理器家族: ${OS_FAMILY}"
-    fi
-}
-
-pkg_is_installed() {
-    local pkg="$1"
-    if is_macos; then
-        brew_list "$pkg" &>/dev/null
-    elif [[ "$OS_FAMILY" == "debian" ]]; then
-        dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"
-    elif [[ "$OS_FAMILY" == "arch" ]]; then
-        pacman -Q "$pkg" &>/dev/null
-    elif [[ "$OS_FAMILY" == "redhat" ]]; then
-        rpm -q "$pkg" &>/dev/null
-    else
-        return 1
-    fi
-}
-
-is_macos() { [[ "$OS" == "macos" ]]; }
-is_linux() { [[ "$OS" == "linux" ]]; }
-is_arch() { [[ "$OS_FAMILY" == "arch" ]]; }
-is_debian() { [[ "$OS_FAMILY" == "debian" ]]; }
-is_redhat() { [[ "$OS_FAMILY" == "redhat" ]]; }
-is_systemd() { [[ "$INIT_SYSTEM" == "systemd" ]]; }
-
-_ARCH_PACKAGE_DATABASE_SYNCED=false
-arch_sync_package_database() {
-    is_arch || return 0
-    [[ "$_ARCH_PACKAGE_DATABASE_SYNCED" == true ]] && return 0
-    sudo_env pacman -Sy --noconfirm
-    _ARCH_PACKAGE_DATABASE_SYNCED=true
-}
-
-arch_package_available() {
-    local package="$1"
-    is_arch || return 1
-    arch_sync_package_database
-    pacman -Si "$package" &>/dev/null
-}
-
-arch_package_installed() {
-    local package="$1"
-    is_arch || return 1
-    pacman -Q "$package" &>/dev/null
-}
-
-arch_pacman_install() {
-    [[ "$#" -gt 0 ]] || return 0
-    install "通过 pacman 安装: $*"
-    arch_sync_package_database
-    sudo_env pacman -S --needed --noconfirm "$@"
-}
-
-arch_aur_helper_command() {
-    if command -v paru &>/dev/null; then
-        echo "paru"
-        return 0
-    fi
-    if command -v yay &>/dev/null; then
-        echo "yay"
-        return 0
-    fi
-    return 1
-}
-
-run_as_real_user() {
-    local user home
-    if [[ "$(id -u)" != "0" ]]; then
-        "$@"
-        return
-    fi
-
-    user="$(real_user)"
-    home="$(real_home)"
-    [[ -n "$user" && "$user" != "root" ]] || die "AUR 构建需要普通用户"
-    [[ -n "$home" ]] || die "无法确定普通用户 HOME"
-
-    if command -v sudo &>/dev/null; then
-        command sudo -u "$user" -H env HOME="$home" "$@"
-    elif command -v runuser &>/dev/null; then
-        runuser -u "$user" -- env HOME="$home" "$@"
-    else
-        die "需要 sudo 或 runuser 才能以普通用户构建 AUR 包"
-    fi
-}
-
-arch_install_aur_via_makepkg() {
-    local package="$1" tmp_dir package_dir aur_url user
-    [[ -n "$package" ]] || die "AUR 包名为空"
-
-    arch_pacman_install base-devel git
-    command -v git &>/dev/null || die "缺少 git，无法克隆 AUR 包"
-    command -v makepkg &>/dev/null || die "缺少 makepkg，无法构建 AUR 包"
-
-    aur_url="https://aur.archlinux.org/${package}.git"
-    tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/os-init-aur-${package}.XXXXXX")"
-    package_dir="$tmp_dir/$package"
-    user="$(real_user)"
-    if [[ "$(id -u)" == "0" && -n "$user" && "$user" != "root" ]]; then
-        chown "$user" "$tmp_dir" 2>/dev/null || true
-    fi
-
-    install "从 AUR 构建安装: $package"
-    run_as_real_user git clone "$aur_url" "$package_dir" || {
-        rm -rf "$tmp_dir"
-        die "克隆 AUR 仓库失败: $aur_url"
-    }
-    run_as_real_user bash -c "cd \"\$1\" && makepkg -si --needed --noconfirm" bash "$package_dir" || {
-        rm -rf "$tmp_dir"
-        die "AUR 包安装失败: $package"
-    }
-    rm -rf "$tmp_dir"
-}
-
-arch_install_with_current_aur_helper() {
-    local helper
-    [[ "$#" -gt 0 ]] || return 0
-    helper="$(arch_aur_helper_command)" || return 1
-    install "通过 $helper 安装 AUR 包: $*"
-    run_as_real_user "$helper" -S --needed --noconfirm "$@"
-}
-
-ensure_arch_aur_helpers() {
-    local helper
-    is_arch || return 0
-
-    if command -v paru &>/dev/null; then
-        helper="paru"
-    elif command -v yay &>/dev/null; then
-        helper="yay"
-    else
-        install "未检测到 paru/yay，自动安装 paru"
-        if arch_package_available paru; then
-            arch_pacman_install paru
-        else
-            arch_install_aur_via_makepkg paru
-        fi
-        helper="$(arch_aur_helper_command)" || die "AUR helper 安装失败"
-    fi
-
-    if ! command -v yay &>/dev/null; then
-        warn "未检测到 yay，尝试补装 yay 供手动使用"
-        if arch_package_available yay; then
-            arch_pacman_install yay || true
-        else
-            arch_install_with_current_aur_helper yay || warn "yay 安装失败，后续继续使用 $helper"
-        fi
-    fi
-
-    helper="$(arch_aur_helper_command)" || die "AUR helper 不可用"
-    skip "AUR helper 已就绪: $helper"
-}
-
-arch_install_packages_or_aur() {
-    local package helper
-    local pacman_packages=()
-    local aur_packages=()
-
-    [[ "$#" -gt 0 ]] || return 0
-    is_arch || die "当前系统不是 Arch 系，不能使用 Arch 安装策略"
-
-    for package in "$@"; do
-        [[ -n "$package" ]] || die "软件包名为空"
-        if arch_package_installed "$package"; then
-            skip "软件包已安装: $package"
-        elif arch_package_available "$package"; then
-            pacman_packages+=("$package")
-        else
-            aur_packages+=("$package")
-        fi
-    done
-
-    if [[ ${#pacman_packages[@]} -gt 0 ]]; then
-        arch_pacman_install "${pacman_packages[@]}"
-    fi
-
-    if [[ ${#aur_packages[@]} -gt 0 ]]; then
-        warn "pacman 源未提供: ${aur_packages[*]}，改用 AUR helper 安装"
-        ensure_arch_aur_helpers
-        helper="$(arch_aur_helper_command)" || die "AUR helper 不可用"
-        arch_install_with_current_aur_helper "${aur_packages[@]}" || {
-            warn "$helper 安装失败，回退到 makepkg 逐个安装"
-            for package in "${aur_packages[@]}"; do
-                arch_install_aur_via_makepkg "$package"
-            done
-        }
-    fi
-}
-
-sudo_env() {
-    if [[ "$(id -u)" == "0" ]]; then
-        "$@"
-    else
-        if ! sudo -n -E "$@"; then
-            warn "命令执行失败或 sudo 未授权: $*"
-            return 1
-        fi
-    fi
-}
-
-export_homebrew_env() {
-    is_macos || return 0
-    [[ -n "${HOMEBREW_API_DOMAIN:-}" ]] && export HOMEBREW_API_DOMAIN
-    [[ -n "${HOMEBREW_BOTTLE_DOMAIN:-}" ]] && export HOMEBREW_BOTTLE_DOMAIN
-    [[ -n "${HOMEBREW_ARTIFACT_DOMAIN:-}" ]] && export HOMEBREW_ARTIFACT_DOMAIN
-    [[ -n "${HOMEBREW_BREW_GIT_REMOTE:-}" ]] && export HOMEBREW_BREW_GIT_REMOTE
-    [[ -n "${HOMEBREW_CORE_GIT_REMOTE:-}" ]] && export HOMEBREW_CORE_GIT_REMOTE
-    [[ -n "${HOMEBREW_PIP_INDEX_URL:-}" ]] && export HOMEBREW_PIP_INDEX_URL
-    export HOMEBREW_NO_ANALYTICS="${HOMEBREW_NO_ANALYTICS:-1}"
-    export HOMEBREW_NO_ENV_HINTS="${HOMEBREW_NO_ENV_HINTS:-1}"
-}
-
-run_brew() {
-    ensure_brew
-    export_homebrew_env
-    case "${1:-}" in
-        update)
-            command brew "$@"
-            ;;
-        *)
-            HOMEBREW_NO_AUTO_UPDATE="${HOMEBREW_NO_AUTO_UPDATE:-1}" command brew "$@"
-            ;;
-    esac
-}
-
-brew_install() {
-    run_brew install "$@"
-}
-
-brew_upgrade() {
-    run_brew upgrade "$@"
-}
-
-brew_uninstall() {
-    export_homebrew_env
-    command -v brew &>/dev/null || return 0
-    HOMEBREW_NO_AUTO_UPDATE="${HOMEBREW_NO_AUTO_UPDATE:-1}" command brew uninstall "$@"
-}
-
-brew_list() {
-    export_homebrew_env
-    command brew list "$@"
-}
-
-resource_url() {
-    local key="$1" fallback="$2" value
-    value="${!key:-}"
-    if [[ -n "$value" ]]; then
-        echo "$value"
-    else
-        echo "$fallback"
-    fi
-}
-
-repo_url() {
-    resource_url "$@"
-}
-
-render_url_proxy() {
-    local proxy="$1" url="$2"
-    if [[ "$proxy" == *"{url}"* ]]; then
-        echo "${proxy//\{url\}/$url}"
-    else
-        echo "${proxy%/}/$url"
-    fi
-}
-
-rewrite_github_url() {
-    local url="$1"
-    if [[ -z "${GITHUB_PROXY:-}" ]]; then
-        echo "$url"
-        return
-    fi
-
-    case "$url" in
-        https://github.com/*|https://raw.githubusercontent.com/*|https://objects.githubusercontent.com/*|https://github-releases.githubusercontent.com/*)
-            render_url_proxy "$GITHUB_PROXY" "$url"
-            ;;
-        *)
-            echo "$url"
-            ;;
-    esac
-}
-
-rewrite_download_url() {
-    rewrite_github_url "$1"
-}
-
-git_with_proxy() {
-	GIT_TERMINAL_PROMPT=0 command git "$@"
-}
-
-assert_git_remote_secure() {
-	local dir="$1" remote_url proxy_prefix
-	remote_url="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
-	proxy_prefix=""
-	if [[ -n "${GITHUB_PROXY:-}" ]]; then
-		proxy_prefix="$(render_url_proxy "$GITHUB_PROXY" "https://github.com/")"
-	fi
-	if [[ -n "$proxy_prefix" && "$remote_url" == "$proxy_prefix"/* && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "拒绝从未验证的 GitHub 代理更新可执行配置；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
-}
-
-github_latest_version() {
-    local repo="$1" prefix="${2:-v}"
-    local url latest
-    url="$(rewrite_download_url "https://github.com/${repo}/releases/latest")"
-    if command -v curl &>/dev/null; then
-        latest="$(curl -fsSI \
-            --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" \
-            --max-time "${DOWNLOAD_TIMEOUT:-30}" \
-            "$url" 2>/dev/null | grep -i '^location:' | sed "s|.*/${prefix}||" | tr -d '\r\n')"
-    elif command -v wget &>/dev/null; then
-        latest="$(wget --server-response --spider \
-            --timeout="${DOWNLOAD_TIMEOUT:-30}" \
-            "$url" 2>&1 | grep -i 'Location:' | tail -1 | sed "s|.*/${prefix}||" | tr -d '\r\n')"
-    else
-        die "需要 curl 或 wget 才能查询 GitHub 最新版本"
-    fi
-    [[ -n "$latest" ]] || die "无法获取 ${repo} 最新版本"
-    echo "$latest"
-}
-
-git_clone_depth() {
-	local depth="$1" url="$2" dest="$3" final_url
-	final_url="$(rewrite_download_url "$url")"
-	if [[ "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "经 GitHub 代理克隆可执行配置缺少可验证完整性，已拒绝；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
-	git_with_proxy clone --depth="$depth" "$final_url" "$dest"
-}
-
-git_clone_depth_branch() {
-	local depth="$1" branch="$2" url="$3" dest="$4" final_url
-	final_url="$(rewrite_download_url "$url")"
-	if [[ "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "经 GitHub 代理克隆可执行配置缺少可验证完整性，已拒绝；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
-	git_with_proxy clone --depth="$depth" -b "$branch" "$final_url" "$dest"
-}
-
-download_file() {
-    local url="$1" dest="$2"
-
-    local final_url
-    final_url="$(rewrite_download_url "$url")"
-    mkdir -p "$(dirname "$dest")"
-    if command -v curl &>/dev/null; then
-        curl -fL --retry "${DOWNLOAD_RETRY:-3}" \
-            --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" \
-            --max-time "${DOWNLOAD_TIMEOUT:-30}" \
-            -o "$dest" "$final_url"
-    elif command -v wget &>/dev/null; then
-        wget --tries="${DOWNLOAD_RETRY:-3}" \
-            --timeout="${DOWNLOAD_TIMEOUT:-30}" \
-            -O "$dest" "$final_url"
-    else
-        die "需要 curl 或 wget 才能下载文件"
-    fi
-}
-
-sha256_file() {
-	local file="$1"
-	if command -v sha256sum &>/dev/null; then
-		sha256sum "$file" | awk '{print $1}'
-	elif command -v shasum &>/dev/null; then
-		shasum -a 256 "$file" | awk '{print $1}'
-	else
-		die "校验下载需要 sha256sum 或 shasum"
-	fi
-}
-
-# Download content that will be executed or installed as a binary. Direct
-# official HTTPS remains supported. If a GitHub proxy rewrites the transport,
-# an out-of-band expected SHA-256 is required unless the user explicitly opts
-# into the legacy insecure behavior.
-download_file_verified() {
-	local url="$1" dest="$2" expected="${3:-}" final_url actual
-	final_url="$(rewrite_download_url "$url")"
-	if [[ -z "$expected" && "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "经 GitHub 代理下载可执行内容时必须配置对应的 SHA-256；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
-	download_file "$url" "$dest"
-	if [[ -z "$expected" ]]; then
-		return 0
-	fi
-	expected="$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')"
-	[[ "$expected" =~ ^[0-9a-f]{64}$ ]] || die "无效的 SHA-256: $expected"
-	actual="$(sha256_file "$dest")"
-	if [[ "$actual" != "$expected" ]]; then
-		rm -f "$dest"
-		die "下载内容 SHA-256 不匹配，已拒绝使用: $url"
-	fi
-}
-
-backup_file() {
-    local file="$1"
-    if [[ -e "$file" ]]; then
-        local backup
-        backup="${file}.bak-os-init.$(date +%Y%m%d%H%M%S)"
-        sudo cp -a "$file" "$backup"
-        echo "$backup"
-    fi
-}
-
-os_init_validate_ownership_key() {
-    [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] || die "无效的资源所有权键: $1"
-}
-
-os_init_system_state_dir() {
-    echo "${OS_INIT_SYSTEM_STATE_DIR:-/var/lib/os-init}"
-}
-
-# Record the pre-existing value of a system path before OS Init first takes
-# ownership. Repeated updates keep the original backup instead of replacing it.
-os_init_prepare_owned_path() {
-    local key="$1" target="$2" state_dir marker backup tmp
-    os_init_validate_ownership_key "$key"
-    state_dir="$(os_init_system_state_dir)"
-    marker="${state_dir}/ownership/${key}"
-    backup="${state_dir}/backups/${key}"
-    if sudo test -f "$marker"; then
-        return 0
-    fi
-
-    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-owned.XXXXXX")"
-    if sudo test -e "$target" || sudo test -L "$target"; then
-        # shellcheck disable=SC2033
-        sudo install -d -m 0700 "${state_dir}/backups"
-        sudo rm -rf "$backup"
-        sudo cp -a "$target" "$backup"
-        printf 'backup\n' > "$tmp"
-    else
-        printf 'created\n' > "$tmp"
-    fi
-    # shellcheck disable=SC2033
-    sudo install -d -m 0700 "${state_dir}/ownership"
-    # shellcheck disable=SC2033
-    sudo install -m 0600 "$tmp" "$marker"
-    rm -f "$tmp"
-}
-
-os_init_owned_path() {
-    local key="$1"
-    os_init_validate_ownership_key "$key"
-    sudo test -f "$(os_init_system_state_dir)/ownership/${key}"
-}
-
-os_init_mark_ownership() {
-    local key="$1" state_dir tmp
-    os_init_validate_ownership_key "$key"
-    state_dir="$(os_init_system_state_dir)"
-    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-owned.XXXXXX")"
-    printf 'created\n' > "$tmp"
-    # shellcheck disable=SC2033
-    sudo install -d -m 0700 "${state_dir}/ownership"
-    # shellcheck disable=SC2033
-    sudo install -m 0600 "$tmp" "${state_dir}/ownership/${key}"
-    rm -f "$tmp"
-}
-
-os_init_forget_ownership() {
-    local key="$1"
-    os_init_validate_ownership_key "$key"
-    sudo rm -f "$(os_init_system_state_dir)/ownership/${key}"
-}
-
-os_init_user_state_dir() {
-    local home
-    home="$(real_home)"
-    echo "${OS_INIT_USER_STATE_DIR:-${home}/.local/state/os-init}"
-}
-
-os_init_mark_user_ownership() {
-    local key="$1" dir
-    os_init_validate_ownership_key "$key"
-    dir="$(os_init_user_state_dir)/ownership"
-    mkdir -p "$dir"
-    chmod 700 "$(os_init_user_state_dir)" "$dir" 2>/dev/null || true
-    printf 'created\n' > "${dir}/${key}"
-    chmod 600 "${dir}/${key}" 2>/dev/null || true
-}
-
-os_init_user_owned() {
-    local key="$1"
-    os_init_validate_ownership_key "$key"
-    [[ -f "$(os_init_user_state_dir)/ownership/${key}" ]]
-}
-
-os_init_forget_user_ownership() {
-    local key="$1"
-    os_init_validate_ownership_key "$key"
-    rm -f "$(os_init_user_state_dir)/ownership/${key}"
-}
-
-os_init_mark_package_ownership() {
-    if is_macos; then
-        os_init_mark_user_ownership "$1"
-    else
-        os_init_mark_ownership "$1"
-    fi
-}
-
-os_init_package_owned() {
-    if is_macos; then
-        os_init_user_owned "$1"
-    else
-        os_init_owned_path "$1"
-    fi
-}
-
-os_init_forget_package_ownership() {
-    if is_macos; then
-        os_init_forget_user_ownership "$1"
-    else
-        os_init_forget_ownership "$1"
-    fi
-}
-
-os_init_prepare_owned_user_path() {
-    local key="$1" target="$2" state_dir marker backup
-    os_init_validate_ownership_key "$key"
-    state_dir="$(os_init_user_state_dir)"
-    marker="${state_dir}/ownership/user-path-${key}"
-    backup="${state_dir}/backups/${key}"
-    [[ -f "$marker" ]] && return 0
-    mkdir -p "${state_dir}/ownership" "${state_dir}/backups"
-    chmod 700 "$state_dir" "${state_dir}/ownership" "${state_dir}/backups" 2>/dev/null || true
-    if [[ -e "$target" || -L "$target" ]]; then
-        rm -rf "$backup"
-        cp -a "$target" "$backup"
-        printf 'backup\n' > "$marker"
-    else
-        printf 'created\n' > "$marker"
-    fi
-    chmod 600 "$marker" 2>/dev/null || true
-}
-
-os_init_restore_owned_user_path() {
-    local key="$1" target="$2" state_dir marker backup state
-    os_init_validate_ownership_key "$key"
-    state_dir="$(os_init_user_state_dir)"
-    marker="${state_dir}/ownership/user-path-${key}"
-    backup="${state_dir}/backups/${key}"
-    if [[ ! -f "$marker" ]]; then
-        warn "保留未记录为 OS Init 所有的路径: $target"
-        return 1
-    fi
-    state="$(cat "$marker")"
-    rm -rf "$target"
-    if [[ "$state" == "backup" && -e "$backup" ]]; then
-        mkdir -p "$(dirname "$target")"
-        cp -a "$backup" "$target"
-        rm -rf "$backup"
-        remove "恢复安装前路径: $target"
-    else
-        remove "删除 OS Init 创建的路径: $target"
-    fi
-    rm -f "$marker"
-}
-
-# Remove a path created by OS Init or restore the value that existed before OS
-# Init first managed it. Unknown paths are deliberately preserved.
-os_init_restore_owned_path() {
-    local key="$1" target="$2" state_dir marker backup state
-    os_init_validate_ownership_key "$key"
-    state_dir="$(os_init_system_state_dir)"
-    marker="${state_dir}/ownership/${key}"
-    backup="${state_dir}/backups/${key}"
-    if ! sudo test -f "$marker"; then
-        warn "保留未记录为 OS Init 所有的路径: $target"
-        return 1
-    fi
-
-    state="$(sudo cat "$marker")"
-    sudo rm -rf "$target"
-    if [[ "$state" == "backup" ]] && sudo test -e "$backup"; then
-        sudo mkdir -p "$(dirname "$target")"
-        sudo cp -a "$backup" "$target"
-        sudo rm -rf "$backup"
-        remove "恢复安装前路径: $target"
-    else
-        remove "删除 OS Init 创建的路径: $target"
-    fi
-    sudo rm -f "$marker"
-}
-
-os_init_reown_user_file() {
-    local file="$1" user
-    if [[ "$(id -u)" != "0" || -z "${SUDO_USER:-}" || "${SUDO_USER:-}" == "root" ]]; then
-        return 0
-    fi
-    user="$(real_user)"
-    chown "$user" "$file" 2>/dev/null || true
-}
-
-os_init_prepare_user_file() {
-    local file="$1"
-    mkdir -p "$(dirname "$file")"
-    touch "$file"
-    os_init_reown_user_file "$file"
-}
-
-os_init_upsert_block() {
-    local file="$1" name="$2" content="$3" before_regex="${4:-}"
-    local begin end tmp repl
-    begin="# >>> os-init ${name} >>>"
-    end="# <<< os-init ${name} <<<"
-
-    os_init_prepare_user_file "$file"
-    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-block.XXXXXX")"
-    repl="$(mktemp "${TMPDIR:-/tmp}/os-init-block-repl.XXXXXX")"
-
-    {
-        printf '%s\n' "$begin"
-        printf '%s\n' "$content"
-        printf '%s\n' "$end"
-    } > "$repl"
-
-    if grep -Fq "$begin" "$file"; then
-        awk -v begin="$begin" -v end="$end" -v repl="$repl" '
-            function print_repl(  line) {
-                while ((getline line < repl) > 0) print line
-                close(repl)
-            }
-            $0 == begin {
-                if (!printed) {
-                    print_repl()
-                    printed = 1
-                }
-                in_block = 1
-                next
-            }
-            in_block && $0 == end {
-                in_block = 0
-                next
-            }
-            !in_block { print }
-            END {
-                if (!printed) print_repl()
-            }
-        ' "$file" > "$tmp"
-    elif [[ -n "$before_regex" ]]; then
-        awk -v pattern="$before_regex" -v repl="$repl" '
-            function print_repl(  line) {
-                while ((getline line < repl) > 0) print line
-                close(repl)
-            }
-            $0 ~ pattern && !printed {
-                print_repl()
-                printed = 1
-            }
-            { print }
-            END {
-                if (!printed) {
-                    if (NR > 0) print ""
-                    print_repl()
-                }
-            }
-        ' "$file" > "$tmp"
-    else
-        awk -v repl="$repl" '
-            function print_repl(  line) {
-                while ((getline line < repl) > 0) print line
-                close(repl)
-            }
-            { print }
-            END {
-                if (NR > 0) print ""
-                print_repl()
-            }
-        ' "$file" > "$tmp"
-    fi
-
-    if cmp -s "$file" "$tmp"; then
-        skip "$(basename "$file") 已包含 ${name} 配置"
-    else
-        install "写入 $(basename "$file") 的 ${name} 配置"
-        mv "$tmp" "$file"
-        os_init_reown_user_file "$file"
-    fi
-    rm -f "$tmp" "$repl"
-}
-
-os_init_remove_block() {
-    local file="$1" name="$2" begin end tmp
-    [[ -f "$file" ]] || return 0
-    begin="# >>> os-init ${name} >>>"
-    end="# <<< os-init ${name} <<<"
-    grep -Fq "$begin" "$file" || {
-        skip "$(basename "$file") 未包含 ${name} 配置"
-        return 0
-    }
-
-    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-block-remove.XXXXXX")"
-    awk -v begin="$begin" -v end="$end" '
-        $0 == begin { in_block = 1; next }
-        in_block && $0 == end { in_block = 0; next }
-        !in_block { print }
-    ' "$file" > "$tmp"
-    install "删除 $(basename "$file") 的 ${name} 配置"
-    mv "$tmp" "$file"
-    os_init_reown_user_file "$file"
-}
-
-os_init_zshrc() {
-    local home
-    home="$(real_home)"
-    [[ -n "$home" ]] || return 1
-    printf '%s\n' "$home/.zshrc"
-}
-
-os_init_bashrc() {
-    local home
-    home="$(real_home)"
-    [[ -n "$home" ]] || return 1
-    printf '%s\n' "$home/.bashrc"
-}
-
-os_init_interactive_shell_rc_files() {
-    local home
-    home="$(real_home)"
-    [[ -n "$home" ]] || return 1
-    printf '%s\n' "$home/.zshrc"
-    printf '%s\n' "$home/.bashrc"
-}
-
-os_init_shell_rc_files() {
-    local home file any=false
-    home="$(real_home)"
-    [[ -n "$home" ]] || return 1
-    for file in "$home/.zshrc" "$home/.bashrc"; do
-        if [[ -e "$file" ]]; then
-            printf '%s\n' "$file"
-            any=true
-        fi
-    done
-    if [[ "$any" == false ]]; then
-        printf '%s\n' "$home/.zshrc"
-    fi
-}
-
-os_init_upsert_zsh_block() {
-    local name="$1" content="$2" before_regex="${3:-}" file
-    file="$(os_init_zshrc)" || return 0
-    os_init_upsert_block "$file" "$name" "$content" "$before_regex"
-}
-
-os_init_upsert_bash_block() {
-    local name="$1" content="$2" before_regex="${3:-}" file
-    file="$(os_init_bashrc)" || return 0
-    os_init_upsert_block "$file" "$name" "$content" "$before_regex"
-}
-
-os_init_upsert_shell_block() {
-    local name="$1" content="$2" file
-    while IFS= read -r file; do
-        [[ -n "$file" ]] || continue
-        os_init_upsert_block "$file" "$name" "$content"
-    done < <(os_init_shell_rc_files)
-}
-
-os_init_upsert_interactive_shell_block() {
-    local name="$1" content="$2" file
-    while IFS= read -r file; do
-        [[ -n "$file" ]] || continue
-        os_init_upsert_block "$file" "$name" "$content"
-    done < <(os_init_interactive_shell_rc_files)
-}
-
-os_init_remove_zsh_block() {
-    local name="$1" file
-    file="$(os_init_zshrc)" || return 0
-    os_init_remove_block "$file" "$name"
-}
-
-os_init_remove_bash_block() {
-    local name="$1" file
-    file="$(os_init_bashrc)" || return 0
-    os_init_remove_block "$file" "$name"
-}
-
-os_init_remove_shell_block() {
-    local name="$1" file
-    while IFS= read -r file; do
-        [[ -n "$file" ]] || continue
-        os_init_remove_block "$file" "$name"
-    done < <(os_init_shell_rc_files)
-}
-
-os_init_remove_interactive_shell_block() {
-    local name="$1" file
-    while IFS= read -r file; do
-        [[ -n "$file" ]] || continue
-        os_init_remove_block "$file" "$name"
-    done < <(os_init_interactive_shell_rc_files)
-}
-
-json_escape() {
-    local value="$1"
-    value="${value//\\/\\\\}"
-    value="${value//\"/\\\"}"
-    value="${value//$'\n'/\\n}"
-    printf '%s' "$value"
-}
-
-json_array_from_csv() {
-    local csv="${1:-}" item first=true
-    local -a items=()
-    printf '['
-    IFS=',' read -r -a items <<< "$csv"
-    for item in "${items[@]}"; do
-        item="${item#"${item%%[![:space:]]*}"}"
-        item="${item%"${item##*[![:space:]]}"}"
-        [[ -z "$item" ]] && continue
-        if [[ "$first" == true ]]; then
-            first=false
-        else
-            printf ','
-        fi
-        printf '"%s"' "$(json_escape "$item")"
-    done
-    printf ']'
-}
-
-load_os_init_config
-
-# Reliable update for shallow git clones (git pull often fails with divergent branches)
-git_update_shallow() {
-	local dir="$1"
-	local branch
-	assert_git_remote_secure "$dir"
-    branch=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null) || branch="master"
-    git_with_proxy -C "$dir" fetch origin --depth=1 -q
-    git_with_proxy -C "$dir" reset --hard "origin/$branch"
-}
+require_wsl() {
+    require_linux
+    is_wsl || die "该模块只支持 WSL"
+}
+require_wsl2() {
+    require_wsl
+    is_wsl2 || die "该模块需要 WSL2；当前 WSL_VERSION=${WSL_VERSION:-0}"
+}
+
+# shellcheck disable=SC1091
+source "${LIB_DIR}/lib/packages.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/lib/download.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/lib/state.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/lib/json.sh"
+
+if [[ "${OS_INIT_CONFIG_LOADED:-0}" != "1" ]]; then
+	load_os_init_config
+fi

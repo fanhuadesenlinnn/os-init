@@ -23,6 +23,25 @@ const (
 // unrelated modules. Dependencies still take precedence over this hint.
 type Phase int
 
+// DeliveryKind describes how the software payload is obtained. System package
+// managers may still be used for prerequisites of portable modules.
+type DeliveryKind string
+
+const (
+	DeliveryPortable      DeliveryKind = "portable"
+	DeliverySystemPackage DeliveryKind = "system-package"
+	DeliveryDarwinNative  DeliveryKind = "darwin-native"
+	DeliveryArchNative    DeliveryKind = "arch-native"
+	DeliveryLinuxSystem   DeliveryKind = "linux-system"
+	DeliveryUserRuntime   DeliveryKind = "user-runtime"
+)
+
+type DeliveryPolicy struct {
+	Default DeliveryKind
+	Darwin  DeliveryKind
+	Arch    DeliveryKind
+}
+
 const (
 	PhaseBootstrap Phase = iota + 10
 	PhaseShell
@@ -106,6 +125,7 @@ type Preset struct {
 	Subsection  string
 	OS          string
 	Families    []string
+	Requires    []string
 	Includes    []string
 	Phase       Phase
 	Order       int
@@ -119,6 +139,7 @@ type Action struct {
 	Subsection  string
 	OS          string
 	Families    []string
+	Requires    []string
 	Script      string
 	Components  []string
 	Privilege   PrivilegePolicy

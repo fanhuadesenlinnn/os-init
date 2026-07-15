@@ -10,6 +10,7 @@ import (
 )
 
 type Family string
+type Environment string
 
 const (
 	FamilyDarwin  Family = "darwin"
@@ -19,25 +20,40 @@ const (
 	FamilyUnknown Family = "unknown"
 )
 
+const (
+	EnvironmentNative Environment = "native"
+	EnvironmentWSL    Environment = "wsl"
+)
+
 type Target struct {
-	GOOS      string   `json:"goos"`
-	ID        string   `json:"id"`
-	IDLike    []string `json:"id_like,omitempty"`
-	Family    Family   `json:"family"`
-	VersionID string   `json:"version_id,omitempty"`
-	Codename  string   `json:"codename,omitempty"`
-	Init      string   `json:"init"`
+	GOOS        string      `json:"goos"`
+	ID          string      `json:"id"`
+	IDLike      []string    `json:"id_like,omitempty"`
+	Family      Family      `json:"family"`
+	VersionID   string      `json:"version_id,omitempty"`
+	Codename    string      `json:"codename,omitempty"`
+	Init        string      `json:"init"`
+	Environment Environment `json:"environment"`
+	WSLVersion  int         `json:"wsl_version,omitempty"`
+	WSLg        bool        `json:"wslg,omitempty"`
 }
 
 func Detect() Target {
-	return DetectFrom(runtime.GOOS, "/etc/os-release")
+	return DetectFromPaths(runtime.GOOS, "/etc/os-release", "/proc/sys/kernel/osrelease", "/mnt/wslg")
 }
 
 func DetectFrom(goos, osReleasePath string) Target {
+	return DetectFromPaths(goos, osReleasePath, "/proc/sys/kernel/osrelease", "/mnt/wslg")
+}
+
+// DetectFromPaths exposes the environment probes for deterministic platform
+// tests while keeping distribution classification based on os-release.
+func DetectFromPaths(goos, osReleasePath, kernelReleasePath, wslgPath string) Target {
 	target := Target{
-		GOOS:   goos,
-		Family: FamilyUnknown,
-		Init:   detectInit(goos),
+		GOOS:        goos,
+		Family:      FamilyUnknown,
+		Init:        detectInit(goos),
+		Environment: EnvironmentNative,
 	}
 
 	if goos == "darwin" {
@@ -46,6 +62,12 @@ func DetectFrom(goos, osReleasePath string) Target {
 	}
 	if goos != "linux" {
 		return target
+	}
+	target.Environment, target.WSLVersion = detectLinuxEnvironment(kernelReleasePath)
+	if target.Environment == EnvironmentWSL {
+		if info, err := os.Stat(wslgPath); err == nil && info.IsDir() {
+			target.WSLg = true
+		}
 	}
 
 	f, err := os.Open(osReleasePath)
@@ -65,6 +87,21 @@ func DetectFrom(goos, osReleasePath string) Target {
 	target.Codename = firstNonEmpty(values["VERSION_CODENAME"], values["UBUNTU_CODENAME"])
 	target.Family = ClassifyFamily(target.ID, target.IDLike)
 	return target
+}
+
+func detectLinuxEnvironment(kernelReleasePath string) (Environment, int) {
+	data, err := os.ReadFile(kernelReleasePath)
+	if err != nil {
+		return EnvironmentNative, 0
+	}
+	release := strings.ToLower(string(data))
+	if !strings.Contains(release, "microsoft") && !strings.Contains(release, "wsl") {
+		return EnvironmentNative, 0
+	}
+	if strings.Contains(release, "wsl2") || strings.Contains(release, "microsoft-standard") {
+		return EnvironmentWSL, 2
+	}
+	return EnvironmentWSL, 1
 }
 
 func ParseOSRelease(r io.Reader) (map[string]string, error) {

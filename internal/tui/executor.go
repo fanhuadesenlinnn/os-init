@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -12,15 +11,16 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/fanhuadesenlinnn/os-init/internal/execution"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
 	"github.com/fanhuadesenlinnn/os-init/internal/runner"
+	"github.com/fanhuadesenlinnn/os-init/internal/state"
 )
 
 const maxOutputLines = 5
-const defaultScriptTimeout = 45 * time.Minute
 
 type executorModel struct {
-	groups         []modules.ScriptGroup
+	modules        []modules.Module
 	scriptResults  []runner.Result
 	summaryResults []runner.Result
 	current        int
@@ -37,6 +37,7 @@ type executorModel struct {
 	webhookURL string
 	program    *tea.Program
 	ctx        context.Context
+	recorder   state.Recorder
 }
 
 func newExecutorModel(
@@ -46,9 +47,8 @@ func newExecutorModel(
 	env map[string]string,
 	webhookURL string,
 	ctx context.Context,
+	recorder state.Recorder,
 ) executorModel {
-	groups := modules.GroupByScript(selected)
-
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(ColorAccent)
@@ -56,8 +56,8 @@ func newExecutorModel(
 	p := progress.New(progress.WithDefaultGradient())
 
 	return executorModel{
-		groups:         groups,
-		scriptResults:  make([]runner.Result, 0, len(groups)),
+		modules:        append([]modules.Module(nil), selected...),
+		scriptResults:  make([]runner.Result, 0, len(selected)),
 		summaryResults: make([]runner.Result, 0, len(selected)),
 		spinner:        s,
 		progress:       p,
@@ -66,6 +66,7 @@ func newExecutorModel(
 		env:            env,
 		webhookURL:     webhookURL,
 		ctx:            ctx,
+		recorder:       recorder,
 	}
 }
 
@@ -73,7 +74,7 @@ func newExecutorModel(
 // shortcut actually mutates the embedded executorModel; with a value
 // receiver the assignment to m.done was on a copy (staticcheck SA4005).
 func (m *executorModel) Init() tea.Cmd {
-	if len(m.groups) == 0 {
+	if len(m.modules) == 0 {
 		m.done = true
 		return func() tea.Msg { return allDoneMsg{} }
 	}
@@ -104,9 +105,11 @@ func (m executorModel) Update(msg tea.Msg) (executorModel, tea.Cmd) {
 		return m, nil
 
 	case scriptDoneMsg:
-		group := m.groups[m.current]
+		mod := m.modules[m.current]
 		m.scriptResults = append(m.scriptResults, msg.result)
-		m.summaryResults = append(m.summaryResults, expandGroupResult(group, msg.result)...)
+		item := msg.result
+		item.Module = moduleLabel(mod.ID, mod.Label)
+		m.summaryResults = append(m.summaryResults, item)
 		m.current++
 		m.output = nil
 		if m.ctx != nil && m.ctx.Err() != nil {
@@ -114,7 +117,7 @@ func (m executorModel) Update(msg tea.Msg) (executorModel, tea.Cmd) {
 			return m, func() tea.Msg { return allDoneMsg{} }
 		}
 
-		if m.current >= len(m.groups) {
+		if m.current >= len(m.modules) {
 			m.done = true
 			return m, func() tea.Msg { return allDoneMsg{} }
 		}
@@ -140,7 +143,7 @@ func (m executorModel) View() string {
 		b.WriteString(ErrorStyle.Render(text("  正在取消，等待当前进程安全退出...", "  Canceling; waiting for the active process to exit safely...")) + "\n\n")
 	}
 
-	for i, g := range m.groups {
+	for i, mod := range m.modules {
 		var icon string
 		var labelStyle lipgloss.Style
 
@@ -160,10 +163,7 @@ func (m executorModel) View() string {
 			labelStyle = MutedStyle
 		}
 
-		label := groupDisplayLabel(g)
-		if len(g.Components) > 1 {
-			label = label + " +" + fmt.Sprintf("%d", len(g.Components)-1)
-		}
+		label := moduleLabel(mod.ID, mod.Label)
 
 		b.WriteString(icon + labelStyle.Render(label) + "\n")
 
@@ -180,7 +180,7 @@ func (m executorModel) View() string {
 	}
 
 	// Progress bar
-	total := len(m.groups)
+	total := len(m.modules)
 	pct := 0.0
 	if total > 0 {
 		pct = float64(m.current) / float64(total)
@@ -192,97 +192,52 @@ func (m executorModel) View() string {
 }
 
 func (m executorModel) runCurrent() tea.Cmd {
-	if m.current >= len(m.groups) {
+	if m.current >= len(m.modules) {
 		return nil
 	}
 
-	g := m.groups[m.current]
+	mod := m.modules[m.current]
 	tmpDir := m.tmpDir
 	operation := m.operation
 	env := m.env
 	prog := m.program
-	timeout := scriptTimeoutFromEnv()
+	timeout := execution.TimeoutFromEnv(os.Getenv("OS_INIT_SCRIPT_TIMEOUT"))
 
 	return func() tea.Msg {
-		parent := m.ctx
-		if parent == nil {
-			parent = context.Background()
-		}
-		ctx := parent
-		var cancel context.CancelFunc
-		if timeout > 0 {
-			ctx, cancel = context.WithTimeout(ctx, timeout)
-			defer cancel()
+		ctx := m.ctx
+		if ctx == nil {
+			ctx = context.Background()
 		}
 
-		result, err := runner.Run(ctx, runner.Params{
-			TmpDir:     tmpDir,
-			Script:     g.Script,
-			Components: g.Components,
-			Operation:  string(operation),
-			Env:        env,
-			LogDir:     "logs",
-			Sudo:       false,
+		step := execution.Run(ctx, execution.Request{
+			TmpDir:    tmpDir,
+			Module:    mod,
+			Operation: operation,
+			Env:       env,
+			LogDir:    "logs",
+			Timeout:   timeout,
+			Verify:    true,
+			Recorder:  m.recorder,
 			OnLine: func(line string) {
 				if prog != nil {
 					prog.Send(scriptOutputMsg{
-						module: g.Script,
+						module: mod.ID,
 						line:   line,
 					})
 				}
 			},
 		})
-		if parent.Err() == context.Canceled {
-			note := text("用户已取消执行，当前模块进程组已终止。", "Execution canceled; the active module process group was terminated.")
-			result.ExitCode = -1
-			result.Output = appendResultNote(result.Output, note)
-			appendLogNote(result.LogFile, note)
-			return scriptDoneMsg{result: result}
-		}
-		if ctx.Err() == context.DeadlineExceeded {
-			note := fmt.Sprintf(text("模块执行超过 %s，已终止。", "module exceeded %s and was stopped."), formatDuration(timeout))
-			result.ExitCode = -1
-			result.Output = appendResultNote(result.Output, note)
-			appendLogNote(result.LogFile, note)
-			if prog != nil {
-				prog.Send(scriptOutputMsg{module: g.Script, line: note})
-			}
-			return scriptDoneMsg{result: result}
-		}
-		if err != nil {
-			return scriptDoneMsg{result: runner.Result{
-				Module:   g.Script,
-				ExitCode: -1,
-				Output:   err.Error(),
-			}}
+		result := runner.Result{Module: mod.ID, ExitCode: step.ExitCode, Output: step.Output, Duration: step.Duration, LogFile: step.LogFile}
+		if step.Error != "" {
+			result.Output = appendResultNote(result.Output, step.Error)
+			appendLogNote(result.LogFile, step.Error)
 		}
 		return scriptDoneMsg{result: result}
 	}
 }
 
 func scriptTimeoutFromEnv() time.Duration {
-	value := strings.TrimSpace(os.Getenv("OS_INIT_SCRIPT_TIMEOUT"))
-	if value == "" {
-		return defaultScriptTimeout
-	}
-	if value == "0" {
-		return 0
-	}
-	if d, err := time.ParseDuration(value); err == nil && d >= 0 {
-		return d
-	}
-	seconds, err := strconv.Atoi(value)
-	if err == nil && seconds >= 0 {
-		return time.Duration(seconds) * time.Second
-	}
-	return defaultScriptTimeout
-}
-
-func formatDuration(d time.Duration) string {
-	if d%time.Second == 0 {
-		return d.String()
-	}
-	return d.Round(time.Second).String()
+	return execution.TimeoutFromEnv(os.Getenv("OS_INIT_SCRIPT_TIMEOUT"))
 }
 
 func appendResultNote(output, note string) string {
@@ -305,29 +260,4 @@ func appendLogNote(path, note string) {
 	}
 	defer file.Close()
 	_, _ = file.WriteString(note + "\n")
-}
-
-func expandGroupResult(group modules.ScriptGroup, result runner.Result) []runner.Result {
-	labels := group.ModuleLabels
-	if len(labels) == 0 {
-		labels = []string{group.Label}
-	}
-
-	results := make([]runner.Result, 0, len(labels))
-	for idx, label := range labels {
-		item := result
-		if idx < len(group.ModuleIDs) {
-			label = moduleLabel(group.ModuleIDs[idx], label)
-		}
-		item.Module = label
-		results = append(results, item)
-	}
-	return results
-}
-
-func groupDisplayLabel(group modules.ScriptGroup) string {
-	if len(group.ModuleIDs) > 0 {
-		return moduleLabel(group.ModuleIDs[0], group.Label)
-	}
-	return group.Label
 }

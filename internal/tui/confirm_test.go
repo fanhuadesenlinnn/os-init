@@ -56,7 +56,7 @@ func TestConfirmView_EnglishContainsNoChineseMetadata(t *testing.T) {
 	mods := modules.AllModules()
 	var selected []modules.Module
 	for _, mod := range mods {
-		if mod.ID == "docker" || mod.ID == "go" || mod.ID == "neovim" || mod.ID == "mihomo" {
+		if mod.ID == "docker" || mod.ID == "mise-go" || mod.ID == "neovim" || mod.ID == "mihomo" {
 			selected = append(selected, mod)
 		}
 	}
@@ -197,8 +197,8 @@ func TestSelectionNeedsSudoPrime_IsPlatformAware(t *testing.T) {
 	if selectionNeedsSudoPrimeForUID([]modules.Module{byID["yazi"]}, darwin, 1000) {
 		t.Fatal("macOS Yazi should not trigger sudo prime")
 	}
-	if selectionNeedsSudoPrimeForUID([]modules.Module{byID["go"]}, darwin, 1000) {
-		t.Fatal("macOS Go uses Homebrew and should not trigger sudo prime")
+	if selectionNeedsSudoPrimeForUID([]modules.Module{byID["mise-go"]}, darwin, 1000) {
+		t.Fatal("mise Go is user-level and should not trigger sudo prime")
 	}
 	if !selectionNeedsSudoPrimeForUID([]modules.Module{byID["yazi"]}, linux, 1000) {
 		t.Fatal("Linux Yazi should trigger sudo prime")

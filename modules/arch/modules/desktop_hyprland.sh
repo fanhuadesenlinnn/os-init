@@ -39,9 +39,9 @@ install_desktop_hyprland() {
   install_desktop_runtime_helpers
   enable_desktop_services
   enable_desktop_audio_services
-  configure_fcitx5_env
   configure_rime_if_needed
   generate_hyprland_config
+  configure_fcitx5_env
   backup_legacy_terminal_configs
   configure_hyprland_gpu_env
   configure_hyprland_virtualization_env
