@@ -38,35 +38,7 @@ type menuModel struct {
 }
 
 func newMenuModel(mods []modules.Module) menuModel {
-	var items []menuItem
-
-	items = append(items, menuItem{separator: true, label: "系统优化"})
-	for _, m := range mods {
-		if m.Category == "optimization" {
-			items = append(items, menuItem{module: m})
-		}
-	}
-
-	items = append(items, menuItem{separator: true, label: ""}) // spacer
-	items = append(items, menuItem{separator: true, label: "软件安装"})
-	for _, sub := range modules.InstallSubsections() {
-		hasItems := false
-		for _, m := range mods {
-			if m.Category == "installation" && m.Subsection == sub {
-				hasItems = true
-				break
-			}
-		}
-		if !hasItems {
-			continue
-		}
-		items = append(items, menuItem{separator: true, label: "  " + sub})
-		for _, m := range mods {
-			if m.Category == "installation" && m.Subsection == sub {
-				items = append(items, menuItem{module: m})
-			}
-		}
-	}
+	items := buildMenuItems(mods)
 
 	cursor := 0
 	for i, item := range items {
@@ -103,6 +75,44 @@ func newMenuModel(mods []modules.Module) menuModel {
 		height:   detectTermHeight(),
 		spinner:  s,
 	}
+}
+
+func buildMenuItems(mods []modules.Module) []menuItem {
+	optimizationItems := make([]menuItem, 0)
+	for _, mod := range mods {
+		if mod.Category == "optimization" {
+			optimizationItems = append(optimizationItems, menuItem{module: mod})
+		}
+	}
+
+	installationItems := make([]menuItem, 0)
+	for _, sub := range modules.InstallSubsections() {
+		subsectionItems := make([]menuItem, 0)
+		for _, mod := range mods {
+			if mod.Category == "installation" && mod.Subsection == sub {
+				subsectionItems = append(subsectionItems, menuItem{module: mod})
+			}
+		}
+		if len(subsectionItems) == 0 {
+			continue
+		}
+		installationItems = append(installationItems, menuItem{separator: true, label: "  " + sub})
+		installationItems = append(installationItems, subsectionItems...)
+	}
+
+	items := make([]menuItem, 0, len(optimizationItems)+len(installationItems)+4)
+	if len(optimizationItems) > 0 {
+		items = append(items, menuItem{separator: true, label: "系统优化"})
+		items = append(items, optimizationItems...)
+	}
+	if len(installationItems) > 0 {
+		if len(items) > 0 {
+			items = append(items, menuItem{separator: true, label: ""})
+		}
+		items = append(items, menuItem{separator: true, label: "软件安装"})
+		items = append(items, installationItems...)
+	}
+	return items
 }
 
 func (m menuModel) Init() tea.Cmd {

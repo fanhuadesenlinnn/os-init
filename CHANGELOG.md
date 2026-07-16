@@ -1,28 +1,36 @@
 # Changelog
 
+## v1.3.1 - 2026-07-17
+
+### 修复
+
+- 模块菜单只在分类实际包含可选模块时显示“系统优化”或“软件安装”标题，避免单一分类和空目录场景出现空标题及多余间距。
+- 软件安装子分组继续按实际内容生成，不显示当前系统不适用的空分组。
+- 发布说明改用中文分类和中文内容，并补正 v1.3.0 的发布说明。
+
 ## v1.3.0 - 2026-07-17
 
-### Added
+### 新增
 
-- Add a separate `arch-cli` capability for modern command-line and diagnostic tools instead of hiding them in the Arch base module.
-- Add shared batch execution policy for package metadata refreshes and dependency-failure skipping across the TUI and headless interfaces.
-- Add explicit migration for the legacy OS Init-generated tmux configuration.
+- 新增独立的 `arch-cli` 能力，用于安装现代命令行和诊断工具，不再把它们隐藏在 Arch 基础模块中。
+- 为 TUI 和无界面执行统一批次级软件源刷新与依赖失败跳过策略。
+- 增加旧版 OS Init 生成的 tmux 配置迁移逻辑。
 
-### Changed
+### 调整
 
-- Keep `arch-base` limited to minimal official-repository download, archive, and diagnostic tools; manage Git, tmux, build dependencies, and modern CLI tools through dedicated modules.
-- Use stable cross-platform `git` and cross-Linux `mihomo` module IDs while accepting the former `shell-git`, `arch-git`, and `arch-mihomo` IDs as compatibility aliases.
-- Prefer paru as the single managed AUR helper and retain an already-installed yay only as a fallback.
-- Make `modules/config/defaults.env` the single default-value source for generated configuration, Go runtime loading, and Arch provider configuration.
-- Split execution ordering into repository, bootstrap, network, runtime, service, desktop, and related phases; reverse dependency order for uninstall plans and reject dependency cycles.
-- Move the macOS cask and formula catalog to data-driven declarations.
+- 将 `arch-base` 收敛为官方仓库中的最小下载、解压和诊断工具；Git、tmux、编译依赖与现代 CLI 改由独立模块管理。
+- 使用跨平台稳定模块 ID `git` 和跨 Linux 稳定模块 ID `mihomo`，同时把旧 ID `shell-git`、`arch-git`、`arch-mihomo` 作为兼容别名。
+- 仅主动管理 paru；系统已有 yay 时只将其保留为回退，不再重复安装两个 AUR Helper。
+- 将 `modules/config/defaults.env` 作为配置生成、Go 运行时加载和 Arch Provider 的唯一默认值来源。
+- 将执行顺序拆分为软件源、引导、网络、运行时、服务、桌面等阶段；卸载时反转依赖顺序，并拒绝存在依赖环的计划。
+- 将 macOS Cask 与 Formula 目录改为数据驱动声明。
 
-### Fixed
+### 修复
 
-- Restrict Mihomo proxy, controller, and DNS listeners to loopback by default; reject wildcard listeners unless LAN access is explicitly enabled, and require a secret for a publicly exposed controller.
-- Preserve independent modules after an earlier failure while skipping only modules whose declared dependency failed in both interactive and headless execution.
-- Reuse one package metadata refresh per execution batch instead of repeating repository refreshes for each module.
-- Preserve pre-existing packages during migration when old releases did not record enough ownership information to remove them safely.
+- Mihomo 代理、控制接口与 DNS 默认只监听本机回环地址；未明确启用局域网访问时拒绝通配监听，公开控制接口时必须设置密钥。
+- 交互和无界面执行在模块失败后继续运行无关模块，只跳过依赖已失败模块的后续模块。
+- 每个执行批次只刷新一次软件包元数据，不再为每个模块重复刷新软件源。
+- 旧版本缺少足够所有权记录时，迁移过程保留原有软件包，避免不安全卸载。
 
 ## v1.2.0 - 2026-07-16
 

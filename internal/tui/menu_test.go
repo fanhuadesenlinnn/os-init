@@ -98,3 +98,74 @@ func TestInstalledStatusDoesNotLookSelected(t *testing.T) {
 		t.Fatalf("installed but unselected item should have an empty checkbox: %q", line)
 	}
 }
+
+func TestBuildMenuItemsHidesEmptyTopLevelSections(t *testing.T) {
+	tests := []struct {
+		name             string
+		mods             []modules.Module
+		wantOptimization bool
+		wantInstallation bool
+		wantSpacer       bool
+	}{
+		{
+			name:             "installation only",
+			mods:             []modules.Module{{ID: "git", Category: "installation", Subsection: "Shell 工具"}},
+			wantInstallation: true,
+		},
+		{
+			name:             "optimization only",
+			mods:             []modules.Module{{ID: "kernel", Category: "optimization"}},
+			wantOptimization: true,
+		},
+		{
+			name: "both",
+			mods: []modules.Module{
+				{ID: "kernel", Category: "optimization"},
+				{ID: "git", Category: "installation", Subsection: "Shell 工具"},
+			},
+			wantOptimization: true,
+			wantInstallation: true,
+			wantSpacer:       true,
+		},
+		{name: "empty"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			items := buildMenuItems(tt.mods)
+			labels := make([]string, 0)
+			for _, item := range items {
+				if item.separator {
+					labels = append(labels, item.label)
+				}
+			}
+			if got := containsString(labels, "系统优化"); got != tt.wantOptimization {
+				t.Fatalf("optimization heading presence = %v, want %v; labels=%v", got, tt.wantOptimization, labels)
+			}
+			if got := containsString(labels, "软件安装"); got != tt.wantInstallation {
+				t.Fatalf("installation heading presence = %v, want %v; labels=%v", got, tt.wantInstallation, labels)
+			}
+			if got := containsString(labels, ""); got != tt.wantSpacer {
+				t.Fatalf("spacer presence = %v, want %v; labels=%v", got, tt.wantSpacer, labels)
+			}
+		})
+	}
+}
+
+func TestBuildMenuItemsHidesEmptyInstallationSubsections(t *testing.T) {
+	items := buildMenuItems([]modules.Module{{ID: "git", Category: "installation", Subsection: "Shell 工具"}})
+	for _, item := range items {
+		if item.separator && strings.TrimSpace(item.label) != "" && item.label != "软件安装" && strings.TrimSpace(item.label) != "Shell 工具" {
+			t.Fatalf("empty subsection was rendered: %q", item.label)
+		}
+	}
+}
+
+func containsString(items []string, wanted string) bool {
+	for _, item := range items {
+		if item == wanted {
+			return true
+		}
+	}
+	return false
+}
