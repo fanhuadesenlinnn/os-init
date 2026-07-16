@@ -165,7 +165,7 @@ OrbStack、Clash Party、Royal TSX、Seafile Client、Bitwarden 等软件安装�
 
 选择 mise Go 或 Python 时会自动补齐原生编译器、头文件以及 OpenSSL、zlib、libffi 等系统开发库；这些只属于构建基础设施，不提供系统级 Go/Python。
 
-所有系统共享同一组 `mise`、`mise-go`、`mise-python`、`mise-node` 能力。macOS 使用 Homebrew 安装 mise 本体；Arch 在当前架构仓库提供 mise 时使用 pacman，否则自动回退到官方用户目录二进制；其他 Linux 使用用户目录二进制。普通用户写入自己的 HOME，root 模式写入 `/root`。
+所有系统共享同一组 `mise`、`mise-go`、`mise-python`、`mise-node` 能力。macOS 使用 Homebrew 安装 mise 本体；Arch 在当前架构仓库提供 mise 时使用 pacman，否则通过 `https://mise.run` 官方安装脚本安装到用户目录；其他 Linux 同样使用官方安装脚本。普通用户写入自己的 HOME，root 模式写入 `/root`。
 
 ### Arch Linux 能力与组合
 

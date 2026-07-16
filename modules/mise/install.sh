@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Install mise and a shared Node.js/Python/Go runtime set. macOS uses Homebrew;
 # Arch uses pacman when its current architecture repository provides mise and
-# otherwise falls back to the official portable binary in ~/.local/bin.
+# otherwise falls back to the official mise.run installer in ~/.local/bin.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -65,24 +65,16 @@ mise_package_installed() {
     fi
 }
 
-mise_binary_arch() {
-    case "$(uname -m)" in
-        x86_64|amd64) echo "x64" ;;
-        aarch64|arm64) echo "arm64" ;;
-        *) die "mise portable binary does not support architecture: $(uname -m)" ;;
-    esac
-}
-
 mise_binary_owned() {
     [[ -f "$(os_init_user_state_dir)/ownership/user-path-mise-binary" ]]
 }
 
 install_mise_binary() {
-    local version arch base url tmp binary_dir
+    local version binary_dir
     binary_dir="$(dirname "$mise_binary")"
 
     if [[ -x "$mise_binary" && "$UPDATE" != true ]]; then
-        skip "mise portable binary already installed: $mise_binary"
+        skip "mise 已通过官方安装脚本安装: $mise_binary"
         export PATH="$binary_dir:$PATH"
         return
     fi
@@ -99,18 +91,20 @@ install_mise_binary() {
         die "refusing to replace unmanaged non-executable path: $mise_binary"
     fi
 
-    version="${MISE_VERSION:-$(github_latest_version "jdx/mise" "v")}"
-    version="${version#v}"
-    arch="$(mise_binary_arch)"
-    base="${MISE_DOWNLOAD_BASE:-https://github.com/jdx/mise/releases/download}"
-    url="$(resource_url MISE_DOWNLOAD_URL "${base%/}/v${version}/mise-v${version}-linux-${arch}")"
-    tmp="$(mktemp "${TMPDIR:-/tmp}/os-init-mise.XXXXXX")"
-    install "installing mise ${version} portable binary"
-    download_file_verified "$url" "$tmp" "${MISE_DOWNLOAD_SHA256:-}"
+    command -v curl >/dev/null 2>&1 || die "安装 mise 需要 curl"
+    version="${MISE_VERSION:-}"
+    [[ -z "$version" ]] || version="v${version#v}"
+    install "使用 mise 官方安装脚本安装${version:+ mise $version}"
     os_init_prepare_owned_user_path "mise-binary" "$mise_binary"
     mkdir -p "$binary_dir"
-    command install -m 0755 "$tmp" "$mise_binary"
-    rm -f "$tmp"
+    if [[ -n "$version" ]]; then
+        curl --fail --silent --show-error --location https://mise.run | \
+            env MISE_INSTALL_PATH="$mise_binary" MISE_VERSION="$version" sh
+    else
+        curl --fail --silent --show-error --location https://mise.run | \
+            env MISE_INSTALL_PATH="$mise_binary" sh
+    fi
+    [[ -x "$mise_binary" ]] || die "mise 官方安装脚本未生成可执行文件: $mise_binary"
     export PATH="$binary_dir:$PATH"
 }
 
@@ -120,7 +114,7 @@ uninstall_mise_binary() {
     elif [[ -e "$mise_binary" ]]; then
         warn "保留非 OS Init 安装的 mise: $mise_binary"
     else
-        skip "mise portable binary not installed"
+        skip "mise 官方脚本安装的二进制不存在"
     fi
 }
 
@@ -463,7 +457,7 @@ mise_main() {
             else
                 require_linux
                 if is_arch; then
-                    warn "当前 Arch 架构仓库不提供 mise，改用官方用户级二进制"
+                    warn "当前 Arch 架构仓库不提供 mise，改用 mise 官方安装脚本"
                 fi
                 install_mise_binary
             fi

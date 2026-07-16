@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.2 - 2026-07-17
+
+### 调整
+
+- Arch 软件仓库不提供 mise 时，改用 `curl https://mise.run | sh` 对应的官方安装脚本，并继续支持 `MISE_INSTALL_PATH` 和 `MISE_VERSION`。
+- 移除不再使用的 mise GitHub Release 下载地址、校验值和手动架构映射配置。
+
+### 修复
+
+- 避免安装 mise 前必须查询 `jdx/mise` 最新 GitHub Release，解决该查询失败时无法安装的问题。
+
 ## v1.3.1 - 2026-07-17
 
 ### 修复

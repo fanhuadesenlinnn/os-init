@@ -96,9 +96,37 @@ OS_FAMILY=arch
 pkg_is_installed() { return 1; }
 pacman() { return 1; }
 if mise_uses_native_package; then
-    fail "Arch must use the portable mise binary when the architecture repository lacks the package"
+    fail "Arch must use the official mise installer when the architecture repository lacks the package"
 fi
 pacman() { [[ "$1 $2" == "-Si mise" ]]; }
 mise_uses_native_package || fail "Arch should prefer pacman when mise is available"
 
-printf 'mise runtime, mirror fallback, and target-home checks passed\n'
+(
+    mise_binary="$TEST_HOME/.local/bin/mise"
+    UPDATE=false
+    MISE_VERSION=2026.7.0
+    # shellcheck disable=SC2329 # Overrides the command builtin for this sourced installer test.
+    command() {
+        if [[ "${1:-}" == "-v" && "${2:-}" == "mise" ]]; then
+            return 1
+        fi
+        builtin command "$@"
+    }
+    curl() {
+        [[ "$*" == "--fail --silent --show-error --location https://mise.run" ]] || \
+            fail "unexpected mise installer request: $*"
+        cat <<'INSTALLER'
+#!/bin/sh
+printf '%s|%s\n' "$MISE_INSTALL_PATH" "${MISE_VERSION:-}" > "$HOME/mise-installer-env"
+mkdir -p "$(dirname "$MISE_INSTALL_PATH")"
+printf '#!/bin/sh\nexit 0\n' > "$MISE_INSTALL_PATH"
+chmod 0755 "$MISE_INSTALL_PATH"
+INSTALLER
+    }
+    install_mise_binary
+    [[ -x "$mise_binary" ]] || fail "official installer did not create the configured mise binary"
+    [[ "$(cat "$TEST_HOME/mise-installer-env")" == "$mise_binary|v2026.7.0" ]] || \
+        fail "official installer did not receive the normalized path and version"
+)
+
+printf 'mise installer, runtime, mirror fallback, and target-home checks passed\n'
