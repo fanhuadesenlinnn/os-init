@@ -105,13 +105,10 @@ mise_uses_native_package || fail "Arch should prefer pacman when mise is availab
     mise_binary="$TEST_HOME/.local/bin/mise"
     UPDATE=false
     MISE_VERSION=2026.7.0
-    # shellcheck disable=SC2329 # Overrides the command builtin for this sourced installer test.
-    command() {
-        if [[ "${1:-}" == "-v" && "${2:-}" == "mise" ]]; then
-            return 1
-        fi
-        builtin command "$@"
-    }
+    mkdir -p "$(dirname "$mise_binary")"
+    printf 'incomplete previous install\n' > "$mise_binary"
+    chmod 0644 "$mise_binary"
+    mise_binary_owned() { return 0; }
     curl() {
         [[ "$*" == "--fail --silent --show-error --location https://mise.run" ]] || \
             fail "unexpected mise installer request: $*"
