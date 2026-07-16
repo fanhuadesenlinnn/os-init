@@ -104,14 +104,14 @@ OS_INIT_REPO_DIR="${REPO_DIR:-$LIB_DIR}"
 
 OS_INIT_CONFIG_KEYS=(
     OS_INIT_LANG OS_INIT_REGION OS_INIT_CONFIG_PROMPT OS_INIT_SCRIPT_TIMEOUT
-	DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY OS_INIT_ALLOW_UNVERIFIED_PROXY
+		DOWNLOAD_RETRY DOWNLOAD_TIMEOUT GITHUB_PROXY
 	PACMAN_RETRY_ATTEMPTS ARCHLINUXARM_MIRRORS
 	HOMEBREW_INSTALL_URL HOMEBREW_INSTALL_SHA256 HOMEBREW_API_DOMAIN HOMEBREW_BOTTLE_DOMAIN HOMEBREW_ARTIFACT_DOMAIN
     HOMEBREW_BREW_GIT_REMOTE HOMEBREW_CORE_GIT_REMOTE HOMEBREW_PIP_INDEX_URL
 	DIRENV_PACKAGE
     ZSH_AUTOSUGGESTIONS_REPO ZSH_SYNTAX_HIGHLIGHTING_REPO
 	MISE_VERSION MISE_INSTALL_PATH MISE_DOWNLOAD_BASE MISE_DOWNLOAD_URL MISE_DOWNLOAD_SHA256
-	MISE_NODE_VERSION MISE_PYTHON_VERSION MISE_GO_VERSION MISE_NODE_MIRROR_URL MISE_GO_DOWNLOAD_MIRROR
+		OS_INIT_MISE_NODE_VERSION OS_INIT_MISE_PYTHON_VERSION OS_INIT_MISE_GO_VERSION MISE_NODE_MIRROR_URL MISE_GO_DOWNLOAD_MIRROR
 	NPM_CONFIG_REGISTRY PIP_INDEX_URL UV_DEFAULT_INDEX GOPROXY
     DOCKER_DOWNLOAD_BASE DOCKER_CHANNEL DOCKER_VERSION DOCKER_COMPOSE_VERSION DOCKER_COMPOSE_DOWNLOAD_BASE
 	DOCKER_TGZ_URL DOCKER_TGZ_SHA256 DOCKER_COMPOSE_DOWNLOAD_URL DOCKER_COMPOSE_SHA256
@@ -333,6 +333,9 @@ source_config_file() {
                 ignored["NO_PROXY"] = 1
                 ignored["no_proxy"] = 1
                 ignored["DOWNLOAD_URL_PROXY"] = 1
+                legacy["MISE_NODE_VERSION"] = "OS_INIT_MISE_NODE_VERSION"
+                legacy["MISE_PYTHON_VERSION"] = "OS_INIT_MISE_PYTHON_VERSION"
+                legacy["MISE_GO_VERSION"] = "OS_INIT_MISE_GO_VERSION"
             }
             /^[[:space:]]*($|#)/ { print; next }
             {
@@ -341,6 +344,10 @@ source_config_file() {
                 split(line, parts, "=")
                 key = parts[1]
                 gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+                if (key in legacy) {
+                    print legacy[key] substr(line, index(line, "="))
+                    next
+                }
                 if (!allowed[key] || ignored[key]) next
                 print
             }
@@ -368,7 +375,6 @@ load_os_init_config() {
     done
 
     source_config_file "$OS_INIT_REPO_DIR/config/defaults.env"
-    source_config_file "/etc/os-init/config.env"
     home="$(real_home)"
     if [[ -n "$home" ]]; then
         source_config_file "$home/.config/os-init/config.env"
@@ -433,6 +439,8 @@ require_wsl2() {
 
 # shellcheck disable=SC1091
 source "${LIB_DIR}/lib/packages.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/lib/github_proxy.sh"
 # shellcheck disable=SC1091
 source "${LIB_DIR}/lib/download.sh"
 # shellcheck disable=SC1091

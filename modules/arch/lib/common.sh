@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # 公共函数库：日志、确认、备份、命令执行、GitHub 代理、模块执行标记。
 
+ARCH_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=modules/lib/github_proxy.sh
+source "${ARCH_COMMON_DIR}/../../lib/github_proxy.sh"
+
 MODULE_DONE_LIST=""
 
 log_info()  { printf '\033[32m----> %s\033[0m\n' "$*"; }
@@ -119,42 +123,17 @@ confirm_no() {
   case "${input}" in y|yes) return 0 ;; n|no) return 1 ;; *) log_warn "请输入 y/yes 或 n/no"; confirm_no "${prompt}" ;; esac
 }
 
-normalize_url_slash() {
-  local url="$1"
-  [[ "${url}" == */ ]] || url="${url}/"
-  printf '%s' "${url}"
-}
-
 github_proxy_url() {
-  local url="$1" proxy
-  if [[ "${ENABLE_GITHUB_PROXY:-0}" -eq 1 && -n "${GITHUB_PROXY:-}" && \
-    ( "${url}" == https://github.com/* || "${url}" == https://raw.githubusercontent.com/* ) ]]; then
-    proxy="$(normalize_url_slash "${GITHUB_PROXY}")"
-    [[ "${url}" == "${proxy}"* ]] && {
-      printf '%s' "${url}"
-      return 0
-    }
-    printf '%s%s' "${proxy}" "${url}"
-  else
-    printf '%s' "${url}"
-  fi
+  rewrite_github_url "$1"
 }
 
 run_with_github_proxy() {
-  local proxy
-  if [[ "${ENABLE_GITHUB_PROXY:-0}" -eq 1 ]]; then
-    proxy="$(normalize_url_slash "${GITHUB_PROXY}")"
-    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-      log_info "dry-run：将使用临时 GitHub 代理执行命令：${proxy}"
-      printf '+'; printf ' %q' "$@"; printf '\n'; return 0
-    fi
-    GIT_CONFIG_COUNT=1 \
-    GIT_CONFIG_KEY_0="url.${proxy}https://github.com/.insteadOf" \
-    GIT_CONFIG_VALUE_0="https://github.com/" \
-    "$@"
-  else
-    run_cmd "$@"
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    [[ -n "${GITHUB_PROXY:-}" ]] && log_info "dry-run：GitHub Git 命令将使用临时代理：${GITHUB_PROXY}"
+    printf '+'; printf ' %q' "$@"; printf '\n'
+    return 0
   fi
+  run_with_github_git_proxy "$@"
 }
 
 clone_repo_safe() {
@@ -173,6 +152,7 @@ clone_repo_safe() {
     printf '+ git'; printf ' %q' "${args[@]}"; printf '\n'; rm -rf "${tmp_dir}"; return 0
   fi
   git "${args[@]}" || { rm -rf "${tmp_dir}"; die "克隆仓库失败：${repo_url}"; }
+  [[ "${repo_url}" == "${actual_url}" ]] || git -C "${tmp_dir}/repo" remote set-url origin "${repo_url}"
   mkdir -p "$(dirname "${target_dir}")"
   backup_path "${target_dir}"
   mv "${tmp_dir}/repo" "${target_dir}"

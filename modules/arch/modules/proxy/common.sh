@@ -25,7 +25,7 @@ EOF
 }
 
 enable_proxy_service_if_needed() {
-  [[ "${PROXY_AUTO_ENABLE_SERVICE:-0}" -eq 1 ]] || {
+  [[ "${MIHOMO_AUTO_ENABLE_SERVICE:-0}" -eq 1 ]] || {
     log_warn "当前配置不自动启用 Proxy 服务"
     return 0
   }

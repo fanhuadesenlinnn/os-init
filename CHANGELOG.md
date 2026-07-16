@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.1 - 2026-07-16
+## v1.2.0 - 2026-07-16
 
 ### Added
 
@@ -9,12 +9,23 @@
 
 ### Changed
 
+- Generate one user configuration file containing only settings used by the detected platform, and keep advanced implementation defaults internal.
+- Pass the language selected in the startup UI directly to configuration generation so new files consistently use matching Chinese or English comments and `OS_INIT_LANG` values.
+- Remove the separate full configuration example and the optional `/etc/os-init/config.env` layer so `~/.config/os-init/config.env` is the single user-facing configuration source.
+- Use `MIHOMO_AUTO_ENABLE_SERVICE` consistently on Arch and other Linux families while accepting the former Arch-only key during migration.
 - Retry transient pacman downloads while reusing the package cache, and perform a full Arch upgrade before shared package resolution to avoid partial upgrades.
 - Update and populate official Arch/Arch Linux ARM keyrings before installing the archlinuxcn keyring.
 - Use Chromium instead of the unavailable Google Chrome package by default on Arch Linux ARM desktops.
 
 ### Fixed
 
+- Make `GITHUB_PROXY` immediately apply to OS Init-managed downloads, clones, updates, and child Git processes without persisting proxied repository origins.
+- Remove the conflicting global GitHub HTTPS-to-SSH rewrite and the redundant Arch proxy enable switch.
+- Namespace OS Init's mise runtime selections so they no longer collide with mise's own `MISE_*_VERSION` environment variables, while migrating legacy config keys during loading.
+- Support prefix, `{url}`, and `{url_encoded}` GitHub proxy formats and make latest-release detection work when proxies do not preserve GitHub's HEAD redirect.
+- Normalize trailing slashes in GitHub proxy prefixes so equivalent forms produce identical download and Git URLs.
+- Use `https://hubproxy.babadafafafafa.cn` as the generated and built-in default GitHub proxy, while allowing an empty value to disable it.
+- Configure Docker's `registry-mirrors` by default with `https://hubproxy.babadafafafafa.cn`; users can provide comma-separated alternatives or leave it empty.
 - Fall back to the official ARM64 user binary when the current Arch repository does not provide mise.
 - Stop dependent TUI modules after an upstream failure instead of producing cascading mise runtime errors.
 - Do not append the same ANSI-formatted provider failure twice to module logs.

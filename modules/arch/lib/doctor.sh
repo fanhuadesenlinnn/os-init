@@ -161,7 +161,7 @@ show_doctor() {
   doctor_check_network_host github.com "github"
   doctor_check_network_host raw.githubusercontent.com "github-raw"
   doctor_check_network_host aur.archlinux.org "aur"
-  if [[ "${ENABLE_GITHUB_PROXY:-0}" -eq 1 && -n "${GITHUB_PROXY:-}" ]]; then
+  if [[ -n "${GITHUB_PROXY:-}" ]]; then
     doctor_check_network_host "$(printf "%s" "${GITHUB_PROXY}" | sed -E 's#^https?://##;s#/.*$##;s#:.*$##')" "github-proxy"
   fi
   doctor_check_state_dir

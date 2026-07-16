@@ -3,7 +3,9 @@ package tui
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
@@ -179,10 +181,9 @@ func getInstalledVersion(ctx context.Context, cmd []string, re *regexp.Regexp) s
 }
 
 // getLatestGitHubVersion performs an HTTP HEAD to the releases/latest
-// endpoint, stops at the 302 redirect, and extracts the version tag
-// from the Location header.
+// endpoint and extracts the version from a redirect, final URL, or page body.
 func getLatestGitHubVersion(ctx context.Context, repo string) string {
-	url := rewriteDownloadURL(fmt.Sprintf("https://github.com/%s/releases/latest", repo))
+	rawURL := rewriteDownloadURL(fmt.Sprintf("https://github.com/%s/releases/latest", repo))
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,
@@ -191,7 +192,7 @@ func getLatestGitHubVersion(ctx context.Context, repo string) string {
 		},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, rawURL, nil)
 	if err != nil {
 		return ""
 	}
@@ -202,23 +203,30 @@ func getLatestGitHubVersion(ctx context.Context, repo string) string {
 	}
 	defer resp.Body.Close()
 
-	loc := resp.Header.Get("Location")
-	if loc == "" {
-		return ""
+	if version := semverFromReleaseURL(resp.Header.Get("Location")); version != "" {
+		return version
 	}
 
-	parts := strings.Split(loc, "/")
-	if len(parts) == 0 {
+	getReq, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
 		return ""
 	}
+	getResp, err := (&http.Client{Timeout: 5 * time.Second}).Do(getReq)
+	if err != nil {
+		return ""
+	}
+	defer getResp.Body.Close()
+	if version := semverFromReleaseURL(getResp.Request.URL.String()); version != "" {
+		return version
+	}
+	body, _ := io.ReadAll(io.LimitReader(getResp.Body, 2<<20))
+	match := regexp.MustCompile(`/releases/tag/[^"?#<]+`).Find(body)
+	return semverFromReleaseURL(string(match))
+}
 
-	tag := parts[len(parts)-1]
-	// Extract semver from tag — handles "v1.2.3", "go1.22.0", plain "1.2.3"
+func semverFromReleaseURL(value string) string {
 	re := regexp.MustCompile(`(\d+\.\d+\.\d+)`)
-	if m := re.FindString(tag); m != "" {
-		return m
-	}
-	return ""
+	return re.FindString(value)
 }
 
 func configuredURL(envKey, fallback string) string {
@@ -247,10 +255,16 @@ func isGitHubURL(rawURL string) bool {
 	return strings.HasPrefix(rawURL, "https://github.com/") ||
 		strings.HasPrefix(rawURL, "https://raw.githubusercontent.com/") ||
 		strings.HasPrefix(rawURL, "https://objects.githubusercontent.com/") ||
-		strings.HasPrefix(rawURL, "https://github-releases.githubusercontent.com/")
+		strings.HasPrefix(rawURL, "https://github-releases.githubusercontent.com/") ||
+		strings.HasPrefix(rawURL, "https://release-assets.githubusercontent.com/") ||
+		strings.HasPrefix(rawURL, "https://codeload.github.com/") ||
+		strings.HasPrefix(rawURL, "https://api.github.com/")
 }
 
 func renderURLProxy(proxy, rawURL string) string {
+	if strings.Contains(proxy, "{url_encoded}") {
+		return strings.ReplaceAll(proxy, "{url_encoded}", url.QueryEscape(rawURL))
+	}
 	if strings.Contains(proxy, "{url}") {
 		return strings.ReplaceAll(proxy, "{url}", rawURL)
 	}

@@ -70,7 +70,7 @@ func New(cfg Config) Model {
 		config:        cfg,
 		screen:        screenLanguage,
 		language:      newLanguageModel(),
-		configStartup: newConfigStartupModel(cfg.Assets),
+		configStartup: newConfigStartupModel(cfg.Assets, cfg.Runtime.Target, os.Getenv("OS_INIT_LANG")),
 		mode:          newModeModel(),
 	}
 	return model
@@ -283,7 +283,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case languageSelectedMsg:
 		appconfig.SetRuntimeOverride("OS_INIT_LANG", msg.code)
 		appconfig.Apply(m.config.Assets)
-		m.configStartup = newConfigStartupModel(m.config.Assets)
+		m.configStartup = newConfigStartupModel(m.config.Assets, m.config.Runtime.Target, msg.code)
 		if os.Getenv("OS_INIT_CONFIG_PROMPT") == "0" {
 			return m.startMenu()
 		}

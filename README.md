@@ -202,19 +202,16 @@ root 模式不会运行 `makepkg`，但会在配置 archlinuxcn 后直接用 pac
 ~/.config/os-init/config.env
 ```
 
-也可以从源码仓库复制完整示例：
-
-```bash
-mkdir -p ~/.config/os-init
-cp modules/config/config.env.example ~/.config/os-init/config.env
-${EDITOR:-vi} ~/.config/os-init/config.env
-```
+配置由程序根据当前系统生成。macOS、Arch Linux 和其他 Linux 只会写入各自实际使用的选项；所有平台共用这一个用户配置入口。
 
 常用配置：
 
 ```bash
-# GitHub 下载代理
-GITHUB_PROXY=https://gh-proxy.com/
+# GitHub URL 代理；非空即用于 OS Init 控制的 GitHub 下载和 Git 操作
+GITHUB_PROXY=https://hubproxy.babadafafafafa.cn
+
+# Docker Hub 镜像加速器；多个地址使用逗号分隔，留空可关闭
+DOCKER_REGISTRY_MIRRORS=https://hubproxy.babadafafafafa.cn
 
 # 单个模块最长执行时间；0 表示不限制
 OS_INIT_SCRIPT_TIMEOUT=45m
@@ -227,7 +224,7 @@ PACMAN_RETRY_ATTEMPTS=3
 ARCHLINUXARM_MIRRORS='http://tw.mirror.archlinuxarm.org/$arch/$repo,http://tw2.mirror.archlinuxarm.org/$arch/$repo'
 ```
 
-配置文件中还可以调整 Homebrew 镜像、运行时版本与镜像、Docker、Mihomo，以及各类下载地址。当前环境变量的优先级高于配置文件。
+`GITHUB_PROXY` 支持前缀、`{url}` 和 `{url_encoded}` 模板。代理只覆盖 OS Init 能控制的 GitHub URL 和 Git 命令；Homebrew API/Bottle、GitHub CLI API 以及安装完成后第三方工具自己的网络请求仍使用各自的镜像或标准 HTTP(S) 代理配置。当前环境变量的优先级高于用户配置，未写入配置文件的高级参数使用程序内置默认值。
 
 ## 日志与排障
 

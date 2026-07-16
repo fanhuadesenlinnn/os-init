@@ -27,13 +27,17 @@ want() {
 }
 
 mise_exec() {
+    local binary
     if command -v mise >/dev/null 2>&1; then
-        command mise "$@"
+        binary="$(command -v mise)"
     elif [[ -x "$mise_binary" ]]; then
-        "$mise_binary" "$@"
+        binary="$mise_binary"
     else
         die "mise 尚未安装，请先安装 mise core"
     fi
+    run_with_github_git_proxy env \
+        -u MISE_NODE_VERSION -u MISE_PYTHON_VERSION -u MISE_GO_VERSION \
+        "$binary" "$@"
 }
 
 mise_uses_native_package() {
@@ -250,9 +254,9 @@ configure_mise_settings() {
 
 mise_runtime_version() {
     case "$1" in
-        go) echo "${MISE_GO_VERSION:-1.26}" ;;
-        python) echo "${MISE_PYTHON_VERSION:-3.13}" ;;
-        node) echo "${MISE_NODE_VERSION:-24}" ;;
+        go) echo "${OS_INIT_MISE_GO_VERSION:-1.26}" ;;
+        python) echo "${OS_INIT_MISE_PYTHON_VERSION:-3.13}" ;;
+        node) echo "${OS_INIT_MISE_NODE_VERSION:-24}" ;;
         *) die "未知 mise 运行时: $1" ;;
     esac
 }
@@ -261,9 +265,16 @@ mise_use_global_runtime() {
     local tool="$1" version="$2" node_mirror go_mirror
     node_mirror="${MISE_NODE_MIRROR_URL:-https://npmmirror.com/mirrors/node/}"
     go_mirror="$(resolve_mise_go_download_mirror)"
-    MISE_NODE_MIRROR_URL="$node_mirror" \
-    MISE_GO_DOWNLOAD_MIRROR="$go_mirror" \
-        mise_exec use --global "${tool}@${version}"
+    if [[ "$tool" == "python" && -n "${GITHUB_PROXY:-}" ]]; then
+        MISE_PYTHON_COMPILE="${MISE_PYTHON_COMPILE:-1}" \
+        MISE_NODE_MIRROR_URL="$node_mirror" \
+        MISE_GO_DOWNLOAD_MIRROR="$go_mirror" \
+            mise_exec use --global "${tool}@${version}"
+    else
+        MISE_NODE_MIRROR_URL="$node_mirror" \
+        MISE_GO_DOWNLOAD_MIRROR="$go_mirror" \
+            mise_exec use --global "${tool}@${version}"
+    fi
 }
 
 mise_use_global_runtime_from_official_source() {
@@ -274,21 +285,23 @@ mise_use_global_runtime_from_official_source() {
 }
 
 verify_mise_runtime() {
-    local tool="$1" version="$2"
+    local tool="$1" version="$2" tool_path bin_dir
+    tool_path="$(mise_exec which "$tool")"
+    [[ -x "$tool_path" ]] || die "mise ${tool} 可执行文件不存在"
     case "$tool" in
         go)
-            mise_exec exec -- go version | grep -Eq "go${version}(\\.|[[:space:]])" || die "mise Go 版本验证失败"
+            "$tool_path" version | grep -Eq "go${version}(\\.|[[:space:]])" || die "mise Go 版本验证失败"
             ;;
         python)
-            mise_exec exec -- python --version | grep -Eq "Python ${version}(\\.|$)" || die "mise Python 版本验证失败"
+            "$tool_path" --version | grep -Eq "Python ${version}(\\.|$)" || die "mise Python 版本验证失败"
             ;;
         node)
-            mise_exec exec -- node --version | grep -Eq "^v${version}(\\.|$)" || die "mise Node.js 版本验证失败"
-            mise_exec exec -- npm --version >/dev/null
-            mise_exec exec -- corepack --version >/dev/null
+            "$tool_path" --version | grep -Eq "^v${version}(\\.|$)" || die "mise Node.js 版本验证失败"
+            bin_dir="$(dirname "$tool_path")"
+            "$bin_dir/npm" --version >/dev/null
+            "$bin_dir/corepack" --version >/dev/null
             ;;
     esac
-    mise_exec which "$tool" >/dev/null
 }
 
 install_mise_runtime() {

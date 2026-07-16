@@ -111,13 +111,13 @@ ensure_oh_my_zsh() {
     if [[ -d "$HOME/.oh-my-zsh" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating oh-my-zsh"
-            git_update_shallow "$HOME/.oh-my-zsh"
+            git_update_shallow "$HOME/.oh-my-zsh" "https://github.com/ohmyzsh/ohmyzsh.git"
         else
             skip "oh-my-zsh already installed at ~/.oh-my-zsh"
         fi
 	else
-		install "$(os_init_text "通过官方安装脚本安装 Oh My Zsh" "installing Oh My Zsh with the official installer")"
-		RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+		install "$(os_init_text "克隆 Oh My Zsh" "cloning Oh My Zsh")"
+		git_clone_depth 1 "https://github.com/ohmyzsh/ohmyzsh.git" "$HOME/.oh-my-zsh"
 		touch "$HOME/.oh-my-zsh/.os-init-owned"
 	fi
 }
@@ -128,7 +128,7 @@ ensure_powerlevel10k() {
     if [[ -d "$theme_dir/.git" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating Powerlevel10k"
-            git_update_shallow "$theme_dir"
+            git_update_shallow "$theme_dir" "https://github.com/romkatv/powerlevel10k.git"
         else
             skip "Powerlevel10k already installed"
         fi
@@ -372,7 +372,8 @@ if want "zsh"; then
     if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating zsh-autosuggestions"
-            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions" \
+                "$(repo_url ZSH_AUTOSUGGESTIONS_REPO "https://github.com/zsh-users/zsh-autosuggestions.git")"
         else
             skip "zsh-autosuggestions already installed"
         fi
@@ -386,7 +387,8 @@ if want "zsh"; then
     if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating zsh-syntax-highlighting"
-            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" \
+                "$(repo_url ZSH_SYNTAX_HIGHLIGHTING_REPO "https://github.com/zsh-users/zsh-syntax-highlighting.git")"
         else
             skip "zsh-syntax-highlighting already installed"
         fi
@@ -431,6 +433,8 @@ fi
 # ── git config ────────────────────────────────────────────────────────────────
 if want "git"; then
     next "git config"
+	# Remove the legacy OS Init rewrite that forced GitHub HTTPS remotes to SSH.
+	git config --global --unset-all 'url.git@github.com:.insteadOf' 'https://github.com/' 2>/dev/null || true
 
     if [[ -f "$HOME/.gitconfig" ]]; then
         skip "$HOME/.gitconfig already exists (not overwriting)"

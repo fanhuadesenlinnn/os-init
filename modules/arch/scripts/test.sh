@@ -13,6 +13,12 @@ done < <(find "${ARCH_DIR}" -type f -name '*.sh' -print)
 
 grep -Fq "\${HOME}/.config/os-init/config.env" "${ARCH_DIR}/install_vars"
 grep -Fq "\${HOME}/.local/state/os-init/arch" "${ARCH_DIR}/install_vars"
+grep -Fq 'MIHOMO_AUTO_ENABLE_SERVICE=1' "${ARCH_DIR}/install_vars"
+grep -Fq 'key="MIHOMO_AUTO_ENABLE_SERVICE"' "${ARCH_DIR}/lib/config.sh"
+if grep -Eq '^PROXY_AUTO_ENABLE_SERVICE=' "${ARCH_DIR}/install_vars"; then
+  echo "duplicate Arch-only Mihomo service switch remains" >&2
+  exit 1
+fi
 grep -Fq 'base aur archlinuxcn dns git ops_toolkit fonts proxy desktop_hyprland' \
   "${ARCH_DIR}/lib/module_registry.sh"
 

@@ -42,16 +42,19 @@ tool_prefers_package_manager() {
 }
 
 update_config_repo_safely() {
-	local dir="$1" branch
+	local dir="$1" official_remote="${2:-}" branch remote final_remote
 	if [[ -n "$(git -C "$dir" status --porcelain)" ]]; then
 		warn "config-yuan 存在未提交修改，跳过自动更新"
 		return 0
 	fi
-	assert_git_remote_secure "$dir"
 	branch="$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null || echo main)"
-	git_with_proxy -C "$dir" fetch origin --depth=1 -q
+	remote="${official_remote:-$(git -C "$dir" remote get-url origin)}"
+	final_remote="$(rewrite_github_url "$remote")"
+	GIT_TERMINAL_PROMPT=0 command git -C "$dir" -c "remote.origin.url=${final_remote}" fetch origin --depth=1 -q
+	[[ -z "$official_remote" ]] || command git -C "$dir" remote set-url origin "$official_remote"
 	if ! git -C "$dir" merge --ff-only "origin/$branch"; then
 		warn "config-yuan 无法快进更新，已保留当前配置"
+		return 0
 	fi
 }
 
@@ -287,13 +290,15 @@ fi
 echo "[5/5] config-yuan..."
 NVIM_CONFIG="$HOME/.config/nvim"
 NVIM_CONFIG_REPO_URL="$(repo_url NVIM_CONFIG_REPO "https://github.com/fanhuadesenlinnn/nvim.git")"
+NVIM_CONFIG_FETCH_URL="$(rewrite_github_url "$NVIM_CONFIG_REPO_URL")"
 os_init_prepare_owned_user_path "neovim-config-yuan" "$NVIM_CONFIG"
 if [[ -d "$NVIM_CONFIG/.git" ]] && git -C "$NVIM_CONFIG" remote get-url origin &>/dev/null; then
 	CURRENT_CONFIG_REMOTE="$(git -C "$NVIM_CONFIG" remote get-url origin)"
-	if [[ "${CURRENT_CONFIG_REMOTE%.git}" == "${NVIM_CONFIG_REPO_URL%.git}" ]]; then
+	if [[ "${CURRENT_CONFIG_REMOTE%.git}" == "${NVIM_CONFIG_REPO_URL%.git}" || \
+		"${CURRENT_CONFIG_REMOTE%.git}" == "${NVIM_CONFIG_FETCH_URL%.git}" ]]; then
 		if [[ "$UPDATE" == true ]]; then
 			update "updating config-yuan"
-			update_config_repo_safely "$NVIM_CONFIG"
+			update_config_repo_safely "$NVIM_CONFIG" "$NVIM_CONFIG_REPO_URL"
 		else
 			skip "config-yuan already present at ~/.config/nvim"
 		fi

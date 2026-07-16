@@ -19,7 +19,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "1.1.1"
+	version = "1.2.0"
 	commit  = "none"
 )
 
@@ -115,18 +115,15 @@ func usageText() string {
 
 配置:
   ~/.config/os-init/config.env    用户配置
-  /etc/os-init/config.env         系统配置（可选）
-  modules/config/config.env.example
-                                  完整配置示例（源码仓库）
 
 配置优先级:
-  环境变量 > 用户配置 > 系统配置 > 内置默认值
+  环境变量 > 用户配置 > 内置默认值
 
 常用环境变量:
   OS_INIT_LANG                    zh_CN 或 en_US
   OS_INIT_CONFIG_PROMPT           设为 0 可关闭启动配置提示
   OS_INIT_SCRIPT_TIMEOUT          单个模块执行超时，例如 45m；0 表示不限制
-  GITHUB_PROXY                    GitHub 下载代理前缀
+  GITHUB_PROXY                    GitHub URL 代理（前缀或模板）
 
 运行信息:
   日志保存在当前工作目录的 logs/ 下。需要系统权限的操作会在确认后请求 sudo。
@@ -157,18 +154,15 @@ Examples:
 
 Configuration:
   ~/.config/os-init/config.env    User configuration
-  /etc/os-init/config.env         Optional system configuration
-  modules/config/config.env.example
-                                  Full example in the source repository
 
 Configuration precedence:
-  environment > user configuration > system configuration > built-in defaults
+  environment > user configuration > built-in defaults
 
 Common environment variables:
   OS_INIT_LANG                    zh_CN or en_US
   OS_INIT_CONFIG_PROMPT           Set to 0 to hide the startup config prompt
   OS_INIT_SCRIPT_TIMEOUT          Per-module timeout, for example 45m; 0 disables it
-  GITHUB_PROXY                    Prefix used for GitHub downloads
+  GITHUB_PROXY                    GitHub URL proxy prefix or template
 
 Runtime information:
   Logs are written under logs/ in the current working directory. Operations

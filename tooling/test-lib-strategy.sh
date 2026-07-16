@@ -222,18 +222,15 @@ test_unknown_owned_path_is_preserved() (
     [[ "$(cat "$target")" == "user-data" ]] || fail "unknown path was modified"
 )
 
-test_verified_download_rejects_unchecked_proxy() (
+test_verified_download_accepts_unchecked_proxy() (
     local source_file="$TEST_HOME/download-source"
     local target="$TEST_HOME/download-target"
     printf 'payload\n' > "$source_file"
     GITHUB_PROXY="https://proxy.invalid/"
-    OS_INIT_ALLOW_UNVERIFIED_PROXY=0
     download_file() { cp "$source_file" "$2"; }
 
-    if (download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" "" >/dev/null 2>&1); then
-        fail "unchecked proxied executable download should be rejected"
-    fi
-    [[ ! -e "$target" ]] || fail "rejected download should not create a target"
+    download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" ""
+    cmp -s "$source_file" "$target" || fail "unchecked proxied payload was not preserved"
 )
 
 test_verified_download_accepts_expected_digest() (
@@ -242,7 +239,6 @@ test_verified_download_accepts_expected_digest() (
     local digest
     printf 'payload\n' > "$source_file"
     GITHUB_PROXY="https://proxy.invalid/"
-    OS_INIT_ALLOW_UNVERIFIED_PROXY=0
     download_file() { cp "$source_file" "$2"; }
     digest="$(sha256_file "$source_file")"
 
@@ -255,13 +251,68 @@ test_verified_download_rejects_wrong_digest() (
     local target="$TEST_HOME/wrong-digest-target"
     printf 'tampered\n' > "$source_file"
     GITHUB_PROXY="https://proxy.invalid/"
-    OS_INIT_ALLOW_UNVERIFIED_PROXY=0
     download_file() { cp "$source_file" "$2"; }
 
     if (download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" >/dev/null 2>&1); then
         fail "wrong executable digest should be rejected"
     fi
     [[ ! -e "$target" ]] || fail "digest mismatch should remove the downloaded target"
+)
+
+test_github_proxy_formats_and_git_environment() (
+    local target="$TEST_HOME/github-proxy-env"
+    local rewritten without_slash with_slash many_slashes
+
+    GITHUB_PROXY='https://proxy.invalid'
+    without_slash="$(rewrite_github_url 'https://github.com/owner/repo')"
+    GITHUB_PROXY='https://proxy.invalid/'
+    with_slash="$(rewrite_github_url 'https://github.com/owner/repo')"
+    GITHUB_PROXY='https://proxy.invalid///'
+    many_slashes="$(rewrite_github_url 'https://github.com/owner/repo')"
+    [[ "$without_slash" == "$with_slash" && "$with_slash" == "$many_slashes" ]] || \
+        fail "GitHub proxy trailing slashes changed the rewritten URL"
+    [[ "$without_slash" == 'https://proxy.invalid/https://github.com/owner/repo' ]] || \
+        fail "GitHub proxy prefix was joined incorrectly: $without_slash"
+
+    GITHUB_PROXY='https://proxy.invalid/?target={url_encoded}'
+    rewritten="$(rewrite_github_url 'https://github.com/owner/repo?a=1&b=2')"
+    [[ "$rewritten" == 'https://proxy.invalid/?target=https%3A%2F%2Fgithub.com%2Fowner%2Frepo%3Fa%3D1%26b%3D2' ]] || \
+        fail "encoded GitHub proxy template was rendered incorrectly: $rewritten"
+
+    GITHUB_PROXY='https://proxy.invalid/{url}'
+    capture_proxy_env() {
+        printf '%s\n%s\n' "${GIT_CONFIG_KEY_0:-}" "${GIT_CONFIG_VALUE_0:-}" > "$target"
+    }
+    run_with_github_git_proxy capture_proxy_env
+    grep -Fq 'url.https://proxy.invalid/https://github.com/.insteadOf' "$target" || \
+        fail "Git proxy did not inject a temporary insteadOf mapping"
+    grep -Fq 'https://github.com/' "$target" || fail "Git proxy mapping has the wrong source URL"
+
+    GIT_CONFIG_COUNT=1
+    GIT_CONFIG_KEY_0='existing.key'
+    GIT_CONFIG_VALUE_0='existing-value'
+    capture_proxy_env() {
+        printf '%s\n%s\n%s\n' "${GIT_CONFIG_KEY_0:-}" "${GIT_CONFIG_KEY_1:-}" "${GIT_CONFIG_VALUE_1:-}" > "$target"
+    }
+    run_with_github_git_proxy capture_proxy_env
+    grep -Fq 'existing.key' "$target" || fail "Git proxy overwrote an existing temporary Git configuration"
+    grep -Fq 'url.https://proxy.invalid/https://github.com/.insteadOf' "$target" || \
+        fail "Git proxy did not append to an existing temporary Git configuration"
+)
+
+test_legacy_mise_config_is_namespaced() (
+    local config_file="$TEST_HOME/legacy-mise.env"
+    printf 'MISE_NODE_VERSION=22\nMISE_PYTHON_VERSION=3.12\nMISE_GO_VERSION=1.25\n' > "$config_file"
+    unset MISE_NODE_VERSION MISE_PYTHON_VERSION MISE_GO_VERSION
+    unset OS_INIT_MISE_NODE_VERSION OS_INIT_MISE_PYTHON_VERSION OS_INIT_MISE_GO_VERSION
+
+    source_config_file "$config_file"
+
+    [[ "${OS_INIT_MISE_NODE_VERSION:-}" == "22" ]] || fail "legacy Node.js selection was not migrated"
+    [[ "${OS_INIT_MISE_PYTHON_VERSION:-}" == "3.12" ]] || fail "legacy Python selection was not migrated"
+    [[ "${OS_INIT_MISE_GO_VERSION:-}" == "1.25" ]] || fail "legacy Go selection was not migrated"
+    [[ -z "${MISE_NODE_VERSION:-}${MISE_PYTHON_VERSION:-}${MISE_GO_VERSION:-}" ]] || \
+        fail "legacy mise variables leaked into the mise environment"
 )
 
 test_root_sudo_wrapper_runs_without_sudo_binary() (
@@ -332,9 +383,11 @@ test_arch_pacman_retries_and_prioritizes_arm_mirrors
 test_arch_helper_bootstrap_prefers_paru_and_adds_yay
 test_owned_path_restores_preexisting_content
 test_unknown_owned_path_is_preserved
-test_verified_download_rejects_unchecked_proxy
+test_verified_download_accepts_unchecked_proxy
 test_verified_download_accepts_expected_digest
 test_verified_download_rejects_wrong_digest
+test_github_proxy_formats_and_git_environment
+test_legacy_mise_config_is_namespaced
 test_root_sudo_wrapper_runs_without_sudo_binary
 test_root_sudo_wrapper_bypasses_logging_function
 test_root_is_always_the_target_user

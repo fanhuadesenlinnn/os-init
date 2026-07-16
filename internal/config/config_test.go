@@ -20,7 +20,7 @@ func TestParseEnv(t *testing.T) {
 # comment
 export HTTP_PROXY="http://127.0.0.1:7890"
 NO_PROXY='localhost,127.0.0.1'
-MISE_GO_VERSION=1.26
+OS_INIT_MISE_GO_VERSION=1.26
 bad-key=value
 `))
 
@@ -30,8 +30,8 @@ bad-key=value
 	if got["NO_PROXY"] != "localhost,127.0.0.1" {
 		t.Fatalf("unexpected NO_PROXY: %q", got["NO_PROXY"])
 	}
-	if got["MISE_GO_VERSION"] != "1.26" {
-		t.Fatalf("unexpected MISE_GO_VERSION: %q", got["MISE_GO_VERSION"])
+	if got["OS_INIT_MISE_GO_VERSION"] != "1.26" {
+		t.Fatalf("unexpected OS_INIT_MISE_GO_VERSION: %q", got["OS_INIT_MISE_GO_VERSION"])
 	}
 	if _, ok := got["bad-key"]; ok {
 		t.Fatal("invalid key should be ignored")
@@ -42,7 +42,7 @@ func TestCreateUserConfig(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	files := fstest.MapFS{}
 
-	path, err := createUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN")
+	path, err := CreateUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN")
 	if err != nil {
 		t.Fatalf("CreateUserConfig failed: %v", err)
 	}
@@ -56,14 +56,14 @@ func TestCreateUserConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	if !strings.Contains(string(data), "OS Init 启动配置") || !strings.Contains(string(data), "GITHUB_PROXY=") {
+	if !strings.Contains(string(data), "OS Init 启动配置") || !strings.Contains(string(data), "GITHUB_PROXY=https://hubproxy.babadafafafafa.cn") {
 		t.Fatalf("config was not generated with expected content: %q", string(data))
 	}
 
 	if err := os.WriteFile(path, []byte("CUSTOM=1\n"), 0o600); err != nil {
 		t.Fatalf("write custom config: %v", err)
 	}
-	if _, err := createUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"); err != nil {
+	if _, err := CreateUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"); err != nil {
 		t.Fatalf("second CreateUserConfig failed: %v", err)
 	}
 	data, err = os.ReadFile(path)
@@ -75,11 +75,53 @@ func TestCreateUserConfig(t *testing.T) {
 	}
 }
 
+func TestCreateUserConfigUsesSelectedLanguage(t *testing.T) {
+	tests := []struct {
+		name       string
+		lang       string
+		wantHeader string
+		wantValue  string
+		unwanted   string
+	}{
+		{name: "Chinese", lang: "zh_CN", wantHeader: "# OS Init 启动配置", wantValue: "OS_INIT_LANG=zh_CN", unwanted: "# Base Settings"},
+		{name: "English", lang: "en_US", wantHeader: "# OS Init startup configuration", wantValue: "OS_INIT_LANG=en_US", unwanted: "# 基础设置"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			path, err := CreateUserConfig(fstest.MapFS{}, platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, tt.lang)
+			if err != nil {
+				t.Fatalf("CreateUserConfig failed: %v", err)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			content := string(data)
+			for _, want := range []string{tt.wantHeader, tt.wantValue} {
+				if !strings.Contains(content, want) {
+					t.Fatalf("generated config should contain %q, got %q", want, content)
+				}
+			}
+			if strings.Contains(content, tt.unwanted) {
+				t.Fatalf("generated config should not contain the other language %q", tt.unwanted)
+			}
+		})
+	}
+}
+
 func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN"))
-	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "NVIM_CONFIG_REPO=", "MISE_DOWNLOAD_BASE=https://github.com/jdx/mise/releases/download", "MISE_NODE_VERSION=24", "MISE_PYTHON_VERSION=3.13", "MISE_GO_VERSION=1.26"} {
+	assertGeneratedConfigKeys(t, data, []string{
+		"OS_INIT_LANG", "OS_INIT_REGION", "OS_INIT_CONFIG_PROMPT", "OS_INIT_SCRIPT_TIMEOUT", "GITHUB_PROXY",
+		"HOMEBREW_API_DOMAIN", "HOMEBREW_BOTTLE_DOMAIN",
+		"OS_INIT_MISE_NODE_VERSION", "OS_INIT_MISE_PYTHON_VERSION", "OS_INIT_MISE_GO_VERSION",
+		"MISE_NODE_MIRROR_URL", "MISE_GO_DOWNLOAD_MIRROR", "NPM_CONFIG_REGISTRY", "PIP_INDEX_URL", "UV_DEFAULT_INDEX", "GOPROXY", "NVIM_CONFIG_REPO",
+	})
+	for _, want := range []string{"macOS / Homebrew", "HOMEBREW_API_DOMAIN=", "HOMEBREW_BOTTLE_DOMAIN=", "NVIM_CONFIG_REPO=", "OS_INIT_MISE_NODE_VERSION=24", "OS_INIT_MISE_PYTHON_VERSION=3.13", "OS_INIT_MISE_GO_VERSION=1.26"} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("darwin config should contain %q, got %q", want, data)
 		}
@@ -89,7 +131,7 @@ func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 			t.Fatalf("darwin config should not contain retired runtime manager setting %q", unwanted)
 		}
 	}
-	for _, unwanted := range []string{"DOCKER_DOWNLOAD_BASE=", "MIHOMO_PACKAGE=", "OS_INIT_ARCH_DEFAULT_PROFILE="} {
+	for _, unwanted := range []string{"MISE_DOWNLOAD_BASE=", "HOMEBREW_INSTALL_URL=", "DOCKER_REGISTRY_MIRRORS=", "MIHOMO_CONFIG_SOURCE=", "PACMAN_RETRY_ATTEMPTS=", "ENABLE_DNS=", "GPU_TYPE="} {
 		if strings.Contains(data, unwanted) {
 			t.Fatalf("darwin config should not contain %q, got %q", unwanted, data)
 		}
@@ -100,26 +142,32 @@ func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"))
+	assertGeneratedConfigKeys(t, data, []string{
+		"OS_INIT_LANG", "OS_INIT_REGION", "OS_INIT_CONFIG_PROMPT", "OS_INIT_SCRIPT_TIMEOUT", "GITHUB_PROXY",
+		"OS_INIT_MISE_NODE_VERSION", "OS_INIT_MISE_PYTHON_VERSION", "OS_INIT_MISE_GO_VERSION",
+		"MISE_NODE_MIRROR_URL", "MISE_GO_DOWNLOAD_MIRROR", "NPM_CONFIG_REGISTRY", "PIP_INDEX_URL", "UV_DEFAULT_INDEX", "GOPROXY", "NVIM_CONFIG_REPO",
+		"DOCKER_REGISTRY_MIRRORS", "DOCKER_INSECURE_REGISTRIES", "DOCKER_DATA_ROOT",
+		"MIHOMO_CONFIG_SOURCE", "MIHOMO_MIXED_PORT", "MIHOMO_ALLOW_LAN", "MIHOMO_BIND_ADDRESS", "MIHOMO_CONTROLLER_HOST", "MIHOMO_CONTROLLER_PORT", "MIHOMO_DNS_LISTEN", "MIHOMO_SECRET", "MIHOMO_AUTO_ENABLE_SERVICE", "ENABLE_METACUBEXD",
+	})
 	for _, want := range []string{
-		"DOCKER_DOWNLOAD_BASE=",
-		"MIHOMO_PACKAGE=",
+		"DOCKER_REGISTRY_MIRRORS=https://hubproxy.babadafafafafa.cn",
+		"DOCKER_INSECURE_REGISTRIES=",
+		"MIHOMO_CONFIG_SOURCE=",
 		"MIHOMO_ALLOW_LAN=0",
 		"MIHOMO_BIND_ADDRESS=0.0.0.0",
 		"MIHOMO_CONTROLLER_HOST=0.0.0.0",
 		"MIHOMO_DNS_LISTEN=0.0.0.0:1053",
 		"MIHOMO_SECRET=\n",
-		"NVIM_DOWNLOAD_BASE=",
-		"YAZI_DOWNLOAD_BASE=",
+		"MIHOMO_AUTO_ENABLE_SERVICE=1",
 	} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("linux config should contain %q, got %q", want, data)
 		}
 	}
-	if strings.Contains(data, "HOMEBREW_API_DOMAIN=") {
-		t.Fatalf("linux config should not contain Homebrew settings, got %q", data)
-	}
-	if strings.Contains(data, "OS_INIT_ARCH_DEFAULT_PROFILE=") {
-		t.Fatalf("non-Arch linux config should not contain Arch settings, got %q", data)
+	for _, unwanted := range []string{"HOMEBREW_API_DOMAIN=", "DOCKER_DOWNLOAD_BASE=", "MISE_DOWNLOAD_BASE=", "NVIM_DOWNLOAD_BASE=", "PACMAN_RETRY_ATTEMPTS=", "ENABLE_DNS=", "GPU_TYPE="} {
+		if strings.Contains(data, unwanted) {
+			t.Fatalf("non-Arch linux config should not contain %q, got %q", unwanted, data)
+		}
 	}
 }
 
@@ -127,19 +175,27 @@ func TestRenderUserConfig_ArchIncludesNativeCapabilities(t *testing.T) {
 	t.Parallel()
 
 	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyArch}, "zh_CN"))
+	assertGeneratedConfigKeys(t, data, []string{
+		"OS_INIT_LANG", "OS_INIT_REGION", "OS_INIT_CONFIG_PROMPT", "OS_INIT_SCRIPT_TIMEOUT", "GITHUB_PROXY",
+		"OS_INIT_MISE_NODE_VERSION", "OS_INIT_MISE_PYTHON_VERSION", "OS_INIT_MISE_GO_VERSION",
+		"MISE_NODE_MIRROR_URL", "MISE_GO_DOWNLOAD_MIRROR", "NPM_CONFIG_REGISTRY", "PIP_INDEX_URL", "UV_DEFAULT_INDEX", "GOPROXY", "NVIM_CONFIG_REPO",
+		"DOCKER_REGISTRY_MIRRORS", "DOCKER_INSECURE_REGISTRIES", "DOCKER_DATA_ROOT",
+		"PACMAN_RETRY_ATTEMPTS", "ARCHLINUXARM_MIRRORS", "ENABLE_DNS", "ENABLE_OPS_TOOLKIT", "GPU_TYPE",
+		"MIHOMO_CONFIG_SOURCE", "MIHOMO_MIXED_PORT", "MIHOMO_ALLOW_LAN", "MIHOMO_BIND_ADDRESS", "MIHOMO_CONTROLLER_HOST", "MIHOMO_CONTROLLER_PORT", "MIHOMO_DNS_LISTEN", "MIHOMO_SECRET", "MIHOMO_AUTO_ENABLE_SERVICE", "ENABLE_METACUBEXD",
+	})
 	for _, want := range []string{
 		"Arch Linux 能力",
 		"Arch Mihomo",
 		"MIHOMO_BIND_ADDRESS=0.0.0.0",
 		"MIHOMO_DNS_LISTEN=0.0.0.0:1053",
-		"PROXY_AUTO_ENABLE_SERVICE=1",
+		"MIHOMO_AUTO_ENABLE_SERVICE=1",
 		"GPU_TYPE=auto",
 	} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("arch config should contain %q, got %q", want, data)
 		}
 	}
-	for _, unwanted := range []string{"MIHOMO_DOWNLOAD_BASE=", "SING_BOX_PACKAGE="} {
+	for _, unwanted := range []string{"PROXY_AUTO_ENABLE_SERVICE=", "MIHOMO_DOWNLOAD_BASE=", "DOCKER_DOWNLOAD_BASE=", "MISE_DOWNLOAD_BASE=", "NVIM_DOWNLOAD_BASE=", "HOMEBREW_API_DOMAIN=", "SING_BOX_PACKAGE="} {
 		if strings.Contains(data, unwanted) {
 			t.Fatalf("arch config should not contain %q, got %q", unwanted, data)
 		}
@@ -157,6 +213,16 @@ func TestRenderUserConfig_EnglishComments(t *testing.T) {
 	}
 	if strings.Contains(data, "启动配置") {
 		t.Fatalf("english config should not contain Chinese header, got %q", data)
+	}
+}
+
+func assertGeneratedConfigKeys(t *testing.T, data string, expected []string) {
+	t.Helper()
+	actual := sortedKeys(ParseEnv(strings.NewReader(data)))
+	want := append([]string(nil), expected...)
+	sort.Strings(want)
+	if diff := compareKeySets("generated", actual, "expected platform keys", want); diff != "" {
+		t.Fatal(diff)
 	}
 }
 
@@ -284,20 +350,15 @@ func TestApplyPreservesRuntimeOverride(t *testing.T) {
 	}
 }
 
-func TestEmbeddedConfigKeysMatchShellWhitelist(t *testing.T) {
+func TestEmbeddedDefaultKeysMatchShellWhitelist(t *testing.T) {
 	t.Parallel()
 
 	defaults := readRepoFile(t, "modules/config/defaults.env")
-	example := readRepoFile(t, "modules/config/config.env.example")
 	lib := readRepoFile(t, "modules/lib.sh")
 
 	defaultKeys := sortedKeys(ParseEnv(strings.NewReader(defaults)))
-	exampleKeys := sortedKeys(ParseEnv(strings.NewReader(example)))
 	shellKeys := parseShellConfigKeys(t, lib)
 
-	if diff := compareKeySets("defaults", defaultKeys, "example", exampleKeys); diff != "" {
-		t.Fatal(diff)
-	}
 	if diff := compareKeySets("defaults", defaultKeys, "shell whitelist", shellKeys); diff != "" {
 		t.Fatal(diff)
 	}

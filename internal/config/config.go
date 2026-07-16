@@ -31,7 +31,6 @@ func Apply(assets fs.FS) {
 	if assets != nil {
 		allowedKeys = loadDefaults(assets, embeddedDefaults)
 	}
-	loadLocalFile("/etc/os-init/config.env", allowedKeys)
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		loadLocalFile(filepath.Join(home, ".config", "os-init", "config.env"), allowedKeys)
 	}

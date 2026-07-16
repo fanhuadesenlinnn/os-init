@@ -394,7 +394,7 @@ func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
 	}
 	shellScript := string(shellData)
 	for _, want := range []string{
-		"raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh",
+		"github.com/ohmyzsh/ohmyzsh.git",
 		"romkatv/powerlevel10k.git",
 		"ZSH_THEME=\"$theme\"",
 		"ensure_oh_my_zsh_prerequisites",
@@ -402,6 +402,9 @@ func TestShellAndNeovimCombinedInstallRoutes(t *testing.T) {
 		if !strings.Contains(shellScript, want) {
 			t.Fatalf("shell installer should contain %q", want)
 		}
+	}
+	if strings.Contains(shellScript, "raw.githubusercontent.com/robbyrussell/oh-my-zsh") {
+		t.Fatal("Oh My Zsh installation should use the shared Git proxy path")
 	}
 	for _, unwanted := range []string{"brew_install orbstack", "pkg_install fzf", "pkg_install kubectl"} {
 		if strings.Contains(shellScript, unwanted) {
@@ -476,9 +479,9 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 	}
 	script := string(data)
 	for _, want := range []string{
-		`MISE_NODE_VERSION:-24`,
-		`MISE_PYTHON_VERSION:-3.13`,
-		`MISE_GO_VERSION:-1.26`,
+		`OS_INIT_MISE_NODE_VERSION:-24`,
+		`OS_INIT_MISE_PYTHON_VERSION:-3.13`,
+		`OS_INIT_MISE_GO_VERSION:-1.26`,
 		`MISE_DOWNLOAD_BASE:-https://github.com/jdx/mise/releases/download`,
 		`mise-v${version}-linux-${arch}`,
 		`os_init_prepare_owned_user_path "mise-binary"`,
@@ -518,6 +521,23 @@ func TestMiseInstallsManagedRuntimeVersions(t *testing.T) {
 	}
 	if !strings.Contains(string(goMod), "go 1.26.1") {
 		t.Fatal("the repository Go toolchain should stay in the configured mise Go 1.26 series")
+	}
+}
+
+func TestDockerInstallerWritesConfiguredRegistryMirrors(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(filepath.Join("..", "..", "modules", "docker", "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	for _, want := range []string{
+		`json_array_from_csv "${DOCKER_REGISTRY_MIRRORS:-}"`,
+		`daemon_add_entry "$tmp" "registry-mirrors" "$mirrors"`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("Docker installer should contain %q", want)
+		}
 	}
 }
 

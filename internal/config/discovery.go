@@ -9,11 +9,6 @@ import (
 	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
-const (
-	systemConfigPath = "/etc/os-init/config.env"
-	embeddedExample  = "modules/config/config.env.example"
-)
-
 var summaryKeys = []string{
 	"OS_INIT_LANG",
 	"GITHUB_PROXY",
@@ -21,11 +16,9 @@ var summaryKeys = []string{
 }
 
 type Discovery struct {
-	SystemPath   string
-	UserPath     string
-	SystemExists bool
-	UserExists   bool
-	UserHome     string
+	UserPath   string
+	UserExists bool
+	UserHome   string
 }
 
 type SummaryItem struct {
@@ -41,31 +34,18 @@ func Discover() Discovery {
 	}
 
 	return Discovery{
-		SystemPath:   systemConfigPath,
-		UserPath:     userPath,
-		SystemExists: fileExists(systemConfigPath),
-		UserExists:   userPath != "" && fileExists(userPath),
-		UserHome:     home,
+		UserPath:   userPath,
+		UserExists: userPath != "" && fileExists(userPath),
+		UserHome:   home,
 	}
 }
 
 func (d Discovery) HasConfig() bool {
-	return d.SystemExists || d.UserExists
+	return d.UserExists
 }
 
-func (d Discovery) ExistingPaths() []string {
-	paths := make([]string, 0, 2)
-	if d.SystemExists {
-		paths = append(paths, d.SystemPath)
-	}
-	if d.UserExists {
-		paths = append(paths, d.UserPath)
-	}
-	return paths
-}
-
-func CreateUserConfig(files fs.FS) (string, error) {
-	return createUserConfig(files, platform.Detect(), os.Getenv("OS_INIT_LANG"))
+func CreateUserConfig(files fs.FS, target platform.Target, lang string) (string, error) {
+	return createUserConfig(files, target, lang)
 }
 
 func createUserConfig(files fs.FS, target platform.Target, lang string) (string, error) {

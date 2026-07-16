@@ -24,14 +24,22 @@ mise_config="$home/.config/mise/config.toml"
 mise_data="$home/.local/share/mise"
 mkdir -p "$(dirname "$mise_config")"
 
-MISE_NODE_VERSION=24
-MISE_PYTHON_VERSION=3.13
-MISE_GO_VERSION=1.26
+OS_INIT_MISE_NODE_VERSION=24
+OS_INIT_MISE_PYTHON_VERSION=3.13
+OS_INIT_MISE_GO_VERSION=1.26
 MISE_NODE_MIRROR_URL=https://invalid.example/node/
 MISE_GO_DOWNLOAD_MIRROR=https://invalid.example/go
 
 attempt=0
 declare -a mirror_calls=()
+
+fake_runtime_dir="$TEST_HOME/fake-runtime/bin"
+mkdir -p "$fake_runtime_dir"
+for tool in go python node npm corepack; do
+    # shellcheck disable=SC2016
+    printf '#!/usr/bin/env bash\ncase "$(basename "$0")" in go) echo "go version go1.26.1 linux/amd64" ;; python) echo "Python 3.13.0" ;; node) echo "v24.0.0" ;; *) echo "1.0.0" ;; esac\n' > "$fake_runtime_dir/$tool"
+    chmod +x "$fake_runtime_dir/$tool"
+done
 
 mise_exec() {
     case "${1:-}" in
@@ -43,17 +51,8 @@ mise_exec() {
         settings)
             return 0
             ;;
-        exec)
-            case "${3:-}" in
-                node) printf 'v24.0.0\n' ;;
-                python) printf 'Python 3.13.0\n' ;;
-                go) printf 'go version go1.26.1 linux/amd64\n' ;;
-                npm|corepack) printf '1.0.0\n' ;;
-                *) return 1 ;;
-            esac
-            ;;
         which)
-            return 0
+            printf '%s/%s\n' "$fake_runtime_dir" "$2"
             ;;
         *)
             return 0
@@ -79,7 +78,7 @@ MISE_GO_DOWNLOAD_MIRROR=https://golang.google.cn/dl/
     fail "legacy golang.google.cn mirror was not normalized before use"
 grep -Fxq 'MISE_GO_DOWNLOAD_MIRROR=https://dl.google.com/go' "$ROOT_DIR/modules/config/defaults.env" || \
     fail "defaults.env does not use the mise-compatible Go mirror"
-grep -Fxq 'MISE_GO_VERSION=1.26' "$ROOT_DIR/modules/config/defaults.env" || \
+grep -Fxq 'OS_INIT_MISE_GO_VERSION=1.26' "$ROOT_DIR/modules/config/defaults.env" || \
     fail "defaults.env does not align mise Go with the repository toolchain series"
 
 OS_INIT_CONTEXT_VERSION=1

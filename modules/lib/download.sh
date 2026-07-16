@@ -15,88 +15,56 @@ repo_url() {
     resource_url "$@"
 }
 
-render_url_proxy() {
-    local proxy="$1" url="$2"
-    if [[ "$proxy" == *"{url}"* ]]; then
-        echo "${proxy//\{url\}/$url}"
-    else
-        echo "${proxy%/}/$url"
-    fi
-}
-
-rewrite_github_url() {
-    local url="$1"
-    if [[ -z "${GITHUB_PROXY:-}" ]]; then
-        echo "$url"
-        return
-    fi
-
-    case "$url" in
-        https://github.com/*|https://raw.githubusercontent.com/*|https://objects.githubusercontent.com/*|https://github-releases.githubusercontent.com/*)
-            render_url_proxy "$GITHUB_PROXY" "$url"
-            ;;
-        *)
-            echo "$url"
-            ;;
-    esac
-}
-
 rewrite_download_url() {
     rewrite_github_url "$1"
 }
 
 git_with_proxy() {
-	GIT_TERMINAL_PROMPT=0 command git "$@"
-}
-
-assert_git_remote_secure() {
-	local dir="$1" remote_url proxy_prefix
-	remote_url="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
-	proxy_prefix=""
-	if [[ -n "${GITHUB_PROXY:-}" ]]; then
-		proxy_prefix="$(render_url_proxy "$GITHUB_PROXY" "https://github.com/")"
-	fi
-	if [[ -n "$proxy_prefix" && "$remote_url" == "$proxy_prefix"/* && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "拒绝从未验证的 GitHub 代理更新可执行配置；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
+	GIT_TERMINAL_PROMPT=0 run_with_github_git_proxy command git "$@"
 }
 
 github_latest_version() {
     local repo="$1" prefix="${2:-v}"
-    local url latest
+    local url latest="" location="" effective="" body=""
     url="$(rewrite_download_url "https://github.com/${repo}/releases/latest")"
     if command -v curl &>/dev/null; then
-        latest="$(curl -fsSI \
+        location="$(curl -fsSI \
             --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" \
             --max-time "${DOWNLOAD_TIMEOUT:-30}" \
-            "$url" 2>/dev/null | grep -i '^location:' | sed "s|.*/${prefix}||" | tr -d '\r\n')"
+            "$url" 2>/dev/null | sed -n 's/^[Ll]ocation:[[:space:]]*//p' | tail -n 1 | tr -d '\r\n')"
+        effective="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+            --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" \
+            --max-time "${DOWNLOAD_TIMEOUT:-30}" "$url" 2>/dev/null || true)"
+        latest="$(printf '%s\n%s\n' "$location" "$effective" | sed -n 's#.*\/releases\/tag\/\([^/?]*\).*#\1#p' | head -n 1)"
+        if [[ -z "$latest" ]]; then
+            body="$(curl -fsSL --connect-timeout "${DOWNLOAD_TIMEOUT:-30}" --max-time "${DOWNLOAD_TIMEOUT:-30}" "$url" 2>/dev/null || true)"
+            latest="$(printf '%s' "$body" | grep -Eo "/${repo}/releases/tag/[^\"?]+" | head -n 1 | sed 's#.*/##')"
+        fi
     elif command -v wget &>/dev/null; then
-        latest="$(wget --server-response --spider \
+        location="$(wget --server-response --spider \
             --timeout="${DOWNLOAD_TIMEOUT:-30}" \
-            "$url" 2>&1 | grep -i 'Location:' | tail -1 | sed "s|.*/${prefix}||" | tr -d '\r\n')"
+            "$url" 2>&1 | grep -i 'Location:' | tail -1 | sed 's/.*Location:[[:space:]]*//' | tr -d '\r\n')"
+        latest="$(printf '%s' "$location" | sed -n 's#.*\/releases\/tag\/\([^/?]*\).*#\1#p')"
     else
         die "需要 curl 或 wget 才能查询 GitHub 最新版本"
     fi
+    latest="${latest#"${prefix}"}"
     [[ -n "$latest" ]] || die "无法获取 ${repo} 最新版本"
-    echo "$latest"
+    printf '%s\n' "$latest"
 }
 
 git_clone_depth() {
 	local depth="$1" url="$2" dest="$3" final_url
 	final_url="$(rewrite_download_url "$url")"
-	if [[ "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "经 GitHub 代理克隆可执行配置缺少可验证完整性，已拒绝；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
-	git_with_proxy clone --depth="$depth" "$final_url" "$dest"
+	GIT_TERMINAL_PROMPT=0 command git clone --depth="$depth" "$final_url" "$dest"
+	[[ "$final_url" == "$url" ]] || command git -C "$dest" remote set-url origin "$url"
 }
 
 git_clone_depth_branch() {
 	local depth="$1" branch="$2" url="$3" dest="$4" final_url
 	final_url="$(rewrite_download_url "$url")"
-	if [[ "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "经 GitHub 代理克隆可执行配置缺少可验证完整性，已拒绝；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
-	git_with_proxy clone --depth="$depth" -b "$branch" "$final_url" "$dest"
+	GIT_TERMINAL_PROMPT=0 command git clone --depth="$depth" -b "$branch" "$final_url" "$dest"
+	[[ "$final_url" == "$url" ]] || command git -C "$dest" remote set-url origin "$url"
 }
 
 download_file() {
@@ -130,16 +98,11 @@ sha256_file() {
 	fi
 }
 
-# Download content that will be executed or installed as a binary. Direct
-# official HTTPS remains supported. If a GitHub proxy rewrites the transport,
-# an out-of-band expected SHA-256 is required unless the user explicitly opts
-# into the legacy insecure behavior.
+# Download content and verify it when the caller supplied an expected digest.
+# A configured GitHub proxy is already an explicit user choice and does not
+# require a second permission switch.
 download_file_verified() {
-	local url="$1" dest="$2" expected="${3:-}" final_url actual
-	final_url="$(rewrite_download_url "$url")"
-	if [[ -z "$expected" && "$final_url" != "$url" && "${OS_INIT_ALLOW_UNVERIFIED_PROXY:-0}" != "1" ]]; then
-		die "经 GitHub 代理下载可执行内容时必须配置对应的 SHA-256；如需承担风险继续，请设置 OS_INIT_ALLOW_UNVERIFIED_PROXY=1"
-	fi
+	local url="$1" dest="$2" expected="${3:-}" actual
 	download_file "$url" "$dest"
 	if [[ -z "$expected" ]]; then
 		return 0
@@ -155,10 +118,12 @@ download_file_verified() {
 
 # Reliable update for shallow git clones (git pull often fails with divergent branches)
 git_update_shallow() {
-	local dir="$1"
-	local branch
-	assert_git_remote_secure "$dir"
+	local dir="$1" official_remote="${2:-}"
+	local branch remote final_remote
     branch=$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null) || branch="master"
-    git_with_proxy -C "$dir" fetch origin --depth=1 -q
+	remote="${official_remote:-$(git -C "$dir" remote get-url origin)}"
+	final_remote="$(rewrite_github_url "$remote")"
+	GIT_TERMINAL_PROMPT=0 command git -C "$dir" -c "remote.origin.url=${final_remote}" fetch origin --depth=1 -q
+	[[ -z "$official_remote" ]] || command git -C "$dir" remote set-url origin "$official_remote"
     git_with_proxy -C "$dir" reset --hard "origin/$branch"
 }

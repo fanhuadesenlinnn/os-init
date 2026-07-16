@@ -8,18 +8,23 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	appconfig "github.com/fanhuadesenlinnn/os-init/internal/config"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
 )
 
 type configStartupModel struct {
 	assets  fs.FS
+	target  platform.Target
+	lang    string
 	info    appconfig.Discovery
 	summary []appconfig.SummaryItem
 	err     string
 }
 
-func newConfigStartupModel(assets fs.FS) configStartupModel {
+func newConfigStartupModel(assets fs.FS, target platform.Target, lang string) configStartupModel {
 	return configStartupModel{
 		assets:  assets,
+		target:  target,
+		lang:    lang,
 		info:    appconfig.Discover(),
 		summary: appconfig.StartupSummary(),
 	}
@@ -33,7 +38,7 @@ func (m configStartupModel) Update(msg tea.Msg) (configStartupModel, tea.Cmd) {
 		switch msg.String() {
 		case "enter", "c":
 			if !m.info.HasConfig() {
-				if _, err := appconfig.CreateUserConfig(m.assets); err != nil {
+				if _, err := appconfig.CreateUserConfig(m.assets, m.target, m.lang); err != nil {
 					m.err = err.Error()
 					return m, nil
 				}
@@ -63,9 +68,8 @@ func (m configStartupModel) View() string {
 			helpAction{key: "Enter", desc: text("继续", "continue"), tone: helpPrimary},
 			helpAction{key: "Q", desc: text("退出", "quit")},
 		) + "\n\n")
-		b.WriteString(text("  配置文件\n", "  Configuration files\n"))
-		b.WriteString(configPathLine(text("系统配置", "System"), m.info.SystemPath, m.info.SystemExists) + "\n")
-		b.WriteString(configPathLine(text("用户配置", "User"), m.info.UserPath, m.info.UserExists) + "\n")
+		b.WriteString(text("  用户配置\n", "  User configuration\n"))
+		b.WriteString(configPathLine(text("配置", "Config"), m.info.UserPath, m.info.UserExists) + "\n")
 	} else {
 		b.WriteString(titleStyle.Render(text("  未发现用户启动配置", "  No Startup Configuration Found")) + "\n")
 		b.WriteString(renderHelpLine(

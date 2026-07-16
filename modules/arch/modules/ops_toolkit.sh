@@ -19,15 +19,21 @@ install_ops_toolkit() {
 }
 
 install_or_update_ops_toolkit_repo() {
-  local repo_dir="${OPS_TOOLKIT_DIR}" repo_url="${OPS_TOOLKIT_REPO}" branch="${OPS_TOOLKIT_BRANCH:-}"
+  local repo_dir="${OPS_TOOLKIT_DIR}" repo_url="${OPS_TOOLKIT_REPO}" branch="${OPS_TOOLKIT_BRANCH:-}" actual_url
   [[ -n "${repo_dir}" ]] || die "OPS_TOOLKIT_DIR 不能为空"
   [[ -n "${repo_url}" ]] || die "OPS_TOOLKIT_REPO 不能为空"
 
   ensure_git_command
+  actual_url="$(github_proxy_url "${repo_url}")"
 
   if [[ -d "${repo_dir}/.git" ]]; then
     log_info "更新 Ops Toolkit 仓库：${repo_dir}"
-    run_with_github_proxy git -C "${repo_dir}" pull --ff-only
+    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+      printf '+ git -C %q -c %q pull --ff-only\n' "${repo_dir}" "remote.origin.url=${actual_url}"
+      return 0
+    fi
+    GIT_TERMINAL_PROMPT=0 git -C "${repo_dir}" -c "remote.origin.url=${actual_url}" pull --ff-only
+    git -C "${repo_dir}" remote set-url origin "${repo_url}"
     return 0
   fi
 
@@ -43,19 +49,20 @@ install_or_update_ops_toolkit_repo() {
   log_info "克隆 Ops Toolkit：${repo_url}"
   if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
     if [[ -n "${branch}" ]]; then
-      run_with_github_proxy git clone --depth=1 -b "${branch}" "${repo_url}" "${repo_dir}"
+      printf '+ git clone --depth=1 -b %q %q %q\n' "${branch}" "${actual_url}" "${repo_dir}"
     else
-      run_with_github_proxy git clone --depth=1 "${repo_url}" "${repo_dir}"
+      printf '+ git clone --depth=1 %q %q\n' "${actual_url}" "${repo_dir}"
     fi
     return 0
   fi
 
   mkdir -p "$(dirname "${repo_dir}")"
   if [[ -n "${branch}" ]]; then
-    run_with_github_proxy git clone --depth=1 -b "${branch}" "${repo_url}" "${repo_dir}"
+    git clone --depth=1 -b "${branch}" "${actual_url}" "${repo_dir}"
   else
-    run_with_github_proxy git clone --depth=1 "${repo_url}" "${repo_dir}"
+    git clone --depth=1 "${actual_url}" "${repo_dir}"
   fi
+  [[ "${actual_url}" == "${repo_url}" ]] || git -C "${repo_dir}" remote set-url origin "${repo_url}"
 }
 
 ops_toolkit_script_name() {
@@ -79,10 +86,12 @@ shell_literal() {
 }
 
 install_ops_toolkit_dispatcher() {
-  local dispatcher="${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}" repo_dir bin_dir command_name
+  local dispatcher="${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}" repo_dir bin_dir command_name proxy_url repo_url
   repo_dir="$(shell_literal "${OPS_TOOLKIT_DIR}")"
   bin_dir="$(shell_literal "${OPS_TOOLKIT_BIN_DIR}")"
   command_name="$(shell_literal "${OPS_TOOLKIT_COMMAND}")"
+  proxy_url="$(shell_literal "$(github_proxy_url "${OPS_TOOLKIT_REPO}")")"
+  repo_url="$(shell_literal "${OPS_TOOLKIT_REPO}")"
 
   log_info "写入 Ops Toolkit 命令入口：${dispatcher}"
   write_file_from_stdin "${dispatcher}" 0755 <<EOF
@@ -92,6 +101,8 @@ set -Eeuo pipefail
 OPS_TOOLKIT_DIR=${repo_dir}
 OPS_TOOLKIT_BIN_DIR=${bin_dir}
 OPS_TOOLKIT_COMMAND=${command_name}
+OPS_TOOLKIT_PROXY_URL=${proxy_url}
+OPS_TOOLKIT_REPO_URL=${repo_url}
 
 list_scripts() {
   [[ -d "\${OPS_TOOLKIT_DIR}" ]] || return 0
@@ -131,7 +142,8 @@ case "\${1:-help}" in
     printf '%s\n' "\${OPS_TOOLKIT_DIR}"
     ;;
   update)
-    git -C "\${OPS_TOOLKIT_DIR}" pull --ff-only
+    GIT_TERMINAL_PROMPT=0 git -C "\${OPS_TOOLKIT_DIR}" -c "remote.origin.url=\${OPS_TOOLKIT_PROXY_URL}" pull --ff-only
+    git -C "\${OPS_TOOLKIT_DIR}" remote set-url origin "\${OPS_TOOLKIT_REPO_URL}"
     ;;
   *)
     script_name="\${1%.sh}"
@@ -190,7 +202,7 @@ verify_ops_toolkit() {
   [[ -d "${OPS_TOOLKIT_DIR}/.git" || "${DRY_RUN:-0}" -eq 1 ]] || die "Ops Toolkit 仓库不存在：${OPS_TOOLKIT_DIR}"
   [[ -x "${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}" || "${DRY_RUN:-0}" -eq 1 ]] || die "Ops Toolkit 命令入口不存在：${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}"
   run_cmd "${OPS_TOOLKIT_BIN_DIR}/${OPS_TOOLKIT_COMMAND}" list || true
-  log_info "后续更新：cd ${OPS_TOOLKIT_DIR} && git pull --ff-only"
+  log_info "后续更新：${OPS_TOOLKIT_COMMAND} update"
 }
 
 ensure_ops_toolkit() {

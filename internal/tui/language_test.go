@@ -2,11 +2,15 @@ package tui
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	appconfig "github.com/fanhuadesenlinnn/os-init/internal/config"
 	"github.com/fanhuadesenlinnn/os-init/internal/modules"
+	"github.com/fanhuadesenlinnn/os-init/internal/platform"
+	"github.com/fanhuadesenlinnn/os-init/internal/runtimecontext"
 )
 
 func TestLanguageModel_DefaultsToChinese(t *testing.T) {
@@ -54,6 +58,22 @@ func TestNewModel_StartsWithLanguageSelection(t *testing.T) {
 	}
 	if view := model.View(); !strings.Contains(view, "选择语言 / Choose Language") {
 		t.Fatalf("initial view should ask for language, got %q", view)
+	}
+}
+
+func TestModelPassesSelectedLanguageToConfigCreation(t *testing.T) {
+	t.Setenv("OS_INIT_LANG", "zh_CN")
+	t.Cleanup(func() { appconfig.SetRuntimeOverride("OS_INIT_LANG", "zh_CN") })
+	target := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}
+	model := New(Config{Runtime: runtimecontext.Context{Target: target}})
+
+	next, _ := model.Update(languageSelectedMsg{code: "en_US"})
+	got := next.(Model)
+	if got.configStartup.lang != "en_US" {
+		t.Fatalf("config language = %q, want en_US", got.configStartup.lang)
+	}
+	if !reflect.DeepEqual(got.configStartup.target, target) {
+		t.Fatalf("config target = %#v, want %#v", got.configStartup.target, target)
 	}
 }
 
