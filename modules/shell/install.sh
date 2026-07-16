@@ -421,6 +421,13 @@ if want "tmux"; then
 		os_init_mark_package_ownership "tmux-package"
     fi
 
+	# os-init <= 1.2 managed tmux from arch-base without a shared ownership
+	# marker. Adopt only the exact legacy header so user-authored files remain
+	# untouched and uninstall does not restore an obsolete OS Init template.
+	if [[ -f "$HOME/.tmux.conf" ]] && grep -Fqx '# OS Init Arch generated tmux config' "$HOME/.tmux.conf"; then
+		os_init_adopt_created_user_path "tmux-config" "$HOME/.tmux.conf"
+	fi
+
     if [[ -f "$HOME/.tmux.conf" ]] && diff -q "$SCRIPT_DIR/tmux.conf" "$HOME/.tmux.conf" &>/dev/null; then
         skip "tmux config already up to date"
     else
@@ -433,6 +440,19 @@ fi
 # ── git config ────────────────────────────────────────────────────────────────
 if want "git"; then
     next "git config"
+	git_lfs_was_installed=0
+	command -v git-lfs &>/dev/null && git_lfs_was_installed=1
+	if is_arch; then
+		pkg_install git github-cli openssh git-lfs
+	elif is_linux; then
+		pkg_install git git-lfs
+	elif [[ "$git_lfs_was_installed" -ne 1 ]]; then
+		pkg_install git-lfs
+	fi
+	if [[ "$git_lfs_was_installed" -ne 1 ]] && command -v git-lfs &>/dev/null; then
+		os_init_mark_package_ownership "git-lfs-package"
+	fi
+	require_cmd git
 	# Remove the legacy OS Init rewrite that forced GitHub HTTPS remotes to SSH.
 	git config --global --unset-all 'url.git@github.com:.insteadOf' 'https://github.com/' 2>/dev/null || true
 
@@ -462,14 +482,9 @@ if want "git"; then
         fi
     fi
 
-    if command -v git-lfs &>/dev/null; then
-        skip "git-lfs already installed"
-    else
-        install "installing git-lfs"
-		pkg_install git-lfs
-		os_init_mark_package_ownership "git-lfs-package"
-        git lfs install
-    fi
+	if command -v git-lfs &>/dev/null; then
+		git lfs install
+	fi
 fi
 
 # ── shell integrations ───────────────────────────────────────────────────────

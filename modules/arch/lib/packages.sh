@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
 # 软件包安装公共操作：pacman、archlinuxcn 兜底、AUR helper 和 makepkg 回退。
 
+package_metadata_ready() {
+  [[ -n "${OS_INIT_PACKAGE_METADATA_STAMP:-}" && -f "${OS_INIT_PACKAGE_METADATA_STAMP}" ]]
+}
+
+mark_package_metadata_ready() {
+  [[ -n "${OS_INIT_PACKAGE_METADATA_STAMP:-}" ]] || return 0
+  (umask 077; : > "${OS_INIT_PACKAGE_METADATA_STAMP}")
+}
+
 pacman_update() {
   require_arch
+	if package_metadata_ready; then
+		log_info "当前执行批次已完成 pacman 全量同步，跳过重复刷新"
+		return 0
+	fi
   log_info "刷新并更新系统软件包"
   pacman_run -Syu --noconfirm
+	mark_package_metadata_ready
 }
 
 pacman_install() {
@@ -231,39 +245,17 @@ ensure_preferred_paru_helper() {
   install_aur_package_via_makepkg paru
 }
 
-ensure_companion_yay_helper() {
-  need_cmd yay && return 0
-
-  log_info "同时安装 yay，供后续手动使用"
-  if install_package_from_pacman_prefer_archlinuxcn yay; then
-    return 0
-  fi
-  if [[ "${EUID}" -eq 0 ]]; then
-    log_warn "root 模式下 pacman/archlinuxcn 未提供 yay，不会运行 AUR 构建"
-    return 1
-  fi
-  if install_package_with_current_aur_helper yay; then
-    return 0
-  fi
-
-  log_warn "yay 安装失败；安装器内部仍会优先使用 paru"
-  return 1
-}
-
 ensure_aur_helper() {
   local helper
 
   if [[ "${EUID}" -eq 0 ]]; then
-    log_info "root 模式优先通过 pacman/archlinuxcn 安装 paru 和 yay"
+	log_info "root 模式通过 pacman/archlinuxcn 安装 paru"
     install_package_from_pacman_prefer_archlinuxcn paru || \
       die "pacman/archlinuxcn 未提供 paru；root 不会运行 makepkg"
-    install_package_from_pacman_prefer_archlinuxcn yay || \
-      die "pacman/archlinuxcn 未提供 yay；root 不会运行 makepkg"
     return 0
   fi
 
   if need_cmd paru; then
-    ensure_companion_yay_helper || true
     helper="$(aur_helper_command)"
     log_info "AUR 助手已就绪：${helper}"
     return 0
@@ -283,13 +275,9 @@ ensure_aur_helper() {
 
   if ensure_preferred_paru_helper; then
     helper="paru"
-    ensure_companion_yay_helper || true
-  elif install_package_from_pacman_prefer_archlinuxcn yay; then
-    helper="yay"
   else
-    log_warn "当前 pacman / archlinuxcn 源未提供 paru/yay，尝试从 AUR 引导安装 yay"
-    install_aur_package_via_makepkg yay || return 1
-    helper="yay"
+		log_warn "无法引导安装首选 AUR helper paru"
+		return 1
   fi
 
   if helper="$(aur_helper_command)"; then

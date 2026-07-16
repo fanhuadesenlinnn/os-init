@@ -165,6 +165,7 @@ install_archlinuxcn() {
     unset ARCHLINUXCN_SKIP_SERVER
     pacman_run -Syu --noconfirm || die "archlinuxcn 完整系统同步失败"
   fi
+	mark_package_metadata_ready
 
   mark_done "archlinuxcn"
   log_info "archlinuxcn 源配置完成：${ARCHLINUXCN_ACTIVE_SERVER}"

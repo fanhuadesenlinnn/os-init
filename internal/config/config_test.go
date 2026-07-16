@@ -40,7 +40,7 @@ bad-key=value
 
 func TestCreateUserConfig(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	files := fstest.MapFS{}
+	files := configTestFS(t)
 
 	path, err := CreateUserConfig(files, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN")
 	if err != nil {
@@ -90,7 +90,7 @@ func TestCreateUserConfigUsesSelectedLanguage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("HOME", t.TempDir())
-			path, err := CreateUserConfig(fstest.MapFS{}, platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, tt.lang)
+			path, err := CreateUserConfig(configTestFS(t), platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, tt.lang)
 			if err != nil {
 				t.Fatalf("CreateUserConfig failed: %v", err)
 			}
@@ -111,10 +111,17 @@ func TestCreateUserConfigUsesSelectedLanguage(t *testing.T) {
 	}
 }
 
+func TestCreateUserConfigRequiresEmbeddedDefaults(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if _, err := CreateUserConfig(nil, platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"); err == nil {
+		t.Fatal("missing embedded defaults should fail instead of generating blank values")
+	}
+}
+
 func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 	t.Parallel()
 
-	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN"))
+	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "zh_CN", testDefaultValues(t)))
 	assertGeneratedConfigKeys(t, data, []string{
 		"OS_INIT_LANG", "OS_INIT_REGION", "OS_INIT_CONFIG_PROMPT", "OS_INIT_SCRIPT_TIMEOUT", "GITHUB_PROXY",
 		"HOMEBREW_API_DOMAIN", "HOMEBREW_BOTTLE_DOMAIN",
@@ -141,7 +148,7 @@ func TestRenderUserConfig_DarwinIncludesMacOSSections(t *testing.T) {
 func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
 	t.Parallel()
 
-	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN"))
+	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyDebian}, "zh_CN", testDefaultValues(t)))
 	assertGeneratedConfigKeys(t, data, []string{
 		"OS_INIT_LANG", "OS_INIT_REGION", "OS_INIT_CONFIG_PROMPT", "OS_INIT_SCRIPT_TIMEOUT", "GITHUB_PROXY",
 		"OS_INIT_MISE_NODE_VERSION", "OS_INIT_MISE_PYTHON_VERSION", "OS_INIT_MISE_GO_VERSION",
@@ -154,9 +161,9 @@ func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
 		"DOCKER_INSECURE_REGISTRIES=",
 		"MIHOMO_CONFIG_SOURCE=",
 		"MIHOMO_ALLOW_LAN=0",
-		"MIHOMO_BIND_ADDRESS=0.0.0.0",
-		"MIHOMO_CONTROLLER_HOST=0.0.0.0",
-		"MIHOMO_DNS_LISTEN=0.0.0.0:1053",
+		"MIHOMO_BIND_ADDRESS=127.0.0.1",
+		"MIHOMO_CONTROLLER_HOST=127.0.0.1",
+		"MIHOMO_DNS_LISTEN=127.0.0.1:1053",
 		"MIHOMO_SECRET=\n",
 		"MIHOMO_AUTO_ENABLE_SERVICE=1",
 	} {
@@ -174,7 +181,7 @@ func TestRenderUserConfig_LinuxIncludesServerSections(t *testing.T) {
 func TestRenderUserConfig_ArchIncludesNativeCapabilities(t *testing.T) {
 	t.Parallel()
 
-	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyArch}, "zh_CN"))
+	data := string(renderUserConfig(platform.Target{GOOS: "linux", Family: platform.FamilyArch}, "zh_CN", testDefaultValues(t)))
 	assertGeneratedConfigKeys(t, data, []string{
 		"OS_INIT_LANG", "OS_INIT_REGION", "OS_INIT_CONFIG_PROMPT", "OS_INIT_SCRIPT_TIMEOUT", "GITHUB_PROXY",
 		"OS_INIT_MISE_NODE_VERSION", "OS_INIT_MISE_PYTHON_VERSION", "OS_INIT_MISE_GO_VERSION",
@@ -185,11 +192,13 @@ func TestRenderUserConfig_ArchIncludesNativeCapabilities(t *testing.T) {
 	})
 	for _, want := range []string{
 		"Arch Linux 能力",
-		"Arch Mihomo",
-		"MIHOMO_BIND_ADDRESS=0.0.0.0",
-		"MIHOMO_DNS_LISTEN=0.0.0.0:1053",
+		"Mihomo",
+		"MIHOMO_BIND_ADDRESS=127.0.0.1",
+		"MIHOMO_CONTROLLER_HOST=127.0.0.1",
+		"MIHOMO_DNS_LISTEN=127.0.0.1:1053",
 		"MIHOMO_AUTO_ENABLE_SERVICE=1",
 		"GPU_TYPE=auto",
+		"ARCHLINUXARM_MIRRORS='http://tw.mirror.archlinuxarm.org/$arch/$repo,http://tw2.mirror.archlinuxarm.org/$arch/$repo'",
 	} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("arch config should contain %q, got %q", want, data)
@@ -205,7 +214,7 @@ func TestRenderUserConfig_ArchIncludesNativeCapabilities(t *testing.T) {
 func TestRenderUserConfig_EnglishComments(t *testing.T) {
 	t.Parallel()
 
-	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "en_US"))
+	data := string(renderUserConfig(platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin}, "en_US", testDefaultValues(t)))
 	for _, want := range []string{"OS Init startup configuration", "Base Settings", "OS_INIT_LANG=en_US"} {
 		if !strings.Contains(data, want) {
 			t.Fatalf("english config should contain %q, got %q", want, data)
@@ -376,7 +385,7 @@ func TestGeneratedConfigValuesMatchEmbeddedDefaults(t *testing.T) {
 	for _, target := range targets {
 		target := target
 		t.Run(target.GOOS+"/"+string(target.Family), func(t *testing.T) {
-			rendered := ParseEnv(strings.NewReader(string(renderUserConfig(target, "zh_CN"))))
+			rendered := ParseEnv(strings.NewReader(string(renderUserConfig(target, "zh_CN", defaults))))
 			for key, value := range rendered {
 				if defaultValue, ok := defaults[key]; ok && value != defaultValue {
 					t.Errorf("generated %s=%q, embedded default=%q", key, value, defaultValue)
@@ -447,6 +456,18 @@ func readRepoFile(t *testing.T, path string) string {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return string(data)
+}
+
+func testDefaultValues(t *testing.T) map[string]string {
+	t.Helper()
+	return ParseEnv(strings.NewReader(readRepoFile(t, embeddedDefaults)))
+}
+
+func configTestFS(t *testing.T) fstest.MapFS {
+	t.Helper()
+	return fstest.MapFS{
+		embeddedDefaults: {Data: []byte(readRepoFile(t, embeddedDefaults))},
+	}
 }
 
 func parseShellConfigKeys(t *testing.T, lib string) []string {

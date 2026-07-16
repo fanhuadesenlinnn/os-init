@@ -191,11 +191,20 @@ func Execute(ctx context.Context, opts Options) (Report, error) {
 		return report, err
 	}
 	defer cleanup()
+	runEnv := execution.BatchEnvironment(opts.Env, tmpDir, true)
+	failedModules := make(map[string]bool)
 
 	for _, mod := range planned {
 		if ctx.Err() != nil {
 			report.Success = false
 			break
+		}
+		if dependency := execution.FailedDependency(mod, failedModules); dependency != "" {
+			result := execution.DependencySkip(mod, opts.Operation, dependency)
+			report.Results = append(report.Results, stepResult(result))
+			report.Success = false
+			failedModules[mod.ID] = true
+			continue
 		}
 		if !opts.Quiet {
 			fmt.Fprintf(opts.Output, "[%s] %s (%s)\n", opts.Operation, mod.ID, mod.Label)
@@ -204,7 +213,7 @@ func Execute(ctx context.Context, opts Options) (Report, error) {
 			TmpDir:            tmpDir,
 			Module:            mod,
 			Operation:         opts.Operation,
-			Env:               mergedEnv(opts.Env),
+			Env:               runEnv,
 			LogDir:            opts.LogDir,
 			Timeout:           opts.Timeout,
 			Verify:            opts.Verify,
@@ -216,21 +225,10 @@ func Execute(ctx context.Context, opts Options) (Report, error) {
 				}
 			},
 		})
-		step := StepResult{
-			ModuleID:     mod.ID,
-			Label:        mod.Label,
-			Operation:    opts.Operation,
-			Status:       "passed",
-			ExitCode:     result.ExitCode,
-			DurationMS:   result.Duration.Milliseconds(),
-			LogFile:      result.LogFile,
-			VerifyActive: result.VerifyActive, VerifyPassed: result.VerifyPassed,
-			ExpectedInstalled: result.ExpectedInstalled, Error: result.Error,
-			ProviderProtocol: result.ProviderProtocol, ProviderStatus: result.ProviderStatus,
-			StateError: result.StateError,
-		}
+		step := stepResult(result)
 		if step.Status != "passed" {
 			report.Success = false
+			failedModules[mod.ID] = true
 		}
 		report.Results = append(report.Results, step)
 		if step.Status != "passed" && !opts.ContinueOnError {
@@ -245,6 +243,18 @@ func Execute(ctx context.Context, opts Options) (Report, error) {
 		return report, errors.New("one or more modules failed")
 	}
 	return report, nil
+}
+
+func stepResult(result execution.Result) StepResult {
+	return StepResult{
+		ModuleID: result.ModuleID, Label: result.Label, Operation: result.Operation,
+		Status: result.Status, ExitCode: result.ExitCode,
+		DurationMS: result.Duration.Milliseconds(), LogFile: result.LogFile,
+		VerifyActive: result.VerifyActive, VerifyPassed: result.VerifyPassed,
+		ExpectedInstalled: result.ExpectedInstalled, Error: result.Error,
+		ProviderProtocol: result.ProviderProtocol, ProviderStatus: result.ProviderStatus,
+		StateError: result.StateError,
+	}
 }
 
 // Verify checks selected modules without changing the system.
@@ -418,13 +428,14 @@ func selectModules(available []modules.Module, ids []string, all bool, operation
 	}
 	selected := make([]modules.Module, 0, len(ids))
 	seen := map[string]bool{}
-	for _, id := range ids {
+	for _, requestedID := range ids {
+		id := modules.CanonicalModuleID(requestedID)
 		if seen[id] {
 			continue
 		}
 		mod, ok := byID[id]
 		if !ok {
-			return nil, ids, fmt.Errorf("module is not available on this system: %s", id)
+			return nil, ids, fmt.Errorf("module is not available on this system: %s", requestedID)
 		}
 		selected = append(selected, mod)
 		seen[id] = true
@@ -466,7 +477,7 @@ func automationPolicy(mod modules.Module) (scope, lifecycle, reason string) {
 	switch mod.ID {
 	case "kernel-sysctl", "kernel-limits", "kernel-scheduler", "kernel-autotune", "network-ipv4", "docker":
 		return "hosted", "full", "requires a disposable native Ubuntu VM for meaningful verification"
-	case "mihomo", "arch-mihomo":
+	case "mihomo":
 		return "hosted", "install-only", "service activation requires a real test configuration"
 	case "network-tune":
 		return "manual", "install-only", "may disrupt the GitHub runner network while changing queues and firewall rules"
@@ -508,14 +519,6 @@ func nonInteractivePrivilegeCheck(selected []modules.Module, target platform.Tar
 		return errors.New("selected modules require non-interactive sudo; run sudo -v first or configure passwordless sudo")
 	}
 	return nil
-}
-
-func mergedEnv(extra map[string]string) map[string]string {
-	env := map[string]string{"OS_INIT_NONINTERACTIVE": "1"}
-	for key, value := range extra {
-		env[key] = value
-	}
-	return env
 }
 
 // AbsLogDir makes relative report paths predictable for callers that change

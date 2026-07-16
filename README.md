@@ -173,12 +173,12 @@ Arch Linux 的全部能力都位于普通模块菜单中，可以单独选择，
 
 | 模块或组合 | 用途 |
 | --- | --- |
-| Arch 基础环境 / AUR Helper | 基础工具、排障工具、现代 CLI、tmux；root 和普通用户均优先从 archlinuxcn 安装 paru/yay |
+| Arch 最小基础 / 现代 CLI / AUR Helper | 最小基础只使用官方仓库；现代 CLI 单独选择并使用 archlinuxcn；Git、tmux、编译器由独立模块管理 |
 | archlinuxcn / Arch DNS | 软件源、keyring、mirrorlist、systemd-resolved 和 NetworkManager |
-| Arch Git / Ops Toolkit | Git、GitHub CLI、OpenSSH 和运维工具入口 |
-| Arch 字体 / Arch Mihomo | 中文字体、Emoji、Nerd Font、Monaco；Mihomo 完整配置预检、systemd 服务和 MetaCubeXD |
+| Git / Ops Toolkit | Git 是跨平台稳定模块；Arch 原生实现同时安装 GitHub CLI、OpenSSH；Ops Toolkit 提供运维工具入口 |
+| Arch 字体 / Mihomo | 中文字体、Emoji、Nerd Font、Monaco；Mihomo 是跨 Linux 稳定模块，在 Arch 使用原生配置预检、systemd 服务和 MetaCubeXD |
 | Arch Hyprland 桌面 | Hyprland、SDDM、Fcitx5/Rime、浏览器、hyprdots、GPU 与虚拟机适配 |
-| Arch 开发环境 | Arch 基础 + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + Arch Mihomo |
+| Arch 开发环境 | Arch 最小基础 + 现代 CLI + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + 字体 + Zsh + tmux + Mihomo |
 | Arch 完整工作站 | Arch 开发环境 + Arch Hyprland 桌面 |
 | OrbStack Arch 开发环境 | ARM 基础、可靠软件源、mise、Neovim、Docker、字体与 Zsh；保留 OrbStack 管理的 DNS 和内核 |
 | Arch 状态详情 / 系统诊断 | 状态、配置指纹、网络、systemd、桌面与修复建议 |
@@ -192,7 +192,7 @@ Arch Hyprland 桌面默认安装 Fcitx5 + Rime，安全合并公共配置并保�
 ~/.local/state/os-init/arch
 ```
 
-root 模式不会运行 `makepkg`，但会在配置 archlinuxcn 后直接用 pacman 安装预编译的 paru/yay。其他系统操作直接以 root 执行，用户配置写入 `/root`。普通用户运行时，系统操作通过 sudo，用户配置保持普通用户所有权；仅普通用户允许在软件源缺包时回退到 AUR 构建。
+root 模式不会运行 `makepkg`，但会在配置 archlinuxcn 后直接用 pacman 安装预编译的 paru。已有 yay 会作为兼容回退保留，但 OS Init 不再重复安装两个 AUR helper。其他系统操作直接以 root 执行，用户配置写入 `/root`。普通用户运行时，系统操作通过 sudo，用户配置保持普通用户所有权；仅普通用户允许在软件源缺包时回退到 AUR 构建。
 
 ## 配置
 

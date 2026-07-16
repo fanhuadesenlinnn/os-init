@@ -82,7 +82,21 @@ func Build(selected []modules.Module, target platform.Target, opts Options) Plan
 	}
 
 	planned = executableModules(planned)
-	plan.Modules = orderModules(planned, registryOrder)
+	ordered, cycle := orderModules(planned, registryOrder)
+	if len(cycle) > 0 {
+		plan.Modules = planned
+		plan.Issues = append(plan.Issues, Issue{
+			Blocking:  true,
+			MessageZH: "模块依赖存在循环，无法生成可靠执行计划。",
+			MessageEN: "The module dependency graph contains a cycle, so a reliable execution plan cannot be built.",
+			ModuleIDs: cycle,
+		})
+		return plan
+	}
+	if operation == modules.OperationUninstall {
+		reverseModules(ordered)
+	}
+	plan.Modules = ordered
 	return plan
 }
 
@@ -206,9 +220,9 @@ func softAssociations(plannedByID, available map[string]modules.Module) []SoftAs
 	return out
 }
 
-func orderModules(planned []modules.Module, registryOrder map[string]int) []modules.Module {
+func orderModules(planned []modules.Module, registryOrder map[string]int) ([]modules.Module, []string) {
 	if len(planned) < 2 {
-		return planned
+		return planned, nil
 	}
 
 	byID := map[string]modules.Module{}
@@ -239,9 +253,12 @@ func orderModules(planned []modules.Module, registryOrder map[string]int) []modu
 			}
 		}
 		if len(candidates) == 0 {
+			cycle := make([]string, 0, len(remaining))
 			for id := range remaining {
-				candidates = append(candidates, byID[id])
+				cycle = append(cycle, id)
 			}
+			sort.Strings(cycle)
+			return nil, cycle
 		}
 
 		sort.SliceStable(candidates, func(i, j int) bool {
@@ -256,7 +273,13 @@ func orderModules(planned []modules.Module, registryOrder map[string]int) []modu
 		}
 	}
 
-	return ordered
+	return ordered, nil
+}
+
+func reverseModules(items []modules.Module) {
+	for left, right := 0, len(items)-1; left < right; left, right = left+1, right-1 {
+		items[left], items[right] = items[right], items[left]
+	}
 }
 
 func moduleLess(a, b modules.Module, registryOrder map[string]int) bool {

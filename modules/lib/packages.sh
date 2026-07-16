@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 # Sourced by modules/lib.sh.
 
+package_metadata_ready() {
+    [[ -n "${OS_INIT_PACKAGE_METADATA_STAMP:-}" && -f "${OS_INIT_PACKAGE_METADATA_STAMP}" ]]
+}
+
+mark_package_metadata_ready() {
+    [[ -n "${OS_INIT_PACKAGE_METADATA_STAMP:-}" ]] || return 0
+    (umask 077; : > "${OS_INIT_PACKAGE_METADATA_STAMP}")
+}
+
 pkg_update() {
+	package_metadata_ready && return 0
     if is_macos; then
         run_brew update
     elif [[ "$OS_FAMILY" == "debian" ]]; then
@@ -19,6 +29,7 @@ pkg_update() {
     else
         die "不支持的包管理器家族: ${OS_FAMILY}"
     fi
+	mark_package_metadata_ready
 }
 
 ensure_brew() {
@@ -201,11 +212,16 @@ arch_run_pacman() {
 
 arch_sync_package_database() {
     is_arch || return 0
+	if package_metadata_ready; then
+		_ARCH_PACKAGE_DATABASE_SYNCED=true
+		return 0
+	fi
     [[ "$_ARCH_PACKAGE_DATABASE_SYNCED" == true ]] && return 0
     # Arch does not support partial upgrades. Refresh metadata and upgrade the
     # installed system together before resolving per-module packages.
     arch_run_pacman -Syu --noconfirm || die "pacman 完整系统同步失败，停止软件包解析以避免部分升级"
     _ARCH_PACKAGE_DATABASE_SYNCED=true
+	mark_package_metadata_ready
 }
 
 arch_package_available() {
@@ -304,24 +320,16 @@ ensure_arch_aur_helpers() {
     if command -v paru &>/dev/null; then
         helper="paru"
     elif command -v yay &>/dev/null; then
+		warn "检测到已有 yay；OS Init 新安装默认使用 paru，但会保留并复用现有 yay"
         helper="yay"
     else
-        install "未检测到 paru/yay，自动安装 paru"
+		install "未检测到 AUR helper，自动安装 paru"
         if arch_package_available paru; then
             arch_pacman_install paru
         else
             arch_install_aur_via_makepkg paru
         fi
         helper="$(arch_aur_helper_command)" || die "AUR helper 安装失败"
-    fi
-
-    if ! command -v yay &>/dev/null; then
-        warn "未检测到 yay，尝试补装 yay 供手动使用"
-        if arch_package_available yay; then
-            arch_pacman_install yay || true
-        else
-            arch_install_with_current_aur_helper yay || warn "yay 安装失败，后续继续使用 $helper"
-        fi
     fi
 
     helper="$(arch_aur_helper_command)" || die "AUR helper 不可用"

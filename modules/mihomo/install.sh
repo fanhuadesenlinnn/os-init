@@ -94,17 +94,21 @@ mihomo_safe_external_ui_dir() {
     esac
 }
 
-warn_mihomo_exposure() {
-    if [[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" == "0.0.0.0" && -z "${MIHOMO_SECRET:-}" ]]; then
-        warn "Mihomo 控制接口监听 0.0.0.0 且 MIHOMO_SECRET 为空"
-        warn "如需开放 MetaCubeXD，请设置 MIHOMO_SECRET"
-    fi
+validate_mihomo_network_scope() {
+	if [[ "${MIHOMO_ALLOW_LAN:-0}" != "1" ]]; then
+		[[ "${MIHOMO_BIND_ADDRESS:-127.0.0.1}" != "0.0.0.0" ]] || die "MIHOMO_BIND_ADDRESS=0.0.0.0 需要同时设置 MIHOMO_ALLOW_LAN=1"
+		[[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" != "0.0.0.0" ]] || die "MIHOMO_CONTROLLER_HOST=0.0.0.0 需要同时设置 MIHOMO_ALLOW_LAN=1"
+		[[ "${MIHOMO_DNS_LISTEN:-127.0.0.1:1053}" != 0.0.0.0:* ]] || die "MIHOMO_DNS_LISTEN 公开监听需要同时设置 MIHOMO_ALLOW_LAN=1"
+	fi
+	if [[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" == "0.0.0.0" && -z "${MIHOMO_SECRET:-}" ]]; then
+		die "Mihomo 控制接口公开监听时必须设置 MIHOMO_SECRET"
+	fi
 }
 
 render_mihomo_config_template() {
     local template="$1" target="$2" tmp external_ui_line=""
 
-    warn_mihomo_exposure
+	validate_mihomo_network_scope
     tmp="$(mktemp "${TMPDIR:-/tmp}/mihomo-config.XXXXXX")"
 
     if [[ "${ENABLE_METACUBEXD:-1}" == "1" ]]; then
@@ -379,6 +383,7 @@ if [[ "$UNINSTALL" == true ]]; then
 fi
 
 require_systemd
+validate_mihomo_network_scope
 
 echo "[1/5] Mihomo 核心..."
 if command -v mihomo &>/dev/null && [[ "$UPDATE" != true ]]; then

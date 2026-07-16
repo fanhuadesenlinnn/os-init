@@ -49,7 +49,6 @@ func CreateUserConfig(files fs.FS, target platform.Target, lang string) (string,
 }
 
 func createUserConfig(files fs.FS, target platform.Target, lang string) (string, error) {
-	_ = files
 	info := Discover()
 	if info.UserPath == "" {
 		return "", fmt.Errorf("无法确定当前用户配置目录")
@@ -57,7 +56,18 @@ func createUserConfig(files fs.FS, target platform.Target, lang string) (string,
 	if info.UserExists {
 		return info.UserPath, nil
 	}
-	data := renderUserConfig(target, lang)
+	if files == nil {
+		return "", fmt.Errorf("读取内置默认配置失败: 配置资源不可用")
+	}
+	defaultFile, err := files.Open(embeddedDefaults)
+	if err != nil {
+		return "", fmt.Errorf("读取内置默认配置失败: %w", err)
+	}
+	defaults := ParseEnv(defaultFile)
+	if err := defaultFile.Close(); err != nil {
+		return "", fmt.Errorf("关闭内置默认配置失败: %w", err)
+	}
+	data := renderUserConfig(target, lang, defaults)
 
 	dir := filepath.Dir(info.UserPath)
 	if err := os.MkdirAll(dir, 0o700); err != nil {

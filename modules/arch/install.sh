@@ -29,12 +29,16 @@ restore_config_environment() {
 }
 
 snapshot_config_environment
+# Shared defaults are the single source for settings exposed by the generated
+# user config. install_vars only adds Arch-internal defaults on top.
+source "${SCRIPT_DIR}/../config/defaults.env"
 source "${SCRIPT_DIR}/install_vars"
 source "${SCRIPT_DIR}/lib/files.sh"
 source "${SCRIPT_DIR}/lib/packages.sh"
 source "${SCRIPT_DIR}/lib/systemd.sh"
 source "${SCRIPT_DIR}/lib/json.sh"
 source "${SCRIPT_DIR}/modules/base.sh"
+source "${SCRIPT_DIR}/modules/cli.sh"
 source "${SCRIPT_DIR}/modules/aur.sh"
 source "${SCRIPT_DIR}/modules/dns.sh"
 source "${SCRIPT_DIR}/modules/archlinuxcn.sh"

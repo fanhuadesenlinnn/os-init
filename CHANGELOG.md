@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.3.0 - 2026-07-17
+
+### Added
+
+- Add a separate `arch-cli` capability for modern command-line and diagnostic tools instead of hiding them in the Arch base module.
+- Add shared batch execution policy for package metadata refreshes and dependency-failure skipping across the TUI and headless interfaces.
+- Add explicit migration for the legacy OS Init-generated tmux configuration.
+
+### Changed
+
+- Keep `arch-base` limited to minimal official-repository download, archive, and diagnostic tools; manage Git, tmux, build dependencies, and modern CLI tools through dedicated modules.
+- Use stable cross-platform `git` and cross-Linux `mihomo` module IDs while accepting the former `shell-git`, `arch-git`, and `arch-mihomo` IDs as compatibility aliases.
+- Prefer paru as the single managed AUR helper and retain an already-installed yay only as a fallback.
+- Make `modules/config/defaults.env` the single default-value source for generated configuration, Go runtime loading, and Arch provider configuration.
+- Split execution ordering into repository, bootstrap, network, runtime, service, desktop, and related phases; reverse dependency order for uninstall plans and reject dependency cycles.
+- Move the macOS cask and formula catalog to data-driven declarations.
+
+### Fixed
+
+- Restrict Mihomo proxy, controller, and DNS listeners to loopback by default; reject wildcard listeners unless LAN access is explicitly enabled, and require a secret for a publicly exposed controller.
+- Preserve independent modules after an earlier failure while skipping only modules whose declared dependency failed in both interactive and headless execution.
+- Reuse one package metadata refresh per execution batch instead of repeating repository refreshes for each module.
+- Preserve pre-existing packages during migration when old releases did not record enough ownership information to remove them safely.
+
 ## v1.2.0 - 2026-07-16
 
 ### Added

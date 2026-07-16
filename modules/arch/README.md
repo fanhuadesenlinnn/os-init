@@ -16,5 +16,5 @@ configuration comes from the shared `~/.config/os-init/config.env` file.
 
 Both root and normal users are supported. System changes run directly as root
 or through sudo for a normal user. User configuration is written to the target
-user's home. Both root and normal users install prebuilt paru/yay packages from
+user's home. Both root and normal users install the prebuilt paru package from
 archlinuxcn with pacman. Only normal users may fall back to makepkg.

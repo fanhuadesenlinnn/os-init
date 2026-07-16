@@ -21,17 +21,17 @@ func TestBuild_AddsStrongDependenciesForInstall(t *testing.T) {
 		planner.Options{Operation: modules.OperationInstall},
 	)
 
-	if !hasModule(plan.Modules, "arch-git") {
-		t.Fatalf("plan should add arch-git dependency, got %v", ids(plan.Modules))
+	if !hasModule(plan.Modules, "git") {
+		t.Fatalf("plan should add git dependency, got %v", ids(plan.Modules))
 	}
-	if got, want := ids(plan.Modules), []string{"arch-git", "arch-ops-toolkit"}; !sameOrderPrefix(got, want) {
+	if got, want := ids(plan.Modules), []string{"git", "arch-ops-toolkit"}; !sameOrderPrefix(got, want) {
 		t.Fatalf("plan order = %v, want prefix %v", got, want)
 	}
 	if len(plan.AddedDependencies) != 1 {
 		t.Fatalf("added dependencies = %v, want 1", plan.AddedDependencies)
 	}
-	if plan.AddedDependencies[0].ModuleID != "arch-git" {
-		t.Fatalf("added dependency = %q, want arch-git", plan.AddedDependencies[0].ModuleID)
+	if plan.AddedDependencies[0].ModuleID != "git" {
+		t.Fatalf("added dependency = %q, want git", plan.AddedDependencies[0].ModuleID)
 	}
 }
 
@@ -47,8 +47,8 @@ func TestBuild_DoesNotAddStrongDependenciesForUninstall(t *testing.T) {
 		planner.Options{Operation: modules.OperationUninstall},
 	)
 
-	if hasModule(plan.Modules, "arch-git") {
-		t.Fatalf("uninstall plan should not add arch-git, got %v", ids(plan.Modules))
+	if hasModule(plan.Modules, "git") {
+		t.Fatalf("uninstall plan should not add git, got %v", ids(plan.Modules))
 	}
 	if len(plan.AddedDependencies) != 0 {
 		t.Fatalf("uninstall plan should not add dependencies, got %v", plan.AddedDependencies)
@@ -70,25 +70,35 @@ func TestBuild_ExpandsArchWorkstationPreset(t *testing.T) {
 	if _, ok := plan.BlockingIssue(); ok {
 		t.Fatalf("Arch preset should compose with normal modules: %#v", plan.Issues)
 	}
-	for _, id := range []string{"arch-desktop", "mise", "mise-go", "mise-python", "mise-node", "docker", "neovim", "arch-mihomo"} {
+	for _, id := range []string{"arch-desktop", "mise", "mise-go", "mise-python", "mise-node", "docker", "neovim", "mihomo"} {
 		if !hasModule(plan.Modules, id) {
 			t.Fatalf("expanded preset missing %s: %v", id, ids(plan.Modules))
 		}
 	}
+	if !hasModule(plan.Modules, "arch-cli") {
+		t.Fatalf("expanded preset missing arch-cli: %v", ids(plan.Modules))
+	}
 	if hasModule(plan.Modules, "arch-dev") || hasModule(plan.Modules, "arch-workstation") {
 		t.Fatalf("dependency-only presets must not reach execution: %v", ids(plan.Modules))
 	}
+	order := ids(plan.Modules)
+	assertBefore(t, order, "arch-archlinuxcn", "arch-base")
+	assertBefore(t, order, "arch-archlinuxcn", "arch-cli")
+	assertBefore(t, order, "arch-base", "mise")
+	assertBefore(t, order, "git", "arch-ops-toolkit")
+	assertBefore(t, order, "neovim", "docker")
+	assertBefore(t, order, "docker", "arch-desktop")
 }
 
 func TestBuild_ExpandsDependenciesForStandaloneArchMihomo(t *testing.T) {
 	t.Parallel()
 	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 	byID := modulesByID(modules.ForTarget(target))
-	plan := planner.Build([]modules.Module{byID["arch-mihomo"]}, target, planner.Options{Operation: modules.OperationInstall})
+	plan := planner.Build([]modules.Module{byID["mihomo"]}, target, planner.Options{Operation: modules.OperationInstall})
 	if _, ok := plan.BlockingIssue(); ok {
 		t.Fatalf("Arch Mihomo plan should be valid: %#v", plan.Issues)
 	}
-	for _, id := range []string{"arch-archlinuxcn", "arch-aur", "arch-mihomo"} {
+	for _, id := range []string{"arch-archlinuxcn", "arch-aur", "mihomo"} {
 		if !hasModule(plan.Modules, id) {
 			t.Fatalf("standalone Arch Mihomo missing %s: %v", id, ids(plan.Modules))
 		}
@@ -127,6 +137,33 @@ func TestOrderUsesPhaseInsteadOfLocalizedSubsection(t *testing.T) {
 	plan := planner.Build([]modules.Module{late, early}, target, planner.Options{Operation: modules.OperationInstall})
 	if got := ids(plan.Modules); !reflect.DeepEqual(got, []string{"early", "late"}) {
 		t.Fatalf("phase order = %v", got)
+	}
+}
+
+func TestBuild_UninstallReversesDependencyOrder(t *testing.T) {
+	t.Parallel()
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	operations := []modules.Operation{modules.OperationInstall, modules.OperationUninstall}
+	dependency := modules.Module{ID: "runtime", OS: "linux", Phase: modules.PhaseRuntime, SupportedOperations: operations}
+	consumer := modules.Module{ID: "application", OS: "linux", DependsOn: []string{"runtime"}, Phase: modules.PhaseApplication, SupportedOperations: operations}
+
+	plan := planner.Build([]modules.Module{dependency, consumer}, target, planner.Options{Operation: modules.OperationUninstall})
+	if got := ids(plan.Modules); !reflect.DeepEqual(got, []string{"application", "runtime"}) {
+		t.Fatalf("uninstall order = %v, want dependent before dependency", got)
+	}
+}
+
+func TestBuild_BlocksDependencyCycle(t *testing.T) {
+	t.Parallel()
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd"}
+	operations := []modules.Operation{modules.OperationInstall}
+	a := modules.Module{ID: "a", OS: "linux", DependsOn: []string{"b"}, SupportedOperations: operations}
+	b := modules.Module{ID: "b", OS: "linux", DependsOn: []string{"a"}, SupportedOperations: operations}
+
+	plan := planner.Build([]modules.Module{a, b}, target, planner.Options{Operation: modules.OperationInstall})
+	issue, blocked := plan.BlockingIssue()
+	if !blocked || !reflect.DeepEqual(issue.ModuleIDs, []string{"a", "b"}) {
+		t.Fatalf("cycle should block planning: %#v", plan.Issues)
 	}
 }
 
@@ -202,4 +239,17 @@ func sameOrderPrefix(got, want []string) bool {
 		}
 	}
 	return true
+}
+
+func assertBefore(t *testing.T, order []string, first, second string) {
+	t.Helper()
+	positions := map[string]int{}
+	for index, id := range order {
+		positions[id] = index
+	}
+	firstIndex, firstOK := positions[first]
+	secondIndex, secondOK := positions[second]
+	if !firstOK || !secondOK || firstIndex >= secondIndex {
+		t.Fatalf("expected %s before %s, got %v", first, second, order)
+	}
 }

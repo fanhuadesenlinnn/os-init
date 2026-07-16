@@ -52,6 +52,17 @@ test_macos_pkg_remove_does_not_install_homebrew() (
     [[ ${#calls[@]} -eq 0 ]] || fail "pkg_remove should not call brew_uninstall when brew is absent"
 )
 
+test_legacy_user_path_adoption_is_explicit() (
+	local target="$TEST_HOME/legacy-tmux.conf"
+	local state_dir="$TEST_HOME/legacy-state"
+	OS_INIT_USER_STATE_DIR="$state_dir"
+	printf '# OS Init Arch generated tmux config\n' > "$target"
+
+	os_init_adopt_created_user_path tmux-config "$target"
+	[[ "$(cat "$state_dir/ownership/user-path-tmux-config")" == "created" ]] || fail "legacy path was not adopted as OS Init-created"
+	[[ ! -e "$state_dir/backups/tmux-config" ]] || fail "adopted legacy path must not be backed up as user content"
+)
+
 test_pkg_install_uses_arch_strategy() (
     OS=linux
     OS_FAMILY=arch
@@ -125,15 +136,19 @@ test_arch_repository_lookup_syncs_database_first() (
     OS=linux
     OS_FAMILY=arch
     _ARCH_PACKAGE_DATABASE_SYNCED=false
+	OS_INIT_PACKAGE_METADATA_STAMP="$TEST_HOME/package-metadata-ready"
+	rm -f "$OS_INIT_PACKAGE_METADATA_STAMP"
     local -a calls=()
     sudo_env() { calls+=("sudo:$*"); }
     pacman() { calls+=("pacman:$*"); return 0; }
 
     arch_package_available ncdu
+	_ARCH_PACKAGE_DATABASE_SYNCED=false
     arch_package_available tmux
     assert_call "sudo:pacman -Syu --noconfirm"
     [[ "${calls[0]}" == "sudo:pacman -Syu --noconfirm" ]] || fail "Arch lookup queried before database sync"
     [[ "$(printf '%s\n' "${calls[@]}" | grep -Fc 'sudo:pacman -Syu --noconfirm')" == 1 ]] || fail "Arch database synced more than once"
+	[[ -f "$OS_INIT_PACKAGE_METADATA_STAMP" ]] || fail "Arch database sync did not publish the batch stamp"
 )
 
 test_arch_pacman_retries_and_prioritizes_arm_mirrors() (
@@ -166,7 +181,7 @@ test_arch_pacman_retries_and_prioritizes_arm_mirrors() (
         fail "original Arch Linux ARM mirror was not preserved"
 )
 
-test_arch_helper_bootstrap_prefers_paru_and_adds_yay() (
+test_arch_helper_bootstrap_installs_only_paru() (
     OS=linux
     OS_FAMILY=arch
     local -a calls=()
@@ -193,9 +208,8 @@ test_arch_helper_bootstrap_prefers_paru_and_adds_yay() (
 
     ensure_arch_aur_helpers
     command -v paru >/dev/null || fail "paru should be available after helper bootstrap"
-    command -v yay >/dev/null || fail "yay should be available after companion install"
+	command -v yay >/dev/null && fail "yay should not be installed as a redundant companion"
     assert_call "makepkg:paru"
-    assert_call "aur:yay"
 )
 
 test_owned_path_restores_preexisting_content() (
@@ -380,7 +394,7 @@ test_redhat_install_retries_with_epel
 test_arch_packages_split_between_pacman_and_aur
 test_arch_repository_lookup_syncs_database_first
 test_arch_pacman_retries_and_prioritizes_arm_mirrors
-test_arch_helper_bootstrap_prefers_paru_and_adds_yay
+test_arch_helper_bootstrap_installs_only_paru
 test_owned_path_restores_preexisting_content
 test_unknown_owned_path_is_preserved
 test_verified_download_accepts_unchecked_proxy
@@ -388,6 +402,7 @@ test_verified_download_accepts_expected_digest
 test_verified_download_rejects_wrong_digest
 test_github_proxy_formats_and_git_environment
 test_legacy_mise_config_is_namespaced
+test_legacy_user_path_adoption_is_explicit
 test_root_sudo_wrapper_runs_without_sudo_binary
 test_root_sudo_wrapper_bypasses_logging_function
 test_root_is_always_the_target_user

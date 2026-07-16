@@ -95,6 +95,18 @@ func TestExecutorSkipsModuleAfterDependencyFailure(t *testing.T) {
 	}
 }
 
+func TestExecutorAddsBatchPackageMetadataStamp(t *testing.T) {
+	tmp := t.TempDir()
+	original := map[string]string{"EXISTING": "value"}
+	m := newExecutorModel(nil, tmp, modules.OperationInstall, original, "", context.Background(), nil)
+	if got := m.env["OS_INIT_PACKAGE_METADATA_STAMP"]; got != filepath.Join(tmp, ".package-metadata-ready") {
+		t.Fatalf("metadata stamp = %q", got)
+	}
+	if m.env["EXISTING"] != "value" || len(original) != 1 {
+		t.Fatalf("executor should preserve and copy caller env: executor=%v caller=%v", m.env, original)
+	}
+}
+
 func TestOutputEndsWithNoteIgnoresANSI(t *testing.T) {
 	output := "error\n\x1b[31mfinal failure\x1b[0m\n"
 	if !outputEndsWithNote(output, "\x1b[31mfinal failure\x1b[0m") {

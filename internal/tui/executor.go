@@ -56,6 +56,8 @@ func newExecutorModel(
 
 	p := progress.New(progress.WithDefaultGradient())
 
+	runEnv := execution.BatchEnvironment(env, tmpDir, false)
+
 	return executorModel{
 		modules:        append([]modules.Module(nil), selected...),
 		scriptResults:  make([]runner.Result, 0, len(selected)),
@@ -64,7 +66,7 @@ func newExecutorModel(
 		progress:       p,
 		tmpDir:         tmpDir,
 		operation:      operation,
-		env:            env,
+		env:            runEnv,
 		webhookURL:     webhookURL,
 		ctx:            ctx,
 		recorder:       recorder,
@@ -202,15 +204,13 @@ func (m executorModel) runCurrent() tea.Cmd {
 	}
 
 	mod := m.modules[m.current]
-	for _, dependency := range mod.DependsOn {
-		if m.failedModules[dependency] {
-			return func() tea.Msg {
-				return scriptDoneMsg{result: runner.Result{
-					Module:   mod.ID,
-					ExitCode: 125,
-					Output:   fmt.Sprintf(text("跳过：依赖模块 %s 执行失败\n", "Skipped: dependency %s failed\n"), dependency),
-				}}
-			}
+	if dependency := execution.FailedDependency(mod, m.failedModules); dependency != "" {
+		return func() tea.Msg {
+			return scriptDoneMsg{result: runner.Result{
+				Module:   mod.ID,
+				ExitCode: 125,
+				Output:   fmt.Sprintf(text("跳过：依赖模块 %s 执行失败\n", "Skipped: dependency %s failed\n"), dependency),
+			}}
 		}
 	}
 	tmpDir := m.tmpDir

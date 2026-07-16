@@ -144,6 +144,22 @@ os_init_prepare_owned_user_path() {
     chmod 600 "$marker" 2>/dev/null || true
 }
 
+# Adopt a path that was created by an older OS Init provider before shared
+# ownership markers existed. Callers must positively identify legacy content;
+# this helper deliberately never guesses from the path alone.
+os_init_adopt_created_user_path() {
+	local key="$1" target="$2" state_dir marker
+	os_init_validate_ownership_key "$key"
+	[[ -e "$target" || -L "$target" ]] || return 1
+	state_dir="$(os_init_user_state_dir)"
+	marker="${state_dir}/ownership/user-path-${key}"
+	[[ -f "$marker" ]] && return 0
+	mkdir -p "${state_dir}/ownership"
+	chmod 700 "$state_dir" "${state_dir}/ownership" 2>/dev/null || true
+	printf 'created\n' > "$marker"
+	chmod 600 "$marker" 2>/dev/null || true
+}
+
 os_init_restore_owned_user_path() {
     local key="$1" target="$2" state_dir marker backup state
     os_init_validate_ownership_key "$key"

@@ -7,7 +7,7 @@ var directModuleLifecycles = map[string][]Operation{
 	"kernel-scheduler": fullLifecycle(), "kernel-autotune": fullLifecycle(),
 	"network-ipv4": fullLifecycle(), "network-tune": fullLifecycle(),
 	"shell-zsh": fullLifecycle(), "shell-direnv": fullLifecycle(),
-	"shell-git": fullLifecycle(), "shell-tmux": fullLifecycle(),
+	"git": fullLifecycle(), "shell-tmux": fullLifecycle(),
 	"terminal-ncdu": fullLifecycle(), "yazi": fullLifecycle(),
 	"mihomo": fullLifecycle(), "docker": fullLifecycle(), "mise": fullLifecycle(),
 	"dev-build-deps": {OperationInstall, OperationUpdate},

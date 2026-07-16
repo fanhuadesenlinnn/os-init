@@ -35,9 +35,32 @@ func TestBuildPlanRejectsUnavailableModule(t *testing.T) {
 	}
 }
 
+func TestBuildPlanAcceptsLegacyModuleAliases(t *testing.T) {
+	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd", Environment: platform.EnvironmentNative}
+	plan, mods, err := BuildPlan(target, []string{"arch-git", "arch-mihomo"}, false, modules.OperationInstall)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsModuleID(mods, "git") || !containsModuleID(mods, "mihomo") {
+		t.Fatalf("legacy aliases were not canonicalized: plan=%+v modules=%v", plan, mods)
+	}
+	if containsModuleID(mods, "arch-git") || containsModuleID(mods, "arch-mihomo") {
+		t.Fatalf("legacy IDs must not reach execution: %v", mods)
+	}
+}
+
+func containsModuleID(items []modules.Module, id string) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func TestExecuteUsesEmbeddedProviderAndReportsResult(t *testing.T) {
 	assets := fstest.MapFS{
-		"modules/provider.sh": &fstest.MapFile{Data: []byte("#!/usr/bin/env bash\nexit 0\n"), Mode: fs.FileMode(0o755)},
+		"modules/provider.sh": &fstest.MapFile{Data: []byte("#!/usr/bin/env bash\n[[ -n \"${OS_INIT_PACKAGE_METADATA_STAMP:-}\" ]]\n"), Mode: fs.FileMode(0o755)},
 	}
 	target := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"}
 	report, err := Execute(context.Background(), Options{
@@ -50,6 +73,27 @@ func TestExecuteUsesEmbeddedProviderAndReportsResult(t *testing.T) {
 	}
 	if !report.Success || len(report.Results) != 1 || report.Results[0].Status != "passed" {
 		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestExecutePropagatesProviderFailure(t *testing.T) {
+	assets := fstest.MapFS{
+		"modules/provider.sh": &fstest.MapFile{Data: []byte("#!/usr/bin/env bash\nexit 42\n"), Mode: fs.FileMode(0o755)},
+	}
+	target := platform.Target{GOOS: "darwin", Family: platform.FamilyDarwin, Init: "unknown"}
+	report, err := Execute(context.Background(), Options{
+		Assets: assets, Target: target, ModuleIDs: []string{"terminal-ncdu"},
+		Operation: modules.OperationInstall, Verify: false, Quiet: true,
+		LogDir: t.TempDir(), Timeout: time.Second,
+	})
+	if err == nil {
+		t.Fatal("expected provider failure")
+	}
+	if report.Success || len(report.Results) != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+	if got := report.Results[0]; got.Status != "failed" || got.ExitCode != 42 {
+		t.Fatalf("result = %+v", got)
 	}
 }
 

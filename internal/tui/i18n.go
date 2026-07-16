@@ -111,8 +111,8 @@ func localizedMetadata(value string) string {
 		return value
 	}
 	switch value {
-	case "archlinuxcn 预编译 paru / yay；普通用户的 AUR 构建回退":
-		return "prebuilt paru / yay from archlinuxcn; normal-user AUR build fallback"
+	case "archlinuxcn 预编译 paru；保留已有 yay 作为兼容回退；普通用户可从 AUR 构建 paru":
+		return "prebuilt paru from archlinuxcn; preserve an existing yay as a compatibility fallback; normal users may build paru from AUR"
 	case "pacman/archlinuxcn: mihomo 和 metacubexd-bin":
 		return "pacman/archlinuxcn: mihomo and metacubexd-bin"
 	}
@@ -172,7 +172,7 @@ var modulePrivilegeReasonEN = map[string]string{
 	"network-tune":     "installs a systemd service and adjusts network and iptables settings",
 	"shell-zsh":        "Linux may install zsh and update /etc/shells",
 	"shell-direnv":     "Linux installs direnv through the system package manager",
-	"shell-git":        "Linux installs git-lfs through the system package manager",
+	"git":              "Linux installs Git and Git LFS through the system package manager",
 	"shell-tmux":       "installs tmux through the system package manager",
 	"terminal-ncdu":    "Linux installs ncdu through the system package manager",
 	"yazi":             "Linux installs binaries in /usr/local/bin",
@@ -192,7 +192,7 @@ var moduleLabelEN = map[string]string{
 	"network-tune":          "Network - queues and MSS",
 	"shell-zsh":             "zsh + oh-my-zsh",
 	"shell-direnv":          "direnv",
-	"shell-git":             "Git configuration",
+	"git":                   "Git / GitHub",
 	"shell-tmux":            "tmux",
 	"terminal-ncdu":         "ncdu",
 	"yazi":                  "Yazi",
@@ -204,14 +204,13 @@ var moduleLabelEN = map[string]string{
 	"mise-python":           "Python (mise user runtime)",
 	"mise-node":             "Node.js (mise user runtime)",
 	"mise-dev-runtimes":     "mise development runtimes",
-	"arch-base":             "Arch base environment",
+	"arch-base":             "Arch minimal base",
+	"arch-cli":              "Arch modern CLI",
 	"arch-aur":              "AUR Helper",
 	"arch-archlinuxcn":      "archlinuxcn repository",
 	"arch-dns":              "Arch system DNS",
-	"arch-git":              "Arch Git / GitHub CLI",
 	"arch-ops-toolkit":      "Ops Toolkit",
 	"arch-fonts":            "Arch font environment",
-	"arch-mihomo":           "Arch Mihomo + MetaCubeXD",
 	"arch-desktop":          "Arch Hyprland desktop",
 	"arch-doctor":           "Arch system diagnostics",
 	"arch-status":           "Arch detailed status",
@@ -236,7 +235,7 @@ var moduleDescriptionEN = map[string]string{
 	"network-tune":                        "RPS/RSS distribution, ring buffers, and MSS clamp",
 	"shell-zsh":                           "Powerlevel10k, command suggestions, and syntax highlighting",
 	"shell-direnv":                        "Per-directory environment variables",
-	"shell-git":                           "LFS, SSH-over-HTTPS, and template config",
+	"git":                                 "Git, LFS, SSH-over-HTTPS, and template config; Arch also installs GitHub CLI and OpenSSH",
 	"shell-tmux":                          "Terminal multiplexer with a basic configuration",
 	"mise":                                "User-level development runtime manager, regional mirrors, and shell activation",
 	"mise-go":                             "User-level Go managed by mise, isolated for normal users and root",
@@ -321,18 +320,17 @@ var moduleDescriptionEN = map[string]string{
 	"wsl-systemd":                         "Safely merge /etc/wsl.conf and enable systemd in WSL2",
 	"wsl-doctor":                          "Check WSL version, systemd, WSLg, Docker conflicts, and project paths",
 	"wsl-dev":                             "Shell, tmux, Git, terminal tools, mise runtimes, and Neovim without changing the WSL kernel, DNS, or desktop",
-	"arch-base":                           "Base, troubleshooting, modern CLI tools, and tmux configuration",
-	"arch-aur":                            "Install paru and yay from archlinuxcn with pacman; normal users may fall back to AUR builds",
+	"arch-base":                           "Minimal download, archive, and diagnostic tools from official repositories",
+	"arch-cli":                            "ripgrep, fzf, bat, eza, dust, bottom, procs, and other command-line tools",
+	"arch-aur":                            "Install paru from archlinuxcn; preserve an existing yay as a fallback without installing two helpers",
 	"arch-archlinuxcn":                    "Configure the repository, keyring, and mirrorlist",
 	"arch-dns":                            "systemd-resolved, NetworkManager, and a mainland-friendly DNS baseline",
-	"arch-git":                            "git, gh, OpenSSH, and base Git settings",
 	"arch-ops-toolkit":                    "Clone the operations toolkit and create stable command entrypoints",
 	"arch-fonts":                          "Chinese, Emoji, Nerd Font, Monaco, and fontconfig",
-	"arch-mihomo":                         "Mihomo, full config validation, systemd service, and MetaCubeXD",
 	"arch-desktop":                        "Hyprland, SDDM, Fcitx5/Rime, browser, hyprdots, and VM integration",
 	"arch-doctor":                         "Check Arch capabilities, network, services, and desktop environment",
 	"arch-status":                         "Show detailed Arch capability status and suggestions",
-	"arch-dev":                            "Arch base + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + fonts + Zsh + Arch Mihomo",
+	"arch-dev":                            "Arch base + CLI + AUR Helper + archlinuxcn + DNS + Git + Ops Toolkit + mise + Neovim + Docker + fonts + Zsh + tmux + Mihomo",
 	"arch-workstation":                    "Arch development environment + Arch Hyprland desktop",
 	"orbstack-arch-dev":                   "Arch ARM base, reliable repositories, mise runtimes, Neovim, Docker, fonts, and Zsh while preserving OrbStack-managed DNS and kernel settings",
 	"neovim":                              "Terminal editor, macOS GUI client, and personal configuration",

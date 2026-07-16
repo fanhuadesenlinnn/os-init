@@ -27,7 +27,7 @@ func wslDevelopmentPreset() Preset {
 		ID: "wsl-dev", Label: "WSL 开发环境",
 		Description: "Shell、tmux、Git、终端工具、mise 开发运行时和 Neovim；不修改 WSL 内核、DNS或桌面",
 		Subsection:  "WSL 套餐", OS: "linux", Requires: []string{"wsl"},
-		Includes: []string{"shell-zsh", "shell-git", "shell-tmux", "terminal-ncdu", "yazi", "mise-dev-runtimes", "neovim"},
+		Includes: []string{"shell-zsh", "git", "shell-tmux", "terminal-ncdu", "yazi", "mise-dev-runtimes", "neovim"},
 		Phase:    PhaseRuntime, Order: 5,
 	}
 }

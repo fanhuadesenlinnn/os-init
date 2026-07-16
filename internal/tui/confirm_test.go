@@ -91,7 +91,7 @@ func TestConfirmView_EnglishArchMihomoContainsNoChineseMetadata(t *testing.T) {
 	target := platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"}
 	var selected modules.Module
 	for _, mod := range modules.ForTarget(target) {
-		if mod.ID == "arch-mihomo" {
+		if mod.ID == "mihomo" {
 			selected = mod
 			break
 		}
@@ -124,13 +124,13 @@ func TestConfirmView_ShowsPlannedDependencyAdditions(t *testing.T) {
 
 	plan := planner.Plan{
 		Modules: []modules.Module{
-			{ID: "arch-git", Label: "Arch Git / GitHub CLI"},
+			{ID: "git", Label: "Git / GitHub"},
 			{ID: "arch-ops-toolkit", Label: "Ops Toolkit"},
 		},
 		AddedDependencies: []planner.DependencyAddition{
 			{
-				ModuleID:        "arch-git",
-				Label:           "Arch Git / GitHub CLI",
+				ModuleID:        "git",
+				Label:           "Git / GitHub",
 				RequiredByID:    "arch-ops-toolkit",
 				RequiredByLabel: "Ops Toolkit",
 			},
@@ -138,7 +138,7 @@ func TestConfirmView_ShowsPlannedDependencyAdditions(t *testing.T) {
 	}
 
 	view := newConfirmModelForPlan(plan, modeInstall, platform.Target{GOOS: "linux"}).View()
-	if !strings.Contains(view, "自动补齐依赖") || !strings.Contains(view, "Arch Git / GitHub CLI") {
+	if !strings.Contains(view, "自动补齐依赖") || !strings.Contains(view, "Git / GitHub") {
 		t.Fatalf("confirm view should show dependency additions, got %q", view)
 	}
 }

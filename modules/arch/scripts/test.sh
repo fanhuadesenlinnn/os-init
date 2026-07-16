@@ -13,13 +13,18 @@ done < <(find "${ARCH_DIR}" -type f -name '*.sh' -print)
 
 grep -Fq "\${HOME}/.config/os-init/config.env" "${ARCH_DIR}/install_vars"
 grep -Fq "\${HOME}/.local/state/os-init/arch" "${ARCH_DIR}/install_vars"
-grep -Fq 'MIHOMO_AUTO_ENABLE_SERVICE=1' "${ARCH_DIR}/install_vars"
+grep -Fq 'MIHOMO_AUTO_ENABLE_SERVICE=1' "${REPO_ROOT}/modules/config/defaults.env"
+# shellcheck disable=SC2016
+grep -Fq 'source "${SCRIPT_DIR}/../config/defaults.env"' "${ARCH_DIR}/install.sh"
 grep -Fq 'key="MIHOMO_AUTO_ENABLE_SERVICE"' "${ARCH_DIR}/lib/config.sh"
+grep -Fq 'MIHOMO_BIND_ADDRESS=127.0.0.1' "${REPO_ROOT}/modules/config/defaults.env"
+grep -Fq 'MIHOMO_CONTROLLER_HOST=127.0.0.1' "${REPO_ROOT}/modules/config/defaults.env"
+grep -Fq 'MIHOMO_DNS_LISTEN=127.0.0.1:1053' "${REPO_ROOT}/modules/config/defaults.env"
 if grep -Eq '^PROXY_AUTO_ENABLE_SERVICE=' "${ARCH_DIR}/install_vars"; then
   echo "duplicate Arch-only Mihomo service switch remains" >&2
   exit 1
 fi
-grep -Fq 'base aur archlinuxcn dns git ops_toolkit fonts proxy desktop_hyprland' \
+grep -Fq 'base cli aur archlinuxcn dns git ops_toolkit fonts proxy desktop_hyprland' \
   "${ARCH_DIR}/lib/module_registry.sh"
 
 if grep -RqsE --exclude=test.sh 'Arch[D]evKit|arch[d]evkit|ARCH[D]EVKIT' "${ARCH_DIR}"; then
@@ -50,7 +55,10 @@ if grep -RqsE --include='*.sh' --exclude=test.sh 'RUNTIME_MANAGER|NVIM_REPO|SING
 fi
 
 grep -Fq 'install_package_from_pacman_prefer_archlinuxcn paru' "${ARCH_DIR}/lib/packages.sh"
-grep -Fq 'install_package_from_pacman_prefer_archlinuxcn yay' "${ARCH_DIR}/lib/packages.sh"
+if grep -Fq 'install_package_from_pacman_prefer_archlinuxcn yay' "${ARCH_DIR}/lib/packages.sh"; then
+  echo "Arch installer should not install a redundant yay helper" >&2
+  exit 1
+fi
 grep -Fq 'PACMAN_RETRY_ATTEMPTS' "${ARCH_DIR}/lib/packages.sh"
 grep -Fq '# >>> OS Init: Arch Linux ARM mirrors >>>' "${ARCH_DIR}/lib/packages.sh"
 grep -Fq 'archlinuxarm-keyring' "${ARCH_DIR}/modules/archlinuxcn.sh"
@@ -149,6 +157,7 @@ if (( BASH_VERSINFO[0] >= 4 )); then
     provider_preflight >/dev/null
 
     install_base() { printf 'base'; }
+    install_cli_tools() { printf 'cli'; }
     install_aur_helpers() { printf 'aur'; }
     install_archlinuxcn() { printf 'archlinuxcn'; }
     install_dns_env() { printf 'dns'; }
@@ -166,7 +175,10 @@ if (( BASH_VERSINFO[0] >= 4 )); then
         echo "Go/Shell Arch component mismatch: ${component} -> ${actual}, expected ${expected}" >&2
         exit 1
       fi
-    done < <(sed -n 's/.*archLinuxModule("[^"]*", "\([^"]*\)".*/\1/p' "${REPO_ROOT}/internal/modules/registry.go")
+    done < <(
+      sed -n 's/.*archLinuxModule("[^"]*", "\([^"]*\)".*/\1/p' "${REPO_ROOT}/internal/modules/registry.go"
+      printf '%s\n' git mihomo
+    )
   )
 
   OS_INIT_PROVIDER_MODE=1 OS_INIT_ARCH_LOAD_CONFIG_FILE=0 \

@@ -43,12 +43,15 @@ type DeliveryPolicy struct {
 }
 
 const (
-	PhaseBootstrap Phase = iota + 10
+	PhaseRepository Phase = iota + 10
+	PhaseBootstrap
 	PhaseShell
 	PhaseTerminal
 	PhaseNetwork
 	PhaseRuntime
 	PhaseApplication
+	PhaseService
+	PhaseDesktop
 	PhaseSystem
 	PhaseAction
 )

@@ -744,8 +744,8 @@ func TestNeedsUserInfo_ShellGitOnly(t *testing.T) {
 	if modules.NeedsUserInfo([]modules.Module{{ID: "docker"}}) {
 		t.Error("docker should not need user info")
 	}
-	if !modules.NeedsUserInfo([]modules.Module{{ID: "shell-git"}}) {
-		t.Error("shell-git should need user info")
+	if !modules.NeedsUserInfo([]modules.Module{{ID: "git"}}) {
+		t.Error("git should need user info")
 	}
 }
 

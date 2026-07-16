@@ -24,7 +24,7 @@ GITHUB_PROXY="${GITHUB_PROXY:-}"
 # =========================
 # DNS：systemd-resolved 系统解析基线
 # =========================
-ENABLE_DNS=1
+# ENABLE_DNS comes from modules/config/defaults.env.
 DNS_SERVERS=(223.5.5.5 223.6.6.6 119.29.29.29 114.114.114.114)
 DNS_FALLBACK_SERVERS=(180.76.76.76 114.114.115.115)
 DNS_FOREIGN_FALLBACK_SERVERS=(1.1.1.1 8.8.8.8)
@@ -48,7 +48,7 @@ INSTALL_ARCHLINUXCN_MIRRORLIST=1
 # =========================
 # Ops Toolkit：可更新的运维脚本仓库和稳定命令入口
 # =========================
-ENABLE_OPS_TOOLKIT=1 # 1=随 dev/workstation 安装，0=dev/workstation 跳过；直接执行 ops-toolkit 命令不受此项限制
+# ENABLE_OPS_TOOLKIT comes from modules/config/defaults.env.
 OPS_TOOLKIT_REPO="https://github.com/fanhuadesenlinnn/ops-toolkit.git"
 OPS_TOOLKIT_BRANCH=""
 OPS_TOOLKIT_DIR="${HOME}/.local/share/ops-toolkit"
@@ -81,7 +81,7 @@ INSTALL_RIME_CONFIG=1
 RIME_CONFIG_REPO="https://github.com/fanhuadesenlinnn/rime-config.git"
 RIME_CONFIG_BRANCH=""
 RIME_CONFIG_DIR="${HOME}/.local/share/fcitx5/rime"
-GPU_TYPE="auto" # auto / intel / amd / nvidia / vmware / virtio / qxl / virtualbox / none
+# GPU_TYPE comes from modules/config/defaults.env.
 VMWARE_HYPRLAND_MONITOR_MODE="1920x1080@60"
 # VMware SVGA3D can pass EGL detection but still fail native Wayland GL clients.
 # Default to llvmpipe so Alacritty/Neovide work with or without VMware 3D acceleration.
@@ -116,21 +116,8 @@ BROWSER_APP="google-chrome-stable"
 # =========================
 # Mihomo：保留原 Arch 安装、配置预检和 MetaCubeXD 行为
 # =========================
-MIHOMO_AUTO_ENABLE_SERVICE=1 # 1=安装后启用并启动服务，0=只安装和生成配置
-MIHOMO_PACKAGE="mihomo"
-MIHOMO_SERVICE_NAME="mihomo.service"
-MIHOMO_CONFIG_DIR="/etc/mihomo"
-MIHOMO_CONFIG_FILE="${MIHOMO_CONFIG_DIR}/config.yaml"
+# Mihomo user-facing defaults come from modules/config/defaults.env.
+# Arch uses its bundled template when the shared source is left empty.
 MIHOMO_CONFIG_SOURCE="${SCRIPT_DIR}/files/mihomo/config.yaml.tpl"
-MIHOMO_MIXED_PORT=7890
-MIHOMO_ALLOW_LAN=0
-MIHOMO_BIND_ADDRESS="0.0.0.0"
-MIHOMO_CONTROLLER_HOST="0.0.0.0"
-MIHOMO_CONTROLLER_PORT=9090
-MIHOMO_DNS_LISTEN="0.0.0.0:1053"
-MIHOMO_SECRET=""
-MIHOMO_STATE_DIR="/var/lib/mihomo"
-MIHOMO_EXTERNAL_UI_DIR="${MIHOMO_STATE_DIR}/ui"
-ENABLE_METACUBEXD=1
 METACUBEXD_PACKAGE="metacubexd-bin"
 METACUBEXD_WEB_ROOT="/usr/share/metacubexd"

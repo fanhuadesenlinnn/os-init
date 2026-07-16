@@ -9,7 +9,7 @@ var directModuleDeliveries = map[string]DeliveryPolicy{
 	"network-tune":     {Default: DeliveryLinuxSystem},
 	"shell-zsh":        {Default: DeliveryPortable},
 	"shell-direnv":     {Default: DeliverySystemPackage},
-	"shell-git":        {Default: DeliverySystemPackage},
+	"git":              {Default: DeliverySystemPackage, Arch: DeliveryArchNative},
 	"shell-tmux":       {Default: DeliverySystemPackage, Arch: DeliveryArchNative},
 	"terminal-ncdu":    {Default: DeliverySystemPackage},
 	"yazi":             {Default: DeliveryPortable, Darwin: DeliveryDarwinNative, Arch: DeliveryArchNative},

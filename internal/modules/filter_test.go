@@ -90,12 +90,12 @@ func TestForTarget_AppliesWSLCapabilityBoundaries(t *testing.T) {
 	}
 
 	archWSL := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd", Environment: platform.EnvironmentWSL, WSLVersion: 2})
-	for _, id := range []string{"arch-dns", "arch-mihomo", "arch-desktop", "arch-dev", "arch-workstation", "arch-doctor", "arch-status"} {
+	for _, id := range []string{"arch-dns", "mihomo", "arch-desktop", "arch-dev", "arch-workstation", "arch-doctor", "arch-status"} {
 		if hasModule(archWSL, id) {
 			t.Fatalf("%s should be hidden on Arch WSL", id)
 		}
 	}
-	for _, id := range []string{"arch-base", "arch-archlinuxcn", "arch-git", "wsl-dev", "docker"} {
+	for _, id := range []string{"arch-base", "arch-archlinuxcn", "git", "wsl-dev", "docker"} {
 		if !hasModule(archWSL, id) {
 			t.Fatalf("%s should remain available on Arch WSL", id)
 		}
@@ -184,13 +184,13 @@ func TestForTarget_ShowsArchCapabilitiesOnlyOnArchLinux(t *testing.T) {
 	t.Parallel()
 
 	arch := ForTarget(platform.Target{GOOS: "linux", Family: platform.FamilyArch, Init: "systemd"})
-	for _, id := range []string{"arch-base", "mise", "mise-go", "mise-python", "mise-node", "mise-dev-runtimes", "arch-mihomo", "arch-dev", "arch-workstation"} {
+	for _, id := range []string{"arch-base", "mise", "mise-go", "mise-python", "mise-node", "mise-dev-runtimes", "mihomo", "arch-dev", "arch-workstation"} {
 		if !hasModule(arch, id) {
 			t.Fatalf("%s should appear on Arch Linux", id)
 		}
 	}
-	if hasModule(arch, "mihomo") {
-		t.Fatal("Arch should use arch-mihomo instead of the generic Linux Mihomo module")
+	if module, ok := moduleWithID(arch, "mihomo"); !ok || module.Script != "arch/install.sh" || module.DeliveryFor(platform.Target{GOOS: "linux", Family: platform.FamilyArch}) != DeliveryArchNative {
+		t.Fatal("Arch should adapt the shared Mihomo module to its native provider")
 	}
 	if module, ok := moduleWithID(arch, "mise"); !ok || module.DeliveryFor(platform.Target{GOOS: "linux", Family: platform.FamilyArch}) != DeliveryArchNative {
 		t.Fatal("Arch should use the native delivery backend of the shared mise module")
@@ -239,9 +239,10 @@ func TestArchCapabilityDependenciesAreExplicit(t *testing.T) {
 		byID[mod.ID] = mod
 	}
 	for id, wants := range map[string][]string{
+		"arch-cli":     {"arch-archlinuxcn"},
 		"arch-aur":     {"arch-archlinuxcn"},
-		"arch-mihomo":  {"arch-aur", "arch-archlinuxcn"},
-		"arch-desktop": {"arch-base", "arch-aur", "arch-archlinuxcn", "arch-git", "arch-fonts"},
+		"mihomo":       {"arch-aur", "arch-archlinuxcn"},
+		"arch-desktop": {"arch-base", "arch-aur", "arch-archlinuxcn", "git", "arch-fonts"},
 	} {
 		got := byID[id].DependsOn
 		if len(got) != len(wants) {

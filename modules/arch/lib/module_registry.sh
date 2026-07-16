@@ -23,7 +23,8 @@ module_display_key() {
 
 module_desc() {
   case "$(module_key "$1")" in
-    base) echo "Arch 基础环境" ;;
+    base) echo "Arch 最小基础" ;;
+    cli) echo "Arch 现代 CLI" ;;
     aur) echo "AUR Helper" ;;
     archlinuxcn) echo "archlinuxcn 软件源" ;;
     dns) echo "系统 DNS" ;;
@@ -37,7 +38,7 @@ module_desc() {
 }
 
 all_modules() {
-  echo "base aur archlinuxcn dns git ops_toolkit fonts proxy desktop_hyprland"
+  echo "base cli aur archlinuxcn dns git ops_toolkit fonts proxy desktop_hyprland"
 }
 
 module_config_fingerprint() {
@@ -47,7 +48,8 @@ module_config_fingerprint() {
     printf 'module=%s\n' "${module}"
     case "${module}" in
       base) printf 'packages=%s\n' "$(base_packages)" ;;
-      aur) printf 'helpers=paru+yay\n' ;;
+      cli) printf 'packages=%s\n' "$(cli_packages)" ;;
+      aur) printf 'helper=paru\n' ;;
       archlinuxcn) printf 'server=%s\nmirrorlist=%s\n' "${ARCHLINUXCN_SERVER}" "${INSTALL_ARCHLINUXCN_MIRRORLIST:-0}" ;;
       dns) printf 'dns=%s\nfallback=%s\ndot=%s\n' "${DNS_SERVERS[*]}" "${DNS_FALLBACK_SERVERS[*]} ${DNS_FOREIGN_FALLBACK_SERVERS[*]}" "${DNS_OVER_TLS:-no}" ;;
       git) printf 'branch=main\npull_rebase=false\n' ;;
@@ -65,8 +67,9 @@ module_config_fingerprint() {
 
 module_quick_verify() {
   case "$(module_key "$1")" in
-    base) need_cmd git && need_cmd curl && need_cmd rg && need_cmd tmux && [[ -f "${HOME}/.tmux.conf" ]] ;;
-    aur) need_cmd paru && need_cmd yay ;;
+    base) need_cmd curl && need_cmd tar && need_cmd jq ;;
+    cli) need_cmd rg && need_cmd fzf && need_cmd bat ;;
+    aur) need_cmd paru ;;
     archlinuxcn) grep -q '^\[archlinuxcn\]' /etc/pacman.conf ;;
     dns) [[ -f /etc/systemd/resolved.conf.d/90-os-init-arch-dns.conf ]] ;;
     git) need_cmd git && need_cmd gh ;;
@@ -81,6 +84,7 @@ module_quick_verify() {
 module_install_func() {
   case "$(module_key "$1")" in
     base) install_base ;;
+    cli) install_cli_tools ;;
     aur) install_aur_helpers ;;
     archlinuxcn) install_archlinuxcn ;;
     dns) install_dns_env ;;

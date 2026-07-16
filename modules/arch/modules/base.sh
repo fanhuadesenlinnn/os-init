@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # 基础环境模块
-# 负责安装最基础的命令行工具、编译工具和排障工具。
+# 只负责官方仓库中的最小下载、解压和诊断基础。现代 CLI、Git、
+# tmux 和编译工具由各自模块管理。
 
 base_packages() {
-  echo "base-devel git curl wget less unzip tar gzip xz jq rsync rclone net-tools iotop iftop nethogs ripgrep fd fzf bat eza dust bottom procs bandwhich sd hyperfine just tmux pciutils openssh ca-certificates"
+  echo "curl wget less unzip tar gzip xz jq rsync pciutils ca-certificates"
 }
 
 base_tool_commands() {
   cat <<'EOF'
-base-devel:make
-git:git
 curl:curl
 wget:wget
 less:less
@@ -19,26 +18,7 @@ gzip:gzip
 xz:xz
 jq:jq
 rsync:rsync
-rclone:rclone
-net-tools:ifconfig
-iotop:iotop
-iftop:iftop
-nethogs:nethogs
-ripgrep:rg
-fd:fd
-fzf:fzf
-bat:bat
-eza:eza
-dust:dust
-bottom:btm
-procs:procs
-bandwhich:bandwhich
-sd:sd
-hyperfine:hyperfine
-just:just
-tmux:tmux
 pciutils:lspci
-openssh:ssh
 EOF
 }
 
@@ -59,7 +39,7 @@ show_base_tool_status_table() {
   done < <(base_tool_commands)
 
   if [[ "${missing}" -gt 0 ]]; then
-    log_warn "缺少 ${missing} 个基础工具命令，请重新运行 OS Init 并更新 Arch 基础环境"
+    log_warn "缺少 ${missing} 个基础工具命令，请重新运行 OS Init 并更新 Arch 最小基础"
   else
     log_info "基础工具命令检测通过"
   fi
@@ -79,7 +59,6 @@ install_base() {
   pacman_update
 
   install_packages_or_aur "${packages[@]}"
-  install_tmux_config
 
   mark_done "base"
   log_info "基础环境安装完成"
@@ -89,11 +68,4 @@ ensure_base() {
   if ! is_done "base"; then
     install_base
   fi
-}
-
-install_tmux_config() {
-  local template="${SCRIPT_DIR}/files/tmux/tmux.conf"
-
-  log_info "配置 tmux：${HOME}/.tmux.conf"
-  render_template_file "${template}" "${HOME}/.tmux.conf" 0644
 }

@@ -230,7 +230,12 @@ validate_config() {
   validate_port_var MIHOMO_CONTROLLER_PORT "Mihomo 控制接口"
   [[ "${MIHOMO_DNS_LISTEN:-}" == *:* ]] || die "MIHOMO_DNS_LISTEN 需要包含 host:port"
   validate_source_reference MIHOMO_CONFIG_SOURCE "Mihomo 配置来源"
+	if [[ "${MIHOMO_ALLOW_LAN:-0}" -ne 1 ]]; then
+		[[ "${MIHOMO_BIND_ADDRESS:-127.0.0.1}" != "0.0.0.0" ]] || die "MIHOMO_BIND_ADDRESS=0.0.0.0 需要同时启用 MIHOMO_ALLOW_LAN"
+		[[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" != "0.0.0.0" ]] || die "MIHOMO_CONTROLLER_HOST=0.0.0.0 需要同时启用 MIHOMO_ALLOW_LAN"
+		[[ "${MIHOMO_DNS_LISTEN:-127.0.0.1:1053}" != 0.0.0.0:* ]] || die "MIHOMO_DNS_LISTEN 公开监听需要同时启用 MIHOMO_ALLOW_LAN"
+	fi
   if [[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" == "0.0.0.0" && -z "${MIHOMO_SECRET:-}" ]]; then
-    add_config_warning "Mihomo 控制接口监听 0.0.0.0 且 secret 为空，局域网可访问控制 API"
+		die "Mihomo 控制接口公开监听时必须设置 MIHOMO_SECRET"
   fi
 }
