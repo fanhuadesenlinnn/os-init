@@ -359,6 +359,14 @@ test_root_sudo_wrapper_bypasses_logging_function() (
     [[ -f "${tmp}/marker" ]] || fail "root sudo wrapper called the install logging function"
 )
 
+test_shared_command_guards_are_available() (
+    create_fake_command available-command
+    require_cmd available-command
+    if (require_cmd missing-command-for-os-init-test) >/dev/null 2>&1; then
+        fail "require_cmd accepted a missing command"
+    fi
+)
+
 test_root_is_always_the_target_user() (
     id() {
         case "${1:-}" in
@@ -405,6 +413,7 @@ test_legacy_mise_config_is_namespaced
 test_legacy_user_path_adoption_is_explicit
 test_root_sudo_wrapper_runs_without_sudo_binary
 test_root_sudo_wrapper_bypasses_logging_function
+test_shared_command_guards_are_available
 test_root_is_always_the_target_user
 test_config_loader_ignores_undeclared_keys
 

@@ -35,9 +35,15 @@ declare -a mirror_calls=()
 
 fake_runtime_dir="$TEST_HOME/fake-runtime/bin"
 mkdir -p "$fake_runtime_dir"
-for tool in go python node npm corepack; do
+for tool in go python node; do
     # shellcheck disable=SC2016
     printf '#!/usr/bin/env bash\ncase "$(basename "$0")" in go) echo "go version go1.26.1 linux/amd64" ;; python) echo "Python 3.13.0" ;; node) echo "v24.0.0" ;; *) echo "1.0.0" ;; esac\n' > "$fake_runtime_dir/$tool"
+    chmod +x "$fake_runtime_dir/$tool"
+done
+for tool in npm corepack; do
+    # Model launchers that require the sibling node executable to be on PATH.
+    # shellcheck disable=SC2016
+    printf '#!/usr/bin/env bash\n[[ "$(command -v node)" == "%s/node" ]]\n' "$fake_runtime_dir" > "$fake_runtime_dir/$tool"
     chmod +x "$fake_runtime_dir/$tool"
 done
 
@@ -66,6 +72,8 @@ os_init_prepare_owned_user_path() { :; }
 os_init_mark_user_ownership() { :; }
 
 install_mise_runtime go
+
+verify_mise_runtime node 24
 
 [[ "$attempt" -eq 2 ]] || fail "expected one mirror attempt and one official retry, got $attempt"
 [[ "${mirror_calls[0]}" == "https://invalid.example/node/|https://invalid.example/go" ]] || \

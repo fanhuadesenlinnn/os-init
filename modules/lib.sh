@@ -76,6 +76,10 @@ update()  { log_line "$CYAN" "更新" "Update" "$1"; }
 remove()  { log_line "$RED" "删除" "Remove" "$1"; }
 warn()    { log_line "$YELLOW" "警告" "Warning" "$1"; }
 die()     { log_line "$RED" "错误" "Error" "$1" >&2; exit 1; }
+need_cmd() { command -v "$1" >/dev/null 2>&1; }
+require_cmd() {
+    need_cmd "$1" || die "$(os_init_text "缺少命令：$1" "missing command: $1")"
+}
 
 sudo() {
     # Root is the target user in root mode. Execute privileged commands
