@@ -292,8 +292,11 @@ verify_mise_runtime() {
         node)
             "$tool_path" --version | grep -Eq "^v${version}(\\.|$)" || die "mise Node.js 版本验证失败"
             bin_dir="$(dirname "$tool_path")"
-            "$bin_dir/npm" --version >/dev/null
-            "$bin_dir/corepack" --version >/dev/null
+            # npm and corepack resolve node through /usr/bin/env. The current
+            # non-interactive installer shell has not activated mise yet, so
+            # make the freshly installed runtime visible while validating it.
+            env PATH="$bin_dir:$PATH" "$bin_dir/npm" --version >/dev/null
+            env PATH="$bin_dir:$PATH" "$bin_dir/corepack" --version >/dev/null
             ;;
     esac
 }
