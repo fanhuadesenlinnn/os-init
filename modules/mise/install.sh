@@ -36,7 +36,12 @@ mise_exec() {
         die "mise 尚未安装，请先安装 mise core"
     fi
     run_with_github_git_proxy env \
+        -u MISE_CONFIG_FILE -u MISE_CONFIG_DIR -u MISE_TRUSTED_CONFIG_PATHS \
         -u MISE_NODE_VERSION -u MISE_PYTHON_VERSION -u MISE_GO_VERSION \
+        HOME="$home" \
+        XDG_CONFIG_HOME="$home/.config" \
+        MISE_GLOBAL_CONFIG_FILE="$mise_config" \
+        MISE_DATA_DIR="$mise_data" \
         "$binary" "$@"
 }
 

@@ -55,11 +55,14 @@ test_macos_pkg_remove_does_not_install_homebrew() (
 test_legacy_user_path_adoption_is_explicit() (
 	local target="$TEST_HOME/legacy-tmux.conf"
 	local state_dir="$TEST_HOME/legacy-state"
+	local normalized_target
 	OS_INIT_USER_STATE_DIR="$state_dir"
 	printf '# OS Init Arch generated tmux config\n' > "$target"
 
 	os_init_adopt_created_user_path tmux-config "$target"
-	[[ "$(cat "$state_dir/ownership/user-path-tmux-config")" == "created" ]] || fail "legacy path was not adopted as OS Init-created"
+	normalized_target="$(os_init_normalize_absolute_path "$target")"
+	grep -Fqx 'state=created' "$state_dir/ownership/user-path-tmux-config" || fail "legacy path was not adopted as OS Init-created"
+	grep -Fqx "target=$normalized_target" "$state_dir/ownership/user-path-tmux-config" || fail "adopted marker did not bind its target"
 	[[ ! -e "$state_dir/backups/tmux-config" ]] || fail "adopted legacy path must not be backed up as user content"
 )
 
@@ -236,15 +239,123 @@ test_unknown_owned_path_is_preserved() (
     [[ "$(cat "$target")" == "user-data" ]] || fail "unknown path was modified"
 )
 
-test_verified_download_accepts_unchecked_proxy() (
+test_owned_path_rejects_target_rebinding() (
+    local state_dir="$TEST_HOME/rebind-state"
+    local original="$TEST_HOME/rebind-original"
+    local rebound="$TEST_HOME/rebind-target"
+    OS_INIT_SYSTEM_STATE_DIR="$state_dir"
+    sudo() { command "$@"; }
+
+    printf 'managed\n' > "$original"
+    printf 'must-survive\n' > "$rebound"
+    os_init_prepare_owned_path same-key "$original"
+    if os_init_restore_owned_path same-key "$rebound" >/dev/null 2>&1; then
+        fail "ownership marker should not authorize a rebound target"
+    fi
+    [[ "$(cat "$rebound")" == "must-survive" ]] || fail "rebound target was modified"
+)
+
+test_owned_path_rejects_legacy_unbound_marker() (
+    local state_dir="$TEST_HOME/legacy-marker-state"
+    local target="$TEST_HOME/legacy-marker-target"
+    OS_INIT_SYSTEM_STATE_DIR="$state_dir"
+    sudo() { command "$@"; }
+
+    mkdir -p "$state_dir/ownership"
+    printf 'created\n' > "$state_dir/ownership/legacy-key"
+    printf 'must-survive\n' > "$target"
+    if os_init_restore_owned_path legacy-key "$target" >/dev/null 2>&1; then
+        fail "legacy unbound marker should not authorize deletion"
+    fi
+    [[ "$(cat "$target")" == "must-survive" ]] || fail "legacy marker modified its target"
+)
+
+test_safe_remove_tree_enforces_scope() (
+    local allowed="$TEST_HOME/safe-remove" target="$TEST_HOME/safe-remove/child" outside="$TEST_HOME/outside-remove"
+    sudo() { command "$@"; }
+    findmnt() { printf '/\n'; }
+    mkdir -p "$target" "$outside"
+    printf 'inside\n' > "$target/data"
+    printf 'outside\n' > "$outside/data"
+
+    os_init_safe_remove_tree "$target" "$allowed" test-target
+    [[ ! -e "$target" ]] || fail "safe in-scope tree was not removed"
+    if os_init_safe_remove_tree "$outside" "$allowed" test-target >/dev/null 2>&1; then
+        fail "out-of-scope recursive target should be rejected"
+    fi
+    [[ "$(cat "$outside/data")" == "outside" ]] || fail "out-of-scope data was modified"
+)
+
+test_safe_remove_tree_rejects_mount_boundaries() (
+    local allowed="$TEST_HOME/safe-remove-mounts" target="$TEST_HOME/safe-remove-mounts/child"
+    local nested="$TEST_HOME/safe-remove-mounts/child/cache" canonical_target canonical_nested
+    sudo() { command "$@"; }
+    mkdir -p "$target"
+    printf 'must-survive\n' > "$target/data"
+    canonical_target="$(os_init_normalize_absolute_path "$target")"
+    canonical_nested="$(os_init_normalize_absolute_path "$nested")"
+
+    findmnt() { printf '/\n%s\n' "$canonical_target"; }
+    if (os_init_safe_remove_tree "$target" "$allowed" exact-mount >/dev/null 2>&1); then
+        fail "recursive removal accepted an exact mountpoint"
+    fi
+    [[ "$(cat "$target/data")" == "must-survive" ]] || fail "exact mountpoint data was modified"
+
+    findmnt() { printf '/\n%s\n' "$canonical_nested"; }
+    if (os_init_safe_remove_tree "$target" "$allowed" nested-mount >/dev/null 2>&1); then
+        fail "recursive removal accepted a directory containing a nested mount"
+    fi
+    [[ "$(cat "$target/data")" == "must-survive" ]] || fail "nested mount parent data was modified"
+
+    findmnt() { return 1; }
+    if (os_init_safe_remove_tree "$target" "$allowed" unreadable-mount-table >/dev/null 2>&1); then
+        fail "recursive removal proceeded when the mount table was unavailable"
+    fi
+    [[ "$(cat "$target/data")" == "must-survive" ]] || fail "mount-query failure modified data"
+)
+
+test_systemd_service_name_rejects_paths_and_options() (
+    os_init_validate_systemd_service_name mihomo.service
+    for unsafe in '../host.service' '--all.service' $'mihomo.service\nExecStart=/bin/true'; do
+        if (os_init_validate_systemd_service_name "$unsafe" >/dev/null 2>&1); then
+            fail "unsafe systemd service name was accepted: $unsafe"
+        fi
+    done
+)
+
+test_container_home_mount_is_rejected() (
+    is_container() { return 0; }
+    real_home() { printf '/home/alice\n'; }
+    findmnt() { printf '/home\n'; }
+    unset OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER
+    if (os_init_assert_safe_user_home >/dev/null 2>&1); then
+        fail "container HOME on a separate mount should be rejected"
+    fi
+    OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER=1 os_init_assert_safe_user_home
+)
+
+test_provider_rejects_shared_container_home() (
+    local provider_findmnt="$TEST_BIN/findmnt" output
+    printf '#!/usr/bin/env sh\nprintf "/home\\n"\n' > "$provider_findmnt"
+    chmod +x "$provider_findmnt"
+    if output="$(HOME=/home/alice OS_INIT_TARGET_ENVIRONMENT=container OS_INIT_PROVIDER_PROTOCOL_REQUEST=1 \
+        bash "$REPO_DIR/provider.sh" execute --script lib.sh 2>&1)"; then
+        fail "provider accepted a separately mounted container HOME"
+    fi
+    [[ "$output" == *'container HOME is on a separate mount'* ]] || fail "provider did not explain the HOME boundary rejection"
+)
+
+test_executable_download_rejects_missing_digest() (
     local source_file="$TEST_HOME/download-source"
     local target="$TEST_HOME/download-target"
     printf 'payload\n' > "$source_file"
     GITHUB_PROXY="https://proxy.invalid/"
     download_file() { cp "$source_file" "$2"; }
 
-    download_file_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" ""
-    cmp -s "$source_file" "$target" || fail "unchecked proxied payload was not preserved"
+    if (download_executable_verified "https://github.com/example/tool/releases/download/v1/tool" "$target" "" >/dev/null 2>&1); then
+        fail "network executable without a digest should be rejected"
+    fi
+    [[ ! -e "$target" ]] || fail "rejected executable download should not create a target"
 )
 
 test_verified_download_accepts_expected_digest() (
@@ -405,7 +516,14 @@ test_arch_pacman_retries_and_prioritizes_arm_mirrors
 test_arch_helper_bootstrap_installs_only_paru
 test_owned_path_restores_preexisting_content
 test_unknown_owned_path_is_preserved
-test_verified_download_accepts_unchecked_proxy
+test_owned_path_rejects_target_rebinding
+test_owned_path_rejects_legacy_unbound_marker
+test_safe_remove_tree_enforces_scope
+test_safe_remove_tree_rejects_mount_boundaries
+test_systemd_service_name_rejects_paths_and_options
+test_container_home_mount_is_rejected
+test_provider_rejects_shared_container_home
+test_executable_download_rejects_missing_digest
 test_verified_download_accepts_expected_digest
 test_verified_download_rejects_wrong_digest
 test_github_proxy_formats_and_git_environment

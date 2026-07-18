@@ -3,6 +3,12 @@ set -euo pipefail
 
 # OS-INIT -- runtime network queue and MSS tuning.
 
+if { [[ -e /.dockerenv || -e /run/.containerenv ]] || grep -Eqi '(docker|containerd|kubepods|libpod|podman|lxc)' /proc/1/cgroup 2>/dev/null; } && \
+   [[ "${OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER:-0}" != "1" ]]; then
+    echo "Error: refusing network tuning inside a generic container" >&2
+    exit 1
+fi
+
 if [[ "$EUID" -ne 0 ]]; then
     echo "Error: must be run as root" >&2
     exit 1

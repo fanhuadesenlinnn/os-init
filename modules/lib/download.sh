@@ -116,6 +116,14 @@ download_file_verified() {
 	fi
 }
 
+# Executables must never use the optional-checksum behavior above. Callers may
+# use a local file source, but network-delivered code must provide a digest.
+download_executable_verified() {
+	local url="$1" dest="$2" expected="${3:-}"
+	[[ -n "$expected" ]] || die "拒绝下载未提供 SHA-256 的可执行文件: $url"
+	download_file_verified "$url" "$dest" "$expected"
+}
+
 # Reliable update for shallow git clones (git pull often fails with divergent branches)
 git_update_shallow() {
 	local dir="$1" official_remote="${2:-}"

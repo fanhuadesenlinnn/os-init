@@ -21,9 +21,10 @@ const (
 )
 
 const (
-	EnvironmentNative   Environment = "native"
-	EnvironmentWSL      Environment = "wsl"
-	EnvironmentOrbStack Environment = "orbstack"
+	EnvironmentNative    Environment = "native"
+	EnvironmentContainer Environment = "container"
+	EnvironmentWSL       Environment = "wsl"
+	EnvironmentOrbStack  Environment = "orbstack"
 )
 
 type Target struct {
@@ -50,6 +51,21 @@ func DetectFrom(goos, osReleasePath string) Target {
 // DetectFromPaths exposes the environment probes for deterministic platform
 // tests while keeping distribution classification based on os-release.
 func DetectFromPaths(goos, osReleasePath, kernelReleasePath, wslgPath string) Target {
+	return DetectFromPathsWithContainerContext(
+		goos,
+		osReleasePath,
+		kernelReleasePath,
+		wslgPath,
+		"/proc/1/cgroup",
+		"/.dockerenv",
+		"/run/.containerenv",
+	)
+}
+
+// DetectFromPathsWithContainerContext exposes the container probes for
+// deterministic tests. WSL and OrbStack signatures take precedence over
+// generic container markers because they have dedicated capability policies.
+func DetectFromPathsWithContainerContext(goos, osReleasePath, kernelReleasePath, wslgPath, cgroupPath string, containerMarkerPaths ...string) Target {
 	target := Target{
 		GOOS:        goos,
 		Family:      FamilyUnknown,
@@ -64,7 +80,7 @@ func DetectFromPaths(goos, osReleasePath, kernelReleasePath, wslgPath string) Ta
 	if goos != "linux" {
 		return target
 	}
-	target.Environment, target.WSLVersion = detectLinuxEnvironment(kernelReleasePath)
+	target.Environment, target.WSLVersion = detectLinuxEnvironment(kernelReleasePath, cgroupPath, containerMarkerPaths...)
 	if target.Environment == EnvironmentWSL {
 		if info, err := os.Stat(wslgPath); err == nil && info.IsDir() {
 			target.WSLg = true
@@ -90,22 +106,38 @@ func DetectFromPaths(goos, osReleasePath, kernelReleasePath, wslgPath string) Ta
 	return target
 }
 
-func detectLinuxEnvironment(kernelReleasePath string) (Environment, int) {
+func detectLinuxEnvironment(kernelReleasePath, cgroupPath string, containerMarkerPaths ...string) (Environment, int) {
 	data, err := os.ReadFile(kernelReleasePath)
-	if err != nil {
-		return EnvironmentNative, 0
+	release := ""
+	if err == nil {
+		release = strings.ToLower(string(data))
 	}
-	release := strings.ToLower(string(data))
 	if strings.Contains(release, "orbstack") {
 		return EnvironmentOrbStack, 0
-	}
-	if !strings.Contains(release, "microsoft") && !strings.Contains(release, "wsl") {
-		return EnvironmentNative, 0
 	}
 	if strings.Contains(release, "wsl2") || strings.Contains(release, "microsoft-standard") {
 		return EnvironmentWSL, 2
 	}
-	return EnvironmentWSL, 1
+	if strings.Contains(release, "microsoft") || strings.Contains(release, "wsl") {
+		return EnvironmentWSL, 1
+	}
+	for _, markerPath := range containerMarkerPaths {
+		if markerPath == "" {
+			continue
+		}
+		if _, statErr := os.Stat(markerPath); statErr == nil {
+			return EnvironmentContainer, 0
+		}
+	}
+	if cgroupData, readErr := os.ReadFile(cgroupPath); readErr == nil {
+		cgroup := strings.ToLower(string(cgroupData))
+		for _, signature := range []string{"docker", "containerd", "kubepods", "libpod", "podman", "lxc"} {
+			if strings.Contains(cgroup, signature) {
+				return EnvironmentContainer, 0
+			}
+		}
+	}
+	return EnvironmentNative, 0
 }
 
 func ParseOSRelease(r io.Reader) (map[string]string, error) {

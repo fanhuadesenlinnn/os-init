@@ -222,13 +222,19 @@ detect_init() {
 
 detect_linux_environment() {
 	if [[ -n "${OS_INIT_TARGET_ENVIRONMENT:-}" ]]; then
-		echo "${OS_INIT_TARGET_ENVIRONMENT}"
-		return
+		case "${OS_INIT_TARGET_ENVIRONMENT}" in
+			wsl|orbstack|container)
+				echo "${OS_INIT_TARGET_ENVIRONMENT}"
+				return
+				;;
+		esac
 	fi
 	if [[ "$OS" == "linux" ]] && grep -qi 'orbstack' /proc/sys/kernel/osrelease 2>/dev/null; then
 		echo "orbstack"
 	elif [[ "$OS" == "linux" ]] && grep -Eqi '(microsoft|wsl)' /proc/sys/kernel/osrelease 2>/dev/null; then
 		echo "wsl"
+	elif [[ "$OS" == "linux" ]] && { [[ -e /.dockerenv || -e /run/.containerenv ]] || grep -Eqi '(docker|containerd|kubepods|libpod|podman|lxc)' /proc/1/cgroup 2>/dev/null; }; then
+		echo "container"
 	else
 		echo "native"
 	fi
@@ -236,6 +242,17 @@ detect_linux_environment() {
 
 is_orbstack() {
 	[[ "${LINUX_ENVIRONMENT:-$(detect_linux_environment)}" == "orbstack" ]]
+}
+
+is_container() {
+	[[ "${LINUX_ENVIRONMENT:-$(detect_linux_environment)}" == "container" ]]
+}
+
+require_host_safe_linux_target() {
+	require_linux
+	if is_container && [[ "${OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER:-0}" != "1" ]]; then
+		die "检测到通用容器环境；为避免修改宿主挂载、systemd、网络或内核设施，已拒绝系统级操作。如已核对隔离边界，请显式设置 OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER=1"
+	fi
 }
 
 detect_wsl_version() {
@@ -429,8 +446,8 @@ require_macos() {
     is_macos || die "该模块只支持 macOS"
 }
 require_systemd() {
-    require_linux
-    is_systemd || die "该模块需要 systemd，当前 init=${INIT_SYSTEM}"
+	require_host_safe_linux_target
+	is_systemd || die "该模块需要 systemd，当前 init=${INIT_SYSTEM}"
 }
 require_wsl() {
     require_linux

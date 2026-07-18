@@ -23,6 +23,10 @@
 - Homebrew 命令统一读取 `HOMEBREW_API_DOMAIN`、`HOMEBREW_BOTTLE_DOMAIN`、`HOMEBREW_BREW_GIT_REMOTE`、`HOMEBREW_CORE_GIT_REMOTE`、`HOMEBREW_PIP_INDEX_URL` 等环境变量。os-init 不会执行 `sudo brew`。
 - 系统资源所有权和首次接管前的备份记录在 `/var/lib/os-init`，用户资源记录在 `~/.local/state/os-init`；没有所有权记录的路径和软件包在卸载时默认保留。
 - 经 `GITHUB_PROXY` 下载的可执行内容要求对应的 SHA-256；无法校验的 Git 代理克隆默认拒绝。
+- Docker、Podman、LXC 等通用容器默认不开放 systemd、内核、网络、Docker 或 Arch 系统级模块；只有在人工核对宿主挂载、socket、网络命名空间和 capabilities 后，才可通过 `OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER=1` 显式放行脚本侧检查。
+- 容器中的用户文件操作会拒绝独立挂载的 `HOME`，防止把宿主用户目录当成 guest-local HOME；上述显式放行开关同时表示操作者接受该共享目录边界。
+- Docker、Mihomo 等递归清理在执行前必须确认目标位于模块允许根目录，且目标本身及其子树不包含挂载点；`findmnt` 缺失、失败或返回空挂载表时一律拒绝删除。
+- 所有权标记记录首次接管的规范化目标；旧版无目标标记需要人工核对和清理，卸载不会自动使用它删除文件。
 
 ## 系统优化
 

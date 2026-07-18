@@ -196,6 +196,44 @@ func TestDetectFromPaths_DetectsOrbStack(t *testing.T) {
 	}
 }
 
+func TestDetectFromPathsWithContainerContext_DetectsMarkersAndCgroups(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	osRelease := dir + "/os-release"
+	kernelRelease := dir + "/kernel-release"
+	cgroup := dir + "/cgroup"
+	marker := dir + "/.dockerenv"
+	if err := os.WriteFile(osRelease, []byte("ID=debian\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kernelRelease, []byte("6.12.0-linux\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cgroup, []byte("0::/user.slice\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(marker, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := platform.DetectFromPathsWithContainerContext("linux", osRelease, kernelRelease, dir+"/missing-wslg", cgroup, marker)
+	if target.Environment != platform.EnvironmentContainer {
+		t.Fatalf("environment = %q, want container", target.Environment)
+	}
+
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cgroup, []byte("0::/docker/abcdef\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	target = platform.DetectFromPathsWithContainerContext("linux", osRelease, kernelRelease, dir+"/missing-wslg", cgroup, marker)
+	if target.Environment != platform.EnvironmentContainer {
+		t.Fatalf("cgroup environment = %q, want container", target.Environment)
+	}
+}
+
 func TestParseOSRelease_QuotedValuesAndIDLike(t *testing.T) {
 	t.Parallel()
 

@@ -27,6 +27,49 @@ is_orbstack_environment() {
   grep -qi 'orbstack' /proc/sys/kernel/osrelease 2>/dev/null
 }
 
+is_container_environment() {
+  [[ "${OS_INIT_TARGET_ENVIRONMENT:-}" == "container" ]] && return 0
+  [[ -e /.dockerenv || -e /run/.containerenv ]] && return 0
+  grep -Eqi '(docker|containerd|kubepods|libpod|podman|lxc)' /proc/1/cgroup 2>/dev/null
+}
+
+require_host_safe_arch_target() {
+  if is_container_environment && [[ "${OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER:-0}" != "1" ]]; then
+    die "检测到通用容器环境；已拒绝 Arch 系统操作，以免修改宿主挂载或宿主 systemd。核对边界后可显式设置 OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER=1"
+  fi
+}
+
+arch_normalize_absolute_path() {
+  local input="$1" component index
+  local -a parts=() normalized=()
+  [[ -n "$input" && "$input" == /* && "$input" != *$'\n'* && "$input" != *$'\r'* ]] || die "路径必须是不含换行的绝对路径: $input"
+  IFS='/' read -r -a parts <<< "$input"
+  for component in "${parts[@]}"; do
+    case "$component" in
+      ''|.) ;;
+      ..)
+        ((${#normalized[@]} > 0)) || die "路径不能越过根目录: $input"
+        index=$((${#normalized[@]} - 1)); unset 'normalized[index]'
+        ;;
+      *) normalized+=("$component") ;;
+    esac
+  done
+  ((${#normalized[@]} > 0)) || { printf '/\n'; return; }
+  printf '/%s' "${normalized[0]}"
+  for ((index = 1; index < ${#normalized[@]}; index++)); do printf '/%s' "${normalized[index]}"; done
+  printf '\n'
+}
+
+arch_require_path_within() {
+  local target="$1" allowed_root="$2" label="$3" normalized_target normalized_root
+  normalized_target="$(arch_normalize_absolute_path "$target")" || return 1
+  normalized_root="$(arch_normalize_absolute_path "$allowed_root")" || return 1
+  case "$normalized_target" in
+    "$normalized_root"|"$normalized_root"/*) printf '%s\n' "$normalized_target" ;;
+    *) die "$label 必须位于 $normalized_root 内: $target" ;;
+  esac
+}
+
 bool_text() {
   case "${1:-0}" in
     1|true|yes|on) printf "启用" ;;

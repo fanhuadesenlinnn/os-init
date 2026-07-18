@@ -26,8 +26,9 @@ func archLinuxModule(id, component, label, description string, kind ModuleKind, 
 		m.Verify = FileContains("/etc/pacman.conf", "[archlinuxcn]")
 	case "ops-toolkit":
 		m.Phase, m.Order = PhaseApplication, 10
-		m.AffectedPaths = []string{"$HOME/.local/share/ops-toolkit", "$HOME/.local/bin/ops 和脚本命令"}
+		m.AffectedPaths = []string{"$HOME/.local/share/ops-toolkit", "$HOME/.local/bin/ops 和脚本命令", "$HOME/.profile|.zprofile|.bashrc|.zshrc"}
 		m.DependsOn = []string{"git"}
+		m.Verify = All(Path("$HOME/.local/bin/ops"), FileContains("$HOME/.zshrc", `export PATH="$HOME/.local/bin:$PATH"`))
 	case "fonts":
 		m.Phase, m.Order = PhaseApplication, 30
 		m.AffectedPaths = []string{"pacman/archlinuxcn 字体包", "$HOME/.config/fontconfig/fonts.conf", "$HOME/.config/gtk-{3,4}.0/settings.ini"}
