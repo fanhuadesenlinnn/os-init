@@ -31,10 +31,12 @@ mkdir -p "$fake_mise_bin"
 cat > "$fake_mise_bin/mise" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' \
+    "PWD=$(pwd -P)" \
     "HOME=$HOME" \
     "XDG_CONFIG_HOME=$XDG_CONFIG_HOME" \
     "MISE_GLOBAL_CONFIG_FILE=$MISE_GLOBAL_CONFIG_FILE" \
     "MISE_DATA_DIR=$MISE_DATA_DIR" \
+    "MISE_CEILING_PATHS=${MISE_CEILING_PATHS-unset}" \
     "MISE_CONFIG_FILE=${MISE_CONFIG_FILE-unset}" \
     "MISE_CONFIG_DIR=${MISE_CONFIG_DIR-unset}" \
     "MISE_TRUSTED_CONFIG_PATHS=${MISE_TRUSTED_CONFIG_PATHS-unset}" \
@@ -46,15 +48,19 @@ chmod +x "$fake_mise_bin/mise"
     export MISE_ENV_CAPTURE="$mise_env_capture"
     export MISE_CONFIG_FILE=/mnt/mac/Users/alice/.config/mise/config.toml
     export MISE_CONFIG_DIR=/mnt/mac/Users/alice/.config/mise
+    export MISE_CEILING_PATHS=/mnt/mac/Users/alice
     export MISE_TRUSTED_CONFIG_PATHS=/mnt/mac/Users/alice
     run_with_github_git_proxy() { "$@"; }
     mise_exec settings
 )
+home_physical="$(cd "$home" && pwd -P)"
+grep -Fxq "PWD=$home_physical" "$mise_env_capture" || fail "mise did not run from the target HOME"
 grep -Fxq "HOME=$home" "$mise_env_capture" || fail "mise did not receive the target HOME"
 grep -Fxq "XDG_CONFIG_HOME=$home/.config" "$mise_env_capture" || fail "mise did not receive the target XDG config home"
 grep -Fxq "MISE_CONFIG_DIR=$mise_config_dir" "$mise_env_capture" || fail "mise config directory was not isolated"
 grep -Fxq "MISE_GLOBAL_CONFIG_FILE=$mise_config" "$mise_env_capture" || fail "mise global config was not isolated"
 grep -Fxq "MISE_DATA_DIR=$mise_data" "$mise_env_capture" || fail "mise data directory was not isolated"
+grep -Fxq "MISE_CEILING_PATHS=$home" "$mise_env_capture" || fail "mise config discovery was not capped at the target HOME"
 grep -Fxq 'MISE_CONFIG_FILE=unset' "$mise_env_capture" || fail "inherited mise config file leaked into the installer"
 grep -Fxq 'MISE_TRUSTED_CONFIG_PATHS=unset' "$mise_env_capture" || fail "inherited mise trust paths leaked into the installer"
 if grep -Fq '/mnt/mac/Users/alice' "$mise_env_capture"; then

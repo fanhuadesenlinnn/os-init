@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.7 - 2026-07-18
+
+### 修复
+
+- 固定 mise 子命令在 Linux 目标 HOME 中运行并限制配置向上扫描，避免从 OrbStack 宿主机挂载目录启动时误读 macOS 的 `.config/mise/config.toml`。
+
 ## v1.3.6 - 2026-07-18
 
 ### 修复
