@@ -1,5 +1,11 @@
 # Changelog
 
+## 未发布
+
+### 修复
+
+- 显式设置 mise 的 Linux 目标配置目录，避免 OrbStack 中 mise 仍通过用户数据库扫描 `/mnt/mac/Users/.../.config/mise`。
+
 ## v1.3.5 - 2026-07-18
 
 ### 修复

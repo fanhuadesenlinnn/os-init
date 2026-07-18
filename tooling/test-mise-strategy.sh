@@ -20,7 +20,8 @@ fail() {
 
 home="$TEST_HOME"
 env_file="$home/.config/os-init/mise-china.env"
-mise_config="$home/.config/mise/config.toml"
+mise_config_dir="$home/.config/mise"
+mise_config="$mise_config_dir/config.toml"
 mise_data="$home/.local/share/mise"
 mkdir -p "$(dirname "$mise_config")"
 
@@ -51,11 +52,14 @@ chmod +x "$fake_mise_bin/mise"
 )
 grep -Fxq "HOME=$home" "$mise_env_capture" || fail "mise did not receive the target HOME"
 grep -Fxq "XDG_CONFIG_HOME=$home/.config" "$mise_env_capture" || fail "mise did not receive the target XDG config home"
+grep -Fxq "MISE_CONFIG_DIR=$mise_config_dir" "$mise_env_capture" || fail "mise config directory was not isolated"
 grep -Fxq "MISE_GLOBAL_CONFIG_FILE=$mise_config" "$mise_env_capture" || fail "mise global config was not isolated"
 grep -Fxq "MISE_DATA_DIR=$mise_data" "$mise_env_capture" || fail "mise data directory was not isolated"
 grep -Fxq 'MISE_CONFIG_FILE=unset' "$mise_env_capture" || fail "inherited mise config file leaked into the installer"
-grep -Fxq 'MISE_CONFIG_DIR=unset' "$mise_env_capture" || fail "inherited mise config directory leaked into the installer"
 grep -Fxq 'MISE_TRUSTED_CONFIG_PATHS=unset' "$mise_env_capture" || fail "inherited mise trust paths leaked into the installer"
+if grep -Fq '/mnt/mac/Users/alice' "$mise_env_capture"; then
+    fail "host-mounted mise config path leaked into the isolated invocation"
+fi
 
 OS_INIT_MISE_NODE_VERSION=24
 OS_INIT_MISE_PYTHON_VERSION=3.13
