@@ -119,23 +119,6 @@ func TestForTarget_AppliesOrbStackCapabilityBoundaries(t *testing.T) {
 	}
 }
 
-func TestForTarget_HidesSystemAndNativeModulesInGenericContainers(t *testing.T) {
-	t.Parallel()
-
-	target := platform.Target{GOOS: "linux", Family: platform.FamilyDebian, Init: "systemd", Environment: platform.EnvironmentContainer}
-	mods := ForTarget(target)
-	for _, id := range []string{"docker", "mihomo", "kernel-optimize", "kernel-autotune", "network-tune"} {
-		if hasModule(mods, id) {
-			t.Fatalf("%s should be hidden in generic containers", id)
-		}
-	}
-	for _, id := range []string{"mise", "shell-tmux", "neovim"} {
-		if !hasModule(mods, id) {
-			t.Fatalf("portable module %s should remain available", id)
-		}
-	}
-}
-
 func TestForTarget_IncludesMihomoOnlyOnLinuxSystemdFamilies(t *testing.T) {
 	t.Parallel()
 

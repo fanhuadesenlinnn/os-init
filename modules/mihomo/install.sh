@@ -16,15 +16,6 @@ MIHOMO_CONFIG_DIR="${MIHOMO_CONFIG_DIR:-$(dirname "$MIHOMO_CONFIG_FILE")}"
 MIHOMO_STATE_DIR="${MIHOMO_STATE_DIR:-/var/lib/mihomo}"
 MIHOMO_SERVICE_NAME="${MIHOMO_SERVICE_NAME:-mihomo.service}"
 
-validate_mihomo_system_targets() {
-    os_init_validate_systemd_service_name "$MIHOMO_SERVICE_NAME"
-    MIHOMO_CONFIG_DIR="$(os_init_require_path_within "$MIHOMO_CONFIG_DIR" /etc/mihomo "MIHOMO_CONFIG_DIR")"
-    MIHOMO_CONFIG_FILE="$(os_init_require_path_within "$MIHOMO_CONFIG_FILE" "$MIHOMO_CONFIG_DIR" "MIHOMO_CONFIG_FILE")"
-    MIHOMO_STATE_DIR="$(os_init_require_path_within "$MIHOMO_STATE_DIR" /var/lib/mihomo "MIHOMO_STATE_DIR")"
-}
-
-validate_mihomo_system_targets
-
 TITLE="安装"
 [[ "$UNINSTALL" == true ]] && TITLE="卸载"
 echo "=== Mihomo 代理 ($TITLE) ==="
@@ -92,7 +83,15 @@ mihomo_download_url() {
 
 mihomo_safe_external_ui_dir() {
     local requested="${MIHOMO_EXTERNAL_UI_DIR:-${MIHOMO_STATE_DIR}/ui}"
-    os_init_require_path_within "$requested" "$MIHOMO_STATE_DIR" "MIHOMO_EXTERNAL_UI_DIR"
+    case "$requested" in
+        "$MIHOMO_STATE_DIR"|"$MIHOMO_STATE_DIR"/*)
+            echo "$requested"
+            ;;
+        *)
+            warn "MetaCubeXD UI 目录必须位于 ${MIHOMO_STATE_DIR} 内，已改为 ${MIHOMO_STATE_DIR}/ui"
+            echo "${MIHOMO_STATE_DIR}/ui"
+            ;;
+    esac
 }
 
 validate_mihomo_network_scope() {
@@ -141,7 +140,7 @@ install_mihomo_binary() {
     install "获取 Mihomo 核心: $file_name"
     case "$url" in
         http://*|https://*)
-			download_executable_verified "$url" "$gz" "${MIHOMO_DOWNLOAD_SHA256:-}"
+			download_file_verified "$url" "$gz" "${MIHOMO_DOWNLOAD_SHA256:-}"
             ;;
         *)
             [[ -f "$url" ]] || die "Mihomo 二进制来源不存在: $url"
@@ -370,8 +369,7 @@ uninstall_mihomo() {
 
     if [[ "${PURGE_DATA:-0}" == "1" ]]; then
         remove "清理 Mihomo 配置和状态目录"
-        os_init_safe_remove_tree "$MIHOMO_CONFIG_DIR" /etc/mihomo "Mihomo 配置目录"
-        os_init_safe_remove_tree "$MIHOMO_STATE_DIR" /var/lib/mihomo "Mihomo 状态目录"
+        sudo rm -rf "$MIHOMO_CONFIG_DIR" "$MIHOMO_STATE_DIR"
     else
         skip "保留 Mihomo 配置和状态目录，如需清理请设置 PURGE_DATA=1"
     fi

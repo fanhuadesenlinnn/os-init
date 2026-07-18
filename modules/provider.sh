@@ -58,27 +58,6 @@ emit_event() {
   printf '@@OS_INIT_EVENT@@%s\n' "$1"
 }
 
-provider_container_detected() {
-  [[ "${OS_INIT_TARGET_ENVIRONMENT:-}" == "container" ]] && return 0
-  [[ -e /.dockerenv || -e /run/.containerenv ]] && return 0
-  grep -Eqi '(docker|containerd|kubepods|libpod|podman|lxc)' /proc/1/cgroup 2>/dev/null
-}
-
-provider_reject_shared_container_home() {
-  local mounted_target
-  provider_container_detected || return 0
-  [[ "${OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER:-0}" != "1" ]] || return 0
-  [[ "${HOME:-}" == /* ]] || die "container target HOME must be absolute"
-  command -v findmnt >/dev/null 2>&1 || die "cannot verify container HOME mount boundary; set OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER=1 only after reviewing host mounts"
-  mounted_target="$(findmnt -n -o TARGET -T "$HOME" 2>/dev/null | tail -n 1)"
-  [[ -n "$mounted_target" ]] || die "cannot resolve container HOME mount boundary: $HOME"
-  mounted_target="${mounted_target%/}"
-  [[ -n "$mounted_target" ]] || mounted_target="/"
-  if [[ "$mounted_target" != "/" && ("$HOME" == "$mounted_target" || "$HOME" == "$mounted_target"/*) ]]; then
-    die "refusing provider write because container HOME is on a separate mount: $mounted_target"
-  fi
-}
-
 args=()
 if [[ ${#components[@]} -gt 0 ]]; then
   args+=("${components[@]}")
@@ -91,7 +70,6 @@ case "${operation}" in
 esac
 
 emit_event "{\"protocol\":2,\"type\":\"started\"}"
-provider_reject_shared_container_home
 set +e
 if [[ ${#args[@]} -gt 0 ]]; then
   bash "${script_path}" "${args[@]}"

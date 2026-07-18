@@ -183,10 +183,6 @@ install_ops_toolkit_script_commands() {
       log_warn "跳过非法脚本命令名：${script_name}"
       continue
     fi
-    if ops_toolkit_sensitive_command_name "${script_name}"; then
-      log_warn "跳过会遮蔽安全敏感命令的脚本：${script_name}"
-      continue
-    fi
     script_name_literal="$(shell_literal "${script_name}")"
     wrapper="${OPS_TOOLKIT_BIN_DIR}/${script_name}"
     log_info "写入 Ops Toolkit 脚本命令：${wrapper}"
@@ -200,13 +196,6 @@ EOF
   if [[ "${count}" -eq 0 ]]; then
     log_warn "未发现 Ops Toolkit .sh 脚本；仓库更新后可使用 ${OPS_TOOLKIT_COMMAND} list 查看"
   fi
-}
-
-ops_toolkit_sensitive_command_name() {
-  case "$1" in
-    sudo|su|doas|ssh|scp|sftp|git|bash|sh|zsh|fish|pacman|paru|yay|systemctl|journalctl) return 0 ;;
-    *) return 1 ;;
-  esac
 }
 
 install_ops_toolkit_shell_path() {

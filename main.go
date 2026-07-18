@@ -19,7 +19,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "1.3.4"
+	version = "1.3.5"
 	commit  = "none"
 )
 

@@ -353,15 +353,14 @@ uninstall_docker() {
 
     if [[ "${PURGE_DATA:-0}" == "1" ]]; then
         warn "PURGE_DATA=1，将删除 Docker 数据目录"
-		os_init_safe_remove_tree /var/lib/docker /var/lib/docker "Docker 数据目录"
-		os_init_safe_remove_tree /var/lib/containerd /var/lib/containerd "containerd 数据目录"
+        sudo rm -rf /var/lib/docker /var/lib/containerd
     else
         skip "保留 /var/lib/docker 和 /var/lib/containerd；如需清理请设置 PURGE_DATA=1"
     fi
 
     if [[ "${PURGE_CONFIG:-0}" == "1" ]]; then
         remove "删除 Docker 配置"
-		os_init_safe_remove_tree /etc/docker /etc/docker "Docker 配置目录"
+        sudo rm -rf /etc/docker
     else
         skip "保留 /etc/docker；如需清理请设置 PURGE_CONFIG=1"
     fi

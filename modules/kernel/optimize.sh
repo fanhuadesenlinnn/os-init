@@ -37,7 +37,6 @@ validate_components() {
     done
 }
 validate_components
-require_host_safe_linux_target
 
 want() {
     local c

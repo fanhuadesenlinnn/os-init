@@ -68,8 +68,15 @@ mihomo_safe_external_ui_dir() {
   state_dir="$(mihomo_state_dir)"
   requested="${MIHOMO_EXTERNAL_UI_DIR:-${state_dir}/ui}"
 
-  state_dir="$(arch_require_path_within "$state_dir" /var/lib/mihomo MIHOMO_STATE_DIR)"
-  arch_require_path_within "$requested" "$state_dir" MIHOMO_EXTERNAL_UI_DIR
+  case "${requested}" in
+    "${state_dir}"|"${state_dir}"/*)
+      printf "%s" "${requested}"
+      ;;
+    *)
+      log_warn "Mihomo service 只允许访问 ${state_dir}；MetaCubeXD UI 目录已改为 ${state_dir}/ui" >&2
+      printf "%s/ui" "${state_dir}"
+      ;;
+  esac
 }
 
 warn_mihomo_exposure() {
@@ -159,16 +166,28 @@ mihomo_test_config_for_service() {
   [[ -n "${config_file}" ]] || die "Mihomo 配置文件为空"
   state_dir="$(mihomo_state_dir)"
 
-  state_dir="$(arch_require_path_within "$state_dir" /var/lib/mihomo MIHOMO_STATE_DIR)"
-
   if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    echo "+ sudo mihomo -t -f ${config_file} -d ${state_dir}"
+    echo "+ sudo install ${config_file} ${state_dir}/config.yaml"
+    echo "+ sudo mihomo -t -d ${state_dir}"
+    echo "+ sudo rm -f ${state_dir}/config.yaml"
     return 0
   fi
 
   require_cmd mihomo
   run_sudo mkdir -p "${state_dir}"
-  run_sudo mihomo -t -f "${config_file}" -d "${state_dir}"
+  if [[ -r "${config_file}" ]]; then
+    run_sudo install -m 0600 "${config_file}" "${state_dir}/config.yaml"
+  else
+    run_sudo install -m 0600 "${config_file}" "${state_dir}/config.yaml"
+  fi
+
+  if run_sudo mihomo -t -d "${state_dir}"; then
+    run_sudo rm -f "${state_dir}/config.yaml"
+    return 0
+  fi
+
+  run_sudo rm -f "${state_dir}/config.yaml"
+  return 1
 }
 
 mihomo_service_ready() {

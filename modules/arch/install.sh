@@ -57,7 +57,6 @@ STATUS_VERBOSE=0
 provider_preflight() {
   log_info "执行 Arch 能力运行前检查"
   require_arch
-  require_host_safe_arch_target
   require_cmd pacman
   if [[ "${EUID}" -ne 0 ]]; then
     require_cmd sudo

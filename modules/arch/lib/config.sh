@@ -230,13 +230,6 @@ validate_config() {
   validate_port_var MIHOMO_CONTROLLER_PORT "Mihomo 控制接口"
   [[ "${MIHOMO_DNS_LISTEN:-}" == *:* ]] || die "MIHOMO_DNS_LISTEN 需要包含 host:port"
   validate_source_reference MIHOMO_CONFIG_SOURCE "Mihomo 配置来源"
-  [[ "${MIHOMO_SERVICE_NAME:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_.@:-]*\.service$ ]] || \
-    die "MIHOMO_SERVICE_NAME 必须是合法的 .service 单元名，不能包含路径、选项或换行"
-  MIHOMO_CONFIG_DIR="$(arch_require_path_within "${MIHOMO_CONFIG_DIR:-/etc/mihomo}" /etc/mihomo MIHOMO_CONFIG_DIR)"
-  MIHOMO_CONFIG_FILE="$(arch_require_path_within "${MIHOMO_CONFIG_FILE:-/etc/mihomo/config.yaml}" "$MIHOMO_CONFIG_DIR" MIHOMO_CONFIG_FILE)"
-  if [[ -n "${MIHOMO_STATE_DIR:-}" ]]; then
-    MIHOMO_STATE_DIR="$(arch_require_path_within "$MIHOMO_STATE_DIR" /var/lib/mihomo MIHOMO_STATE_DIR)"
-  fi
 	if [[ "${MIHOMO_ALLOW_LAN:-0}" -ne 1 ]]; then
 		[[ "${MIHOMO_BIND_ADDRESS:-127.0.0.1}" != "0.0.0.0" ]] || die "MIHOMO_BIND_ADDRESS=0.0.0.0 需要同时启用 MIHOMO_ALLOW_LAN"
 		[[ "${MIHOMO_CONTROLLER_HOST:-127.0.0.1}" != "0.0.0.0" ]] || die "MIHOMO_CONTROLLER_HOST=0.0.0.0 需要同时启用 MIHOMO_ALLOW_LAN"

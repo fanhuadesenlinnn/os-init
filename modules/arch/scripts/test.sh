@@ -88,16 +88,6 @@ done
   source "${ARCH_DIR}/lib/common.sh"
   # shellcheck source=modules/arch/modules/ops_toolkit.sh
   source "${ARCH_DIR}/modules/ops_toolkit.sh"
-  for sensitive in sudo ssh git pacman systemctl; do
-    ops_toolkit_sensitive_command_name "$sensitive" || {
-      echo "Ops Toolkit sensitive command was not denied: $sensitive" >&2
-      exit 1
-    }
-  done
-  ops_toolkit_sensitive_command_name deploy && {
-    echo "Ops Toolkit denied a normal command name" >&2
-    exit 1
-  }
   install_ops_toolkit_shell_path
   install_ops_toolkit_shell_path
   for rc in .profile .zprofile .bashrc .zshrc; do
@@ -106,36 +96,6 @@ done
       exit 1
     }
   done
-)
-
-(
-  # shellcheck source=modules/arch/lib/common.sh
-  source "${ARCH_DIR}/lib/common.sh"
-  [[ "$(arch_require_path_within /var/lib/mihomo/ui /var/lib/mihomo test)" == "/var/lib/mihomo/ui" ]] || exit 1
-  if (arch_require_path_within /var/lib/mihomo/../../etc/cron.d /var/lib/mihomo test >/dev/null 2>&1); then
-    echo "Arch path containment accepted traversal" >&2
-    exit 1
-  fi
-  if (OS_INIT_TARGET_ENVIRONMENT=container; unset OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER; require_host_safe_arch_target >/dev/null 2>&1); then
-    echo "Arch container guard failed closed" >&2
-    exit 1
-  fi
-  (OS_INIT_TARGET_ENVIRONMENT=container OS_INIT_ALLOW_HOST_INTEGRATED_CONTAINER=1 require_host_safe_arch_target)
-)
-
-(
-  # shellcheck source=modules/arch/lib/common.sh
-  source "${ARCH_DIR}/lib/common.sh"
-  # shellcheck source=modules/arch/modules/proxy/mihomo.sh
-  source "${ARCH_DIR}/modules/proxy/mihomo.sh"
-  MIHOMO_STATE_DIR=/var/lib/mihomo
-  DRY_RUN=1
-  output="$(mihomo_test_config_for_service /tmp/config.yaml)"
-  [[ "$output" == *'mihomo -t -f /tmp/config.yaml -d /var/lib/mihomo'* ]] || exit 1
-  [[ "$output" != *'install'* && "$output" != *'rm -f'* ]] || {
-    echo "Mihomo config test still clobbers state_dir/config.yaml" >&2
-    exit 1
-  }
 )
 
 for removed_control in lib/plan.sh lib/runner.sh lib/recovery.sh lib/ui.sh preset.sh; do

@@ -259,7 +259,7 @@ func moduleMatchesTarget(m Module, target platform.Target) bool {
 				return false
 			}
 		case "systemd":
-			if target.Init != "systemd" || target.Environment == platform.EnvironmentContainer {
+			if target.Init != "systemd" {
 				return false
 			}
 		case "native-linux":
@@ -267,8 +267,7 @@ func moduleMatchesTarget(m Module, target platform.Target) bool {
 				return false
 			}
 		case "native-or-wsl2":
-			if target.Environment == platform.EnvironmentContainer ||
-				(target.Environment == platform.EnvironmentWSL && target.WSLVersion != 2) {
+			if target.Environment == platform.EnvironmentWSL && target.WSLVersion != 2 {
 				return false
 			}
 		case "wsl":
