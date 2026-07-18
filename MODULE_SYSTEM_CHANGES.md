@@ -16,7 +16,7 @@
 - Go 控制面统一负责平台过滤、依赖展开、生命周期校验、执行顺序、日志和汇总；Shell 模块统一通过 provider 协议接收 script、operation 和 component。
 - 模块、组合预设和一次性操作具有独立语义。组合预设不进入执行队列，不支持的更新/卸载操作会在执行前阻止。
 - 安装状态使用可组合的命令、路径、文件内容、Homebrew、systemd、用户组和 Shell 管理块检查。
-- TUI 会根据选中的模块判断是否需要系统权限；普通 macOS Homebrew formula/cask 模块不会提前触发 `sudo -v`。
+- TUI 会根据选中的模块判断是否需要系统权限；优先用 `sudo -n true` 验证已有的免密权限或凭据缓存，仅在需要密码时触发 `sudo -v`。普通 macOS Homebrew formula/cask 模块不会提前验证 sudo。
 - Linux 系统优化、Docker、Mihomo、写入 `/usr/local`、`/opt`、`/etc` 或 systemd 的模块会提前校验 sudo，避免脚本中途隐藏式等待密码。
 - 脚本内部使用非交互式 sudo；如果 sudo 缓存失效，会失败并提示，而不是卡在不可见的密码输入处。
 - 单个脚本执行默认最多运行 `45m`，可通过 `OS_INIT_SCRIPT_TIMEOUT` 调整；设置为 `0` 可关闭该限制。

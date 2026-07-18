@@ -45,13 +45,25 @@ func Prime() (cancel func()) {
 // must run this through tea.ExecProcess so the terminal leaves raw/AltScreen mode
 // while the password prompt is active.
 func PrimeCommand() (*exec.Cmd, bool) {
-	if os.Geteuid() == 0 {
+	return primeCommandForUID(os.Geteuid())
+}
+
+func primeCommandForUID(effectiveUID int) (*exec.Cmd, bool) {
+	if effectiveUID == 0 {
 		return nil, false
 	}
-	if _, err := exec.LookPath("sudo"); err != nil {
+	sudoPath, err := exec.LookPath("sudo")
+	if err != nil {
 		return nil, false
 	}
-	return exec.Command("sudo", "-v", "-p", text("请输入 sudo 密码以继续: ", "Enter sudo password to continue: ")), true
+
+	// Validate a concrete command first. Some environments (notably OrbStack)
+	// grant NOPASSWD for commands while `sudo -v` still requires a password.
+	if err := exec.Command(sudoPath, "-n", "true").Run(); err == nil {
+		return exec.Command(sudoPath, "-n", "true"), true
+	}
+
+	return exec.Command(sudoPath, "-v", "-p", text("请输入 sudo 密码以继续: ", "Enter sudo password to continue: ")), true
 }
 
 // StartKeepAlive keeps the sudo timestamp warm after a successful PrimeCommand.

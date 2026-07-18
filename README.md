@@ -88,7 +88,7 @@ tar xzf os-init_darwin_arm64.tar.gz
   --junit reports/all.xml
 ```
 
-会修改系统的非交互命令必须显式提供 `--yes`。命令不会读取或存储 sudo 密码；普通用户运行系统模块前应执行 `sudo -v`，CI 应使用 `sudo -n` 可通过的临时环境。`--quiet` 只关闭实时输出，完整日志仍写入 `logs/`。
+会修改系统的非交互命令必须显式提供 `--yes`。命令不会读取或存储 sudo 密码；TUI 会优先执行 `sudo -n true` 验证已有的免密权限或凭据缓存，仅在需要时调用 `sudo -v` 提示输入密码。无交互命令和 CI 应使用 `sudo -n true` 可通过的临时环境。`--quiet` 只关闭实时输出，完整日志仍写入 `logs/`。
 
 `module list --format json` 同时输出每个模块的 GitHub 自动化范围：`container`、`hosted`、`manual`，以及 `full`、`install-only` 或 `plan-only` 生命周期。网络队列、Arch DNS 和图形桌面等可能中断 Runner 或需要图形硬件的模块不会被误报为完整自动化通过。
 

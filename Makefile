@@ -1,7 +1,7 @@
 .PHONY: build run lint test lib-strategy-test mise-strategy-test arch-rime-strategy-test wsl-strategy-test release-strategy-test headless-contract-test arch-test distro-contract-test check clean
 
 BINARY ?= os-init
-VERSION ?= 1.3.8
+VERSION ?= 1.3.9
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 
 build:
