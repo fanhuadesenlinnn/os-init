@@ -395,7 +395,7 @@ func (m Module) PrimaryCommand() string {
 // then runs a command in that environment. This prevents a system Python or
 // Go on PATH from being mistaken for a mise-managed runtime.
 func MiseToolExec(tool string, args ...string) Check {
-	command := `if command -v mise >/dev/null 2>&1; then m=mise; elif [ -x "$HOME/.local/bin/mise" ]; then m="$HOME/.local/bin/mise"; else exit 127; fi; "$m" which "$1" >/dev/null 2>&1 || exit 1; shift; exec "$m" exec -- "$@"`
+	command := `home="$HOME"; [ -n "$home" ] || exit 1; cd "$home" || exit 1; unset MISE_CONFIG_FILE MISE_TRUSTED_CONFIG_PATHS MISE_NODE_VERSION MISE_PYTHON_VERSION MISE_GO_VERSION; export HOME="$home" XDG_CONFIG_HOME="$home/.config" MISE_CONFIG_DIR="$home/.config/mise" MISE_GLOBAL_CONFIG_FILE="$home/.config/mise/config.toml" MISE_DATA_DIR="$home/.local/share/mise" MISE_CEILING_PATHS="$home"; if command -v mise >/dev/null 2>&1; then m=mise; elif [ -x "$home/.local/bin/mise" ]; then m="$home/.local/bin/mise"; else exit 127; fi; "$m" which "$1" >/dev/null 2>&1 || exit 1; shift; exec "$m" exec -- "$@"`
 	values := []string{"sh", "-c", command, "mise-runtime", tool}
 	values = append(values, args...)
 	return CommandRun(values...)
